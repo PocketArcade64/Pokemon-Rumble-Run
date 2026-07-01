@@ -29,7 +29,10 @@ Pokémon alternatives
 
 To keep it feeling like classic Crossy Road, the key rule is: the player still only hops, swipes, and times movement. 
 
-Collect coins along the way to use in a gum ball machine that dispenses Poke balls with new playable characters (poke ball - basic pokemon, great ball - stage 1, ultra ball - stage 3, Masterball - legendary/mythical)
+Collect coins along the way to use in a gum ball machine for 50 coins that dispenses Poke balls with new playable characters (poke ball - basic pokemon, great ball - stage 1, ultra ball - stage 3, Masterball - legendary/mythical)
+
+While you are playing as a pokemon, if you reach 1000 score with that selected character, you unlock its shiny form which has a 50% chance to double every coin you pick up. 
+Shiny Legendaries instead of having a 50% chance to double coins, there is a 1/10 chance to find a blue coin which is worth 2 coins and a 1/25 chance to find a red coin which is worth 10 (please calculate the math on this to ensure it is slightly better output than regular shinies)
 
 Each pokemon type has a cooldown based ability that recharges based on progress steps taken forward 
 - Fire – Move through one fire or lava hazard without stopping once per cooldown.
