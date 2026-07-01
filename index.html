@@ -4,8 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Pokemon Rumble Run</title>
-<!-- Web icon (favicon) uses the logo; home-screen icon on iOS uses apple-touch-icon.jpg -->
-<link rel="icon" type="image/png" href="logo.png" />
+<!-- Web icon (favicon): a JPG works fine, it does not have to be a PNG. Uses your apple-touch-icon.jpg. -->
+<link rel="icon" href="apple-touch-icon.jpg" />
 <link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Rumble Run" />
@@ -36,7 +36,9 @@
     padding: max(0.6rem, env(safe-area-inset-top)) 1rem 0.5rem;
     z-index: 5; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.6);
   }
-  #hud .hud-left, #hud .hud-right { display: flex; gap: 0.5rem; align-items: center; }
+  #hud .hud-left { display: flex; align-items: flex-start; }
+  #hud .hud-right { display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; }
+  .hud-score { font-size: clamp(2rem, 9vw, 3.2rem); font-weight: bold; line-height: 1; }
   .hud-pill {
     background: rgba(0,0,0,0.35); border-radius: 999px; padding: 0.35rem 0.9rem;
     font-size: clamp(1rem, 4vw, 1.4rem); font-weight: bold; display: flex; gap: 0.4rem; align-items: center;
@@ -71,6 +73,9 @@
     border: none; border-radius: 12px; padding: 0.7rem 1.5rem; cursor: pointer;
     box-shadow: 0 4px 0 #b8860b; transition: transform 0.05s ease; min-width: 120px;
   }
+  button { transition: transform 0.05s ease, filter 0.12s ease, background 0.12s ease; }
+  /* Hover slightly shifts every button's color */
+  button:hover:not(:disabled) { filter: brightness(1.12) saturate(1.15); }
   button:active { transform: translateY(3px); box-shadow: 0 1px 0 #b8860b; }
   button:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: 0 4px 0 #555; background: #999; }
   button.secondary { background: linear-gradient(180deg, #cfd8dc, #90a4ae); box-shadow: 0 4px 0 #546e7a; color: #1a1d24; }
@@ -157,36 +162,62 @@
   #menu-coins-pill { background: rgba(0,0,0,0.4); border-radius: 999px; padding: 0.3rem 1rem; }
   .menu-buttons { margin-top: auto; margin-bottom: 4vh; }
 
-  /* Play button with an embedded 3D render of the selected Pokemon */
-  #btn-play { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.6rem; overflow: hidden; min-height: 64px; }
-  #play-pokemon-canvas { width: 58px; height: 58px; display: block; }
-  #btn-play .play-label { font-size: 1.3rem; }
+  /* Play button: label on the left, embedded 3D Pokemon on the right */
+  #btn-play { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.7rem; overflow: hidden; min-height: 64px; }
+  #play-pokemon-canvas { width: 58px; height: 58px; display: block; order: 2; }
+  #btn-play .play-label { font-size: 1.4rem; order: 1; }
   #btn-play.jump #play-pokemon-canvas { animation: mini-jump 0.6s ease-in-out infinite; }
   @keyframes mini-jump { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  #menu-selected { min-height: 1.2rem; color: #ffd54f; font-size: 0.9rem; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+
+  /* ---- Character select ---- */
+  .select-toggles { display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
+  .toggle-btn { font-size: 0.8rem; padding: 0.4rem 0.9rem; min-width: 0; background: linear-gradient(180deg,#cfd8dc,#90a4ae); box-shadow: 0 3px 0 #546e7a; color:#1a1d24; }
+  .toggle-btn.on { background: linear-gradient(180deg,#ffe082,#ffca28); box-shadow: 0 3px 0 #b8860b; }
+  .toggle-btn:disabled { opacity: 0.4; }
 
   /* ---- Character select: 5-column grid, 100 slots ---- */
   #roster-grid {
     display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem;
-    width: min(94vw, 460px); max-height: 34vh; overflow-y: auto; padding: 0.5rem;
+    width: min(94vw, 460px); max-height: 30vh; overflow-y: auto; overflow-x: hidden; padding: 0.5rem;
     background: rgba(0,0,0,0.28); border-radius: 12px;
   }
   .slot {
-    aspect-ratio: 1 / 1; border: 2px solid transparent; border-radius: 9px; cursor: pointer;
+    min-width: 0; height: 72px; border: 2px solid transparent; border-radius: 9px; cursor: pointer;
     background: rgba(255,255,255,0.07); color: #fff; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 2px; font-size: 0.5rem; padding: 2px; overflow: hidden;
+    align-items: center; justify-content: center; gap: 3px; font-size: 0.55rem; padding: 2px; overflow: hidden;
   }
   .slot.selected { border-color: #ffd54f; background: rgba(255,213,79,0.22); }
   .slot.locked { color: #6b7280; }
   .slot.empty { background: rgba(255,255,255,0.03); border-style: dashed; border-color: rgba(255,255,255,0.08); cursor: default; color: #4b5563; }
-  .slot .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); }
+  .slot .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); flex: 0 0 auto; }
   .slot.locked .dot { background: #14161c !important; border-color: #3a3f4a; }
-  .slot .nm { line-height: 1.1; text-align: center; word-break: break-word; }
+  .slot .nm { line-height: 1.1; text-align: center; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
-  /* ---- Coins (rotating icons in How to Play + gacha) ---- */
-  .coin-spin { width: 34px; height: 34px; image-rendering: auto; animation: coin-rot 1.6s linear infinite; }
-  @keyframes coin-rot { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(360deg); } }
+  /* ---- Coins: flip on the X axis so the sprite stays visible (a real spin would go edge-on) ---- */
+  .coin-spin { width: 34px; height: 34px; animation: coin-rot 1.4s ease-in-out infinite; }
+  @keyframes coin-rot { 0%,100% { transform: scaleX(1); } 25% { transform: scaleX(0.1); } 50% { transform: scaleX(-1); } 75% { transform: scaleX(0.1); } }
   .howto-coins { display: flex; gap: 1.4rem; justify-content: center; align-items: center; margin: 0.5rem 0; }
   .howto-coins .c { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; font-size: 0.72rem; }
+
+  /* Silkscreen's "%" glyph is cramped — render percent signs in a clean fallback font. */
+  .pct { font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; letter-spacing: 0; }
+
+  /* ---- How to Play tabs ---- */
+  .howto-tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: center; margin-bottom: 0.6rem; }
+  .howto-tab { font-size: 0.7rem; padding: 0.35rem 0.7rem; min-width: 0; background: linear-gradient(180deg,#cfd8dc,#90a4ae); box-shadow: 0 3px 0 #546e7a; color:#1a1d24; }
+  .howto-tab.on { background: linear-gradient(180deg,#ffe082,#ffca28); box-shadow: 0 3px 0 #b8860b; }
+  .howto-section { display: none; }
+  .howto-section.on { display: block; }
+
+  /* ---- Pixel-art styled scrollbars ---- */
+  * { scrollbar-width: thin; scrollbar-color: #ffca28 #2b2f3a; }
+  ::-webkit-scrollbar { width: 14px; height: 14px; }
+  ::-webkit-scrollbar-track { background: #2b2f3a; border: 3px solid #14161c; }
+  ::-webkit-scrollbar-thumb { background: #ffca28; border: 3px solid #14161c; box-shadow: inset -2px -2px 0 #b8860b, inset 2px 2px 0 #fff3c4; }
+  ::-webkit-scrollbar-thumb:hover { background: #ffd54f; }
+  ::-webkit-scrollbar-button { background: #90a4ae; border: 3px solid #14161c; height: 14px; width: 14px; }
+  ::-webkit-scrollbar-corner { background: #14161c; }
 
   /* ---- Developer / reset keypad ---- */
   #screen-dev .panel { max-width: min(96vw, 520px); }
@@ -224,10 +255,10 @@
 
   <div id="hud" class="hidden">
     <div class="hud-left">
-      <div class="hud-pill"><img class="hud-coin" src="Pokemon%203D%20Models/Poke%20Coins/poke_silver.png" alt="coins" style="width:1.3em;height:1.3em;object-fit:contain;" /> <span id="coin-count">0</span></div>
-      <div class="hud-pill">Lanes <span id="score-count">0</span></div>
+      <div id="score-count" class="hud-score">0</div>
     </div>
     <div class="hud-right">
+      <div class="hud-pill"><img class="hud-coin" src="Pokemon%203D%20Models/Poke%20Coins/poke_silver.png" alt="coins" style="width:1.3em;height:1.3em;object-fit:contain;" /> <span id="coin-total">0</span></div>
       <button id="btn-pause" title="Pause">| |</button>
     </div>
   </div>
@@ -236,9 +267,10 @@
 
   <!-- MAIN MENU (transparent over the live 3D field) -->
   <div id="screen-menu" class="screen">
-    <img id="logo-img" src="logo.png" alt="Pokemon Rumble Run" onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block';" />
+    <img id="logo-img" alt="Pokemon Rumble Run" />
     <div id="logo-fallback" style="display:none;">Pokemon Rumble Run</div>
     <div id="menu-coins-pill" class="coin-display"><img class="hud-coin" src="Pokemon%203D%20Models/Poke%20Coins/poke_silver.png" style="width:1.1em;height:1.1em;vertical-align:-2px;" /> <span id="menu-coins">0</span></div>
+    <div id="menu-selected"></div>
     <div class="menu-buttons">
       <button id="btn-play" class="wide"><canvas id="play-pokemon-canvas"></canvas><span class="play-label">Play</span></button>
       <button id="btn-select" class="secondary">Select Pokemon</button>
@@ -254,6 +286,10 @@
     <div id="preview-wrap"><canvas id="preview-canvas"></canvas></div>
     <div id="preview-name">—</div>
     <div id="preview-sub"></div>
+    <div class="select-toggles">
+      <button id="btn-shiny" class="toggle-btn">Shiny: Off</button>
+      <button id="btn-gender" class="toggle-btn">Gender: M</button>
+    </div>
     <div id="roster-grid"></div>
     <div class="screen-buttons">
       <button id="btn-select-back" class="secondary small">Back</button>
@@ -375,6 +411,8 @@ const AHEAD_GEN = 20;
 const BEHIND_KEEP = 14;               // must exceed DEATH_MARGIN so visible lanes aren't pruned
 const DIFFICULTY_MAX_DISTANCE = 300;
 const HOP_DURATION_MS = 140;
+const LAND_H = 0.5;                    // grass/road/rail sit this high; water sits at 0 (a block lower)
+const WATER_STAND = 0.28;             // approx height the player rides at on a water Pokemon
 
 // Auto-scroll (Crossy Road style): the world creeps forward and you die if you fall off the back edge.
 const SCROLL_START_SPEED = 0.85;      // tiles / second at the start of a run
@@ -409,23 +447,27 @@ const ROSTER = [
     modelTargetSize: 1.5, boxSize: [0.9, 0.9, 0.9], unlockedByDefault: false },
   { id: 'venusaur', displayName: 'Venusaur', role: 'player', tier: 'stage3', color: 0x2e8f6e,
     modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0003 Venusaur/Normalm/Venusaur_Normalm.obj',
+    genderPaths: {
+      m: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0003 Venusaur/Normalm/Venusaur_Normalm.obj',
+      f: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0003 Venusaur/Normalf/Venusaur_Normalf.obj',
+    },
     modelTargetSize: 1.7, boxSize: [1.1, 1.0, 1.1], unlockedByDefault: false },
 
   // -------- Road-family car hazards --------
   { id: 'rapidash', displayName: 'Rapidash', role: 'hazard', laneFamily: 'road', color: 0xffa726,
     modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0078 Rapidash/Rapidash.obj',
-    modelTargetSize: 1.7, boxSize: [1.7, 1.0, 0.9], speedRange: [3.0, 4.6], gapMin: 4.2, gapMax: 6.6,
+    modelTargetSize: 1.7, boxSize: [1.7, 1.0, 0.9], speedRange: [4.2, 5.6], gapMin: 4.4, gapMax: 6.8,
     substitute: { id: 'ponyta', chance: 0.05 } },
   { id: 'ponyta', displayName: 'Ponyta', role: 'hazard', laneFamily: 'road', color: 0xffcc80,
     modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0077 Ponyta/Ponyta.obj',
-    modelTargetSize: 1.5, boxSize: [1.5, 0.9, 0.9] },
+    modelTargetSize: 1.5, boxSize: [1.5, 0.9, 0.9], speedRange: [3.0, 4.0] },
   { id: 'dodrio', displayName: 'Dodrio', role: 'hazard', laneFamily: 'road', color: 0x8d6e63,
     modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0085 Dodrio/M/Dodrio_M.obj',
-    modelTargetSize: 1.5, boxSize: [1.2, 1.3, 0.9], speedRange: [2.2, 3.4], gapMin: 3.2, gapMax: 5.0,
+    modelTargetSize: 1.5, boxSize: [1.2, 1.3, 0.9], speedRange: [2.6, 3.6], gapMin: 3.2, gapMax: 5.0,
     substitute: { id: 'doduo', chance: 0.05 } },
   { id: 'doduo', displayName: 'Doduo', role: 'hazard', laneFamily: 'road', color: 0xa1887f,
     modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0084 Doduo/M/Doduo_M.obj',
-    modelTargetSize: 1.2, boxSize: [1.0, 1.1, 0.9] },
+    modelTargetSize: 1.2, boxSize: [1.0, 1.1, 0.9], speedRange: [1.6, 2.4] },
 
   // -------- Rail-family: Tauros stampede (a herd sweeps the lane) --------
   { id: 'tauros', displayName: 'Tauros', role: 'hazard', laneFamily: 'rail', color: 0x6d4c41,
@@ -436,19 +478,19 @@ const ROSTER = [
   // -------- River-family: single-block water crossers (Wailord spans 3) --------
   { id: 'lotad', displayName: 'Lotad', role: 'platform', laneFamily: 'river', color: 0x66bb6a,
     modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (3rd Generation) - #0270 Lotad/Lotad.obj',
-    modelTargetSize: 1.0, boxSize: [0.95, 0.3, 0.95], speedRange: [1.2, 2.2], platformLength: 1, gapMin: 1.1, gapMax: 1.9 },
-  { id: 'wailmer', displayName: 'Wailmer', role: 'platform', laneFamily: 'river', color: 0x1e88e5,
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (3rd Generation) - #0320 Wailmer/Wailmer.obj',
-    modelTargetSize: 1.3, boxSize: [1.1, 0.5, 1.1], speedRange: [1.0, 1.8], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
-  { id: 'lapras', displayName: 'Lapras', role: 'platform', laneFamily: 'river', color: 0x4fc3f7,
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0131 Lapras/Lapras.obj',
-    modelTargetSize: 1.3, boxSize: [1.1, 0.6, 1.1], speedRange: [1.0, 1.8], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
+    modelTargetSize: 1.0, boxSize: [0.95, 0.3, 0.95], speedRange: [1.7, 2.5], platformLength: 1, gapMin: 1.1, gapMax: 1.9 },
   { id: 'mantine', displayName: 'Mantine', role: 'platform', laneFamily: 'river', color: 0x26c6da,
     modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (2nd Generation) - #0226 Mantine/Mantine.obj',
-    modelTargetSize: 1.4, boxSize: [1.2, 0.4, 1.1], speedRange: [1.4, 2.4], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
+    modelTargetSize: 1.4, boxSize: [1.2, 0.4, 1.1], speedRange: [1.4, 2.2], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
+  { id: 'lapras', displayName: 'Lapras', role: 'platform', laneFamily: 'river', color: 0x4fc3f7,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0131 Lapras/Lapras.obj',
+    modelTargetSize: 1.3, boxSize: [1.1, 0.6, 1.1], speedRange: [1.05, 1.6], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
+  { id: 'wailmer', displayName: 'Wailmer', role: 'platform', laneFamily: 'river', color: 0x1e88e5,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (3rd Generation) - #0320 Wailmer/Wailmer.obj',
+    modelTargetSize: 1.3, boxSize: [1.1, 0.5, 1.1], speedRange: [0.85, 1.35], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
   { id: 'wailord', displayName: 'Wailord', role: 'platform', laneFamily: 'river', color: 0x1565c0,
     modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (3rd Generation) - #0321 Wailord/Wailord.obj',
-    modelTargetSize: 3.0, boxSize: [2.8, 0.6, 1.2], speedRange: [0.8, 1.4], platformLength: 3, gapMin: 1.8, gapMax: 2.8 },
+    modelTargetSize: 3.0, boxSize: [2.8, 0.6, 1.2], speedRange: [0.6, 1.0], platformLength: 3, gapMin: 2.0, gapMax: 3.0 },
 
   // -------- Decor & coin (simple cubes) --------
   { id: 'rock', displayName: 'Rock', role: 'decor', color: 0x9e9e9e, modelPath: null, boxSize: [0.85, 0.7, 0.85] },
@@ -509,9 +551,11 @@ const gameState = {
   mode: 'menu',
   selectedPokemonId: 'bulbasaur',
   previewId: 'bulbasaur',
-  player: { gridX: 0, gridZ: 0, isMoving: false, tween: null, group: null, tier: 'basic', shinyUnlocked: false },
+  selectedShiny: false, selectedGender: 'm',
+  player: { gridX: 0, gridZ: 0, isMoving: false, tween: null, group: null, tier: 'basic', isShiny: false, ridingPlatform: null },
   distance: 0, coinsThisRun: 0,
   lanes: new Map(), nextLaneZ: 0, familyHistory: [], laneGroup: null,
+  blockedTiles: new Set(),
   scrollZ: 0, scrollActive: false,
   paused: false, countdownUntil: 0,
   startForest: null,
@@ -733,23 +777,29 @@ function applyShiny(object3d) {
 }
 
 // Entity factory: instant cube placeholder, hot-swap to the real model when it loads.
-function createEntityObject(entryId, { shiny = false } = {}) {
+// `modelPath` overrides the entry's default (used for gender variants).
+function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
   const entry = rosterById[entryId];
+  const path = modelPath || entry.modelPath;
   const group = new THREE.Group();
   group.userData.rosterId = entryId;
+  // Inner "wobble" pivot so obstacles can rock/bob without disturbing the group's facing rotation.
+  const wob = new THREE.Group();
+  group.add(wob);
+  group.userData.wob = wob;
   const cube = makeCubeMesh(entry, shiny ? 0xffd54f : undefined);
-  group.add(cube);
-  if (entry.modelPath) {
-    loadModelOrNull(entry.modelPath).then(model => {
+  wob.add(cube);
+  if (path) {
+    loadModelOrNull(path).then(model => {
       if (!model || group.userData.destroyed) return;
       const inst = model.clone(true);
       inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
       normalizeModel(inst, entry.modelTargetSize ?? Math.max(...entry.boxSize));
       if (shiny) applyShiny(inst);
-      group.remove(cube); group.add(inst);
+      wob.remove(cube); wob.add(inst);
     });
   } else if (shiny) {
-    addSparkle(group);
+    addSparkle(wob);
   }
   return group;
 }
@@ -776,12 +826,24 @@ function pickLaneType(distance) {
 /* ============================== K: LANE GENERATION ============================== */
 function freeXPositions(exclude = []) { const xs = []; for (let x = -GRID_HALF; x <= GRID_HALF; x++) if (!exclude.includes(x)) xs.push(x); return xs; }
 
+function surfaceY(z) {
+  const lane = gameState.lanes.get(z);
+  if (lane && lane.family === 'river') return WATER_STAND;
+  return LAND_H;
+}
+// Land lanes are raised slabs (top at LAND_H); water lanes are a flat plane at 0, a block lower.
 function createLaneGroundMesh(z, family) {
   const safeColor = (z % 2 === 0) ? 0x7ec850 : 0x74bd48;
-  const colors = { safe: safeColor, road: 0x4a4a4a, river: 0x2f7ec9, rail: 0x7a6455 };
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_WIDTH, TILE), new THREE.MeshStandardMaterial({ color: colors[family] || safeColor }));
-  mesh.rotation.x = -Math.PI / 2; mesh.position.set(0, 0, z * TILE); mesh.receiveShadow = true;
-  return mesh;
+  const colors = { safe: safeColor, road: 0x4a4a4a, rail: 0x7a6455 };
+  if (family === 'river') {
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_WIDTH, TILE), new THREE.MeshStandardMaterial({ color: 0x2f7ec9 }));
+    water.rotation.x = -Math.PI / 2; water.position.set(0, 0, z * TILE); water.receiveShadow = true;
+    return water;
+  }
+  // raised slab drawn in LANE-LOCAL space with its top at local y=0 (the lane.root is lifted to LAND_H)
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(GROUND_WIDTH, LAND_H, TILE), new THREE.MeshStandardMaterial({ color: colors[family] || safeColor }));
+  slab.position.set(0, -LAND_H / 2, z * TILE); slab.receiveShadow = true;
+  return slab;
 }
 function addBoundaryScenery(lane) {
   for (const side of [-1, 1]) {
@@ -822,7 +884,7 @@ function spawnGrassLane(lane) {
 // now expressed as a visible silver / gold / L sprite).
 function rollCoinType() {
   const p = gameState.player;
-  if (p.shinyUnlocked) {
+  if (p.isShiny) {
     if (p.tier === 'legendary') {
       const r = Math.random();
       if (r < 0.04) return 'L';     // 1/25
@@ -842,7 +904,7 @@ function spawnCoin(lane, x, forceType) {
 function spawnRoadLane(lane, ctx, entry) {
   const dir = Math.random() < 0.5 ? 1 : -1;
   const df = difficultyFactor(ctx.distance);
-  const speed = THREE.MathUtils.lerp(entry.speedRange[0], entry.speedRange[1], df);
+  const speed = THREE.MathUtils.lerp(entry.speedRange[0], entry.speedRange[1], df) * (0.85 + Math.random() * 0.3); // per-lane variety
   const gap = THREE.MathUtils.lerp(entry.gapMax, entry.gapMin, df);
   const stride = entry.boxSize[0] + gap;
   const count = Math.max(1, Math.floor((HAZARD_SPAN * 2) / stride));
@@ -858,16 +920,21 @@ function spawnHazardEntity(lane, entry, x, vx) {
   group.position.set(x, 0, lane.z * TILE);
   group.rotation.y = vx >= 0 ? Math.PI / 2 : -Math.PI / 2;
   lane.root.add(group);
-  lane.entities.push({ kind: 'hazard', entry, group, x, vx, halfWidth: entry.boxSize[0] / 2 });
+  lane.entities.push({ kind: 'hazard', entry, group, x, vx, halfWidth: entry.boxSize[0] / 2, walkPhase: Math.random() * Math.PI * 2 });
 }
 function spawnRiverLane(lane, ctx, entry) {
   lane.isWater = true;
   const dir = Math.random() < 0.5 ? 1 : -1;
-  const speed = THREE.MathUtils.lerp(entry.speedRange[0], entry.speedRange[1], difficultyFactor(ctx.distance));
+  const speed = THREE.MathUtils.lerp(entry.speedRange[0], entry.speedRange[1], difficultyFactor(ctx.distance)) * (0.85 + Math.random() * 0.3);
+  // Water Pokemon travel in clusters of 2-3 with a wide gap between clusters.
   let x = -HAZARD_SPAN;
   while (x < HAZARD_SPAN) {
-    spawnPlatformEntity(lane, entry, x, speed * dir);
-    x += entry.platformLength + THREE.MathUtils.lerp(entry.gapMin, entry.gapMax, Math.random());
+    const cluster = 2 + Math.floor(Math.random() * 2);   // 2 or 3
+    for (let c = 0; c < cluster; c++) {
+      spawnPlatformEntity(lane, entry, x, speed * dir);
+      x += entry.platformLength + 0.12;                  // members sit right next to each other
+    }
+    x += THREE.MathUtils.lerp(entry.gapMin, entry.gapMax, Math.random()) + 1.0;  // gap to next cluster
   }
 }
 function spawnPlatformEntity(lane, entry, x, vx) {
@@ -875,7 +942,7 @@ function spawnPlatformEntity(lane, entry, x, vx) {
   group.position.set(x, 0, lane.z * TILE);
   group.rotation.y = vx >= 0 ? Math.PI / 2 : -Math.PI / 2;
   lane.root.add(group);
-  lane.entities.push({ kind: 'platform', entry, group, x, vx, halfWidth: entry.platformLength / 2 });
+  lane.entities.push({ kind: 'platform', entry, group, x, vx, halfWidth: entry.platformLength / 2, bobPhase: Math.random() * Math.PI * 2, bob: 0 });
 }
 function createWarningIndicator(z) {
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_WIDTH, TILE * 0.95), new THREE.MeshBasicMaterial({ color: 0xff1744, transparent: true, opacity: 0 }));
@@ -917,6 +984,7 @@ function generateNextLane() {
   const isGiftLane = z > 0 && z % GIFT_INTERVAL === 0;
   const laneType = isGiftLane ? laneTypesByKey.grass : pickLaneType(distance);
   const lane = newLane(z, laneType.key, laneType.family);
+  lane.root.position.y = (laneType.family === 'river') ? 0 : LAND_H;  // raise land, keep water low
   lane.root.add(createLaneGroundMesh(z, laneType.family));
   laneType.build(lane, { distance });
   if (isGiftLane) {
@@ -945,17 +1013,19 @@ function resetLanes() {
   gameState.nextLaneZ = -(BEHIND_KEEP + 1);
   gameState.familyHistory = [];
 }
-// A dense decorative forest just behind the start so the opening frame shows trees, not empty space.
+// A dense forest just behind the start. Its tiles are recorded as blocked so you can't clip through them.
 function buildStartForest() {
   if (gameState.startForest) scene.remove(gameState.startForest);
   const g = new THREE.Group();
-  for (let z = -3; z >= -14; z--) {
-    for (let x = -GRID_HALF - 2; x <= GRID_HALF + 2; x++) {
-      if (Math.random() < 0.55) continue;
+  g.position.y = LAND_H;  // sits on the raised land
+  for (let z = -2; z >= -14; z--) {
+    for (let x = -GRID_HALF; x <= GRID_HALF; x++) {
+      if (Math.random() < 0.4) continue;
       const t = createEntityObject(Math.random() < 0.75 ? 'tree' : 'rock');
-      t.position.set(x + (Math.random() - 0.5) * 0.5, 0, z + (Math.random() - 0.5) * 0.5);
+      t.position.set(x + (Math.random() - 0.5) * 0.4, 0, z + (Math.random() - 0.5) * 0.4);
       t.rotation.y = Math.random() * Math.PI;
       g.add(t);
+      gameState.blockedTiles.add(x + ',' + z);   // block this tile
     }
   }
   scene.add(g); gameState.startForest = g;
@@ -1012,20 +1082,27 @@ window.addEventListener('orientationchange', () => requestAnimationFrame(() => r
 
 /* ============================== M: PLAYER MOVEMENT ============================== */
 function isTileWalkable(x, z) {
-  if (x < -GRID_HALF || x > GRID_HALF) return false;   // side walls
+  const rx = Math.round(x);
+  if (rx < -GRID_HALF || rx > GRID_HALF) return false;   // side walls
+  if (gameState.blockedTiles.has(rx + ',' + z)) return false;   // start-forest trees
   const lane = gameState.lanes.get(z);
   if (!lane) return true;
-  if (lane.decor.includes(x)) return false;
+  if (lane.decor.includes(rx)) return false;
   return true;
 }
+function faceDir(dx, dz) { const p = gameState.player; if (p.group && (dx || dz)) p.group.rotation.y = Math.atan2(dx, dz); }
 function tryMove(dx, dz) {
   const p = gameState.player;
-  const tx = p.gridX + dx, tz = p.gridZ + dz;
-  if (!isTileWalkable(tx, tz)) { playBumpAnimation(dx, dz); return; }
-  gameState.scrollActive = true;                        // world starts creeping on first move
+  const cx = Math.round(p.gridX);                        // snap off any fractional (water-ride) offset
+  const tx = cx + dx, tz = p.gridZ + dz;
+  if (!isTileWalkable(tx, tz)) { faceDir(dx, dz); playBumpAnimation(dx, dz); return; }  // face the wall even when blocked
+  gameState.scrollActive = true;                         // world starts creeping on first move
   AudioSys.sfx.hop();
+  p.ridingPlatform = null;
   p.isMoving = true;
-  p.tween = { from: { x: p.gridX * TILE, z: p.gridZ * TILE }, to: { x: tx * TILE, z: tz * TILE }, startTime: performance.now(), duration: HOP_DURATION_MS, dx, dz };
+  const fromX = p.group ? p.group.position.x : cx * TILE;
+  p.tween = { from: { x: fromX, z: p.gridZ * TILE }, to: { x: tx * TILE, z: tz * TILE },
+    surfFrom: surfaceY(p.gridZ), surfTo: surfaceY(tz), startTime: performance.now(), duration: HOP_DURATION_MS, dx, dz };
   p.gridX = tx; p.gridZ = tz;
   if (tz > gameState.distance) gameState.distance = tz;
 }
@@ -1043,9 +1120,9 @@ function updatePlayerTween(now) {
   const t = Math.min(1, (now - p.tween.startTime) / p.tween.duration), eased = 1 - Math.pow(1 - t, 3);
   p.group.position.x = THREE.MathUtils.lerp(p.tween.from.x, p.tween.to.x, eased);
   p.group.position.z = THREE.MathUtils.lerp(p.tween.from.z, p.tween.to.z, eased);
-  p.group.position.y = Math.sin(eased * Math.PI) * 0.4;
+  p.group.position.y = THREE.MathUtils.lerp(p.tween.surfFrom, p.tween.surfTo, eased) + Math.sin(eased * Math.PI) * 0.45;
   if (p.tween.dx || p.tween.dz) p.group.rotation.y = Math.atan2(p.tween.dx, p.tween.dz);
-  if (t >= 1) { p.group.position.y = 0; p.isMoving = false; p.tween = null; }
+  if (t >= 1) { p.group.position.y = p.tween.surfTo; p.isMoving = false; p.tween = null; }
 }
 
 /* ============================== N: CAMERA & SCROLL ============================== */
@@ -1085,8 +1162,13 @@ function openGiftBox(lane) {
   }
 }
 function findPlatformUnderTile(lane, x) {
-  for (const ent of lane.entities) if (ent.kind === 'platform' && Math.abs(ent.x - x) <= ent.halfWidth) return ent;
-  return null;
+  let best = null, bd = Infinity;
+  for (const ent of lane.entities) {
+    if (ent.kind !== 'platform') continue;
+    const d = Math.abs(ent.x - x);
+    if (d <= ent.halfWidth + 0.35 && d < bd) { bd = d; best = ent; }   // closest platform, forgiving edge
+  }
+  return best;
 }
 function hazardOverlapsTile(lane, x) {
   const ph = 0.4;
@@ -1102,8 +1184,13 @@ function checkPlayerSafety(dt) {
     if (lane.family === 'river' && !p.isMoving) {
       const platform = findPlatformUnderTile(lane, p.gridX);
       if (!platform) { triggerGameOver('drowned'); return; }
-      p.group.position.x += platform.vx * dt; p.gridX = p.group.position.x / TILE;
-      if (p.group.position.x < (-GRID_HALF - 0.5) || p.group.position.x > (GRID_HALF + 0.5)) { triggerGameOver('drowned'); return; }
+      // Glue to the platform's center so you ride it dead-centered, and stand on top of it.
+      p.ridingPlatform = platform;
+      p.group.position.x = platform.x; p.gridX = platform.x;
+      p.group.position.y = platform.entry.boxSize[1] + (platform.bob || 0);   // ride with the bob
+      if (platform.x < (-GRID_HALF - 0.5) || platform.x > (GRID_HALF + 0.5)) { triggerGameOver('drowned'); return; }
+    } else if (!p.isMoving) {
+      p.group.position.y = LAND_H;   // keep grounded on land
     }
     if ((lane.family === 'road' || lane.family === 'rail') && !p.isMoving && hazardOverlapsTile(lane, p.gridX)) { triggerGameOver('squashed'); return; }
   }
@@ -1120,9 +1207,25 @@ function updateLanes(dt) {
         if (ent.x > bound) { ent.x = -bound; ent.group.position.x = ent.x; }
         if (ent.x < -bound) { ent.x = bound; ent.group.position.x = ent.x; }
       }
+      const wob = ent.group.userData.wob;
+      if (ent.kind === 'hazard') {
+        // Walking gait: rock forward/back (back feet then front feet) plus a small bounce, paced by speed.
+        ent.walkPhase += Math.abs(ent.vx) * dt * 2.2 + dt * 2;
+        if (wob) wob.rotation.x = Math.sin(ent.walkPhase) * 0.22;
+        ent.group.position.y = Math.abs(Math.sin(ent.walkPhase)) * 0.07;
+      } else if (ent.kind === 'platform') {
+        // Subtle bob in the water.
+        ent.bob = Math.sin(performance.now() / 520 + ent.bobPhase) * 0.06;
+        ent.group.position.y = ent.bob;
+        if (wob) wob.rotation.z = Math.sin(performance.now() / 720 + ent.bobPhase) * 0.05;
+      }
     }
     lane.entities = lane.entities.filter(e => lane.root.children.includes(e.group) || e.isSweep);
-    for (const coin of lane.coins) if (!coin.taken) coin.group.rotation.y += dt * 3;
+    const flip = performance.now() / 1000 * 3;
+    for (const coin of lane.coins) if (!coin.taken) {
+      coin.group.quaternion.copy(camera.quaternion);              // face the camera so the sprite always shows
+      coin.group.scale.x = Math.max(0.08, Math.abs(Math.cos(flip + coin.x)));  // coin-flip spin
+    }
     if (lane.gift && !lane.gift.taken) lane.gift.group.rotation.y += dt * 1.1;
   }
   const t = performance.now() / 500;
@@ -1188,12 +1291,13 @@ function loadPreviewModel(id) {
   while (previewHolder.children.length) previewHolder.remove(previewHolder.children[0]);
   const entry = rosterById[id];
   const locked = !gameState.save.unlockedIds.includes(id);
-  const shiny = !locked && !!gameState.save.shinyUnlockedByCharacter[id];
+  const shiny = !locked && gameState.selectedShiny && !!gameState.save.shinyUnlockedByCharacter[id];
+  const path = effectiveModelPath(entry, gameState.selectedGender);
   const holder = new THREE.Group(); previewHolder.add(holder);
   const cube = makeCubeMesh(entry, locked ? 0x0e1014 : undefined); cube.position.y = 0; holder.add(cube);
-  if (entry.modelPath) {
-    loadModelOrNull(entry.modelPath).then(model => {
-      if (!model) return;
+  if (path) {
+    loadModelOrNull(path).then(model => {
+      if (!model || !previewHolder.children.includes(holder)) return;
       const inst = model.clone(true); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
       normalizeModel(inst, 1.7);
       if (locked) blacken(inst); else if (shiny) applyShiny(inst);
@@ -1226,6 +1330,17 @@ function renderRosterGrid() {
     grid.appendChild(cell);
   }
 }
+function updateSelectToggles(id, locked) {
+  const entry = rosterById[id];
+  const shinyBtn = document.getElementById('btn-shiny'), genderBtn = document.getElementById('btn-gender');
+  const shinyUnlocked = !locked && !!gameState.save.shinyUnlockedByCharacter[id];
+  shinyBtn.disabled = !shinyUnlocked;
+  shinyBtn.classList.toggle('on', gameState.selectedShiny && shinyUnlocked);
+  shinyBtn.textContent = 'Shiny: ' + (gameState.selectedShiny && shinyUnlocked ? 'On' : 'Off');
+  const hasGender = !locked && !!entry.genderPaths;
+  genderBtn.style.display = hasGender ? '' : 'none';
+  genderBtn.textContent = 'Gender: ' + (gameState.selectedGender === 'f' ? 'F' : 'M');
+}
 function selectPreview(id, locked) {
   gameState.previewId = id;
   if (!locked) { gameState.selectedPokemonId = id; updatePlayButtonModel(); }
@@ -1236,6 +1351,7 @@ function selectPreview(id, locked) {
     ? `Locked - win it from the Poke Ball Machine`
     : `Tier: ${entry.tier}   -   Best: ${best}${gameState.save.shinyUnlockedByCharacter[id] ? '   -   SHINY' : ''}`;
   document.getElementById('btn-select-start').disabled = locked;
+  updateSelectToggles(id, locked);
   loadPreviewModel(id);
   renderRosterGrid();
 }
@@ -1258,6 +1374,7 @@ function clearField() {
   gameState.lanes.clear();
   if (gameState.player.group) { gameState.player.group.userData.destroyed = true; scene.remove(gameState.player.group); gameState.player.group = null; }
   if (gameState.startForest) { scene.remove(gameState.startForest); gameState.startForest = null; }
+  gameState.blockedTiles.clear();
   gameState.player.gridZ = 0; gameState.player.gridX = 0; gameState.scrollActive = false; gameState.scrollZ = 0;
 }
 function buildMenuDiorama() {
@@ -1298,9 +1415,12 @@ function onMenuClick(e) {
   AudioSys.sfx.click();
   gameState.selectedPokemonId = o.userData.pokemonId;
   updatePlayButtonModel();
+  updateMenuSelected();
   const a = menuAgents.find(x => x.group === o); if (a) a.hopPhase = t2Phase();
-  const lbl = document.querySelector('#btn-play .play-label');
-  if (lbl) { lbl.textContent = rosterById[gameState.selectedPokemonId].displayName; clearTimeout(lbl._t); lbl._t = setTimeout(() => { lbl.textContent = 'Play'; }, 1400); }
+}
+function updateMenuSelected() {
+  const el = document.getElementById('menu-selected');
+  if (el) el.textContent = (rosterById[gameState.selectedPokemonId]?.displayName || '') + ' selected';
 }
 function t2Phase() { return performance.now() / 1000 * 4; }
 canvas.addEventListener('click', onMenuClick);
@@ -1324,13 +1444,15 @@ function updatePlayButtonModel() {
   if (!playHolder) return;
   while (playHolder.children.length) playHolder.remove(playHolder.children[0]);
   const id = gameState.selectedPokemonId, entry = rosterById[id];
+  const shiny = gameState.selectedShiny && !!gameState.save.shinyUnlockedByCharacter[id];
+  const path = effectiveModelPath(entry, gameState.selectedGender);
   const holder = new THREE.Group(); playHolder.add(holder);
   const cube = makeCubeMesh(entry); holder.add(cube);
-  if (entry.modelPath) loadModelOrNull(entry.modelPath).then(m => {
+  if (path) loadModelOrNull(path).then(m => {
     if (!m || !playHolder.children.includes(holder)) return;
     const inst = m.clone(true); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
     normalizeModel(inst, 1.5);
-    if (gameState.save.shinyUnlockedByCharacter[id]) applyShiny(inst);
+    if (shiny) applyShiny(inst);
     holder.remove(cube); holder.add(inst);
   });
 }
@@ -1388,8 +1510,8 @@ function devSubmit() {
 
 /* ============================== R: HUD / PAUSE / COUNTDOWN ============================== */
 function updateHUD() {
-  document.getElementById('coin-count').textContent = gameState.coinsThisRun;
   document.getElementById('score-count').textContent = gameState.distance;
+  document.getElementById('coin-total').textContent = gameState.save.coins + gameState.coinsThisRun; // live running total
 }
 function togglePause() {
   if (gameState.mode !== 'playing') return;
@@ -1431,25 +1553,32 @@ function setMode(next) {
   if (next === 'gacha') { updateGachaCoinDisplays(); document.getElementById('gacha-result').classList.add('hidden'); }
   if (next === 'menu') {
     document.getElementById('menu-coins').textContent = gameState.save.coins;
-    clearField(); buildMenuDiorama(); updatePlayButtonModel();
+    clearField(); buildMenuDiorama(); updatePlayButtonModel(); updateMenuSelected();
   }
   if (next === 'settings') refreshSettingsUI();
   if (next === 'playing') startRun(gameState.selectedPokemonId);
   if (next === 'playing') setTimeout(() => document.getElementById('touch-hint').classList.add('hidden'), 3500);
 }
 function isTouchDevice() { return 'ontouchstart' in window || navigator.maxTouchPoints > 0; }
+// Resolve a character's model path for the chosen gender (falls back to the default model).
+function effectiveModelPath(entry, gender) {
+  if (entry.genderPaths && entry.genderPaths[gender]) return entry.genderPaths[gender];
+  return entry.modelPath;
+}
 function startRun(pokemonId) {
   const entry = rosterById[pokemonId];
-  const shinyUnlocked = !!gameState.save.shinyUnlockedByCharacter[pokemonId];
+  const shiny = gameState.selectedShiny && !!gameState.save.shinyUnlockedByCharacter[pokemonId];
   resetLanes();
+  gameState.blockedTiles.clear();
   if (gameState.player.group) { gameState.player.group.userData.destroyed = true; scene.remove(gameState.player.group); }
   gameState.player.gridX = 0; gameState.player.gridZ = 0; gameState.player.isMoving = false; gameState.player.tween = null;
-  gameState.player.tier = entry.tier; gameState.player.shinyUnlocked = shinyUnlocked;
+  gameState.player.ridingPlatform = null;
+  gameState.player.tier = entry.tier; gameState.player.isShiny = shiny;
   gameState.distance = 0; gameState.coinsThisRun = 0;
   gameState.scrollZ = 0; gameState.scrollActive = false;
   gameState.paused = false; gameState.countdownUntil = 0;
-  const group = createEntityObject(pokemonId, { shiny: shinyUnlocked });
-  group.position.set(0, 0, 0); scene.add(group); gameState.player.group = group;
+  const group = createEntityObject(pokemonId, { shiny, modelPath: effectiveModelPath(entry, gameState.selectedGender) });
+  group.position.set(0, LAND_H, 0); scene.add(group); gameState.player.group = group;
   cameraFollowZ = 0;
   maintainLaneWindow();
   buildStartForest();
@@ -1482,54 +1611,64 @@ function triggerGameOver() {
 /* ============================== T: HOW TO PLAY / SETTINGS ============================== */
 function buildHowTo() {
   const el = document.getElementById('howto-panel');
+  const P = n => `${n}<span class="pct">%</span>`;
   const balls = BALL_TIERS.map(b => {
     const total = BALL_TIERS.reduce((s, x) => s + x.weight, 0);
     const pct = Math.round(b.weight / total * 100);
     const label = { basic: 'Basic Pokemon', stage1: 'Stage-1 Pokemon', stage3: 'Stage-3 Pokemon', legendary: 'Legendary / Mythical' }[b.tier];
-    return `<li style="background:rgba(255,255,255,0.05)"><span><span class="swatch" style="background:${hexColor(b.color)}"></span>${b.ball} - ${label}</span><span>${pct}%</span></li>`;
+    return `<li style="background:rgba(255,255,255,0.05)"><span><span class="swatch" style="background:${hexColor(b.color)}"></span>${b.ball} - ${label}</span><span>${P(pct)}</span></li>`;
   }).join('');
   const coinImg = (k, cap) => `<div class="c"><img class="coin-spin" src="${encodePath(COIN_TYPES[k].tex)}" alt="${cap}"/><span>${cap}</span></div>`;
-  el.innerHTML = `
-    <h3>Move</h3>
-    <div class="row"><div class="keys-grid">
-      <span></span><span class="key">UP</span><span></span>
-      <span class="key">LT</span><span class="key">DN</span><span class="key">RT</span>
-    </div>
-    <div>Arrow keys hop one tile. <span class="key wide">Space</span> also hops forward.</div></div>
-    <div class="row"><div>On mobile: <b>swipe</b> to move in a direction, <b>tap</b> to hop forward.</div></div>
-    <h3>Stay On Screen</h3>
-    <div class="row"><div>The field slowly scrolls forward and speeds up over time. Keep moving - if you fall off the back edge, your run ends. You may step backward, but don't get left behind.</div></div>
-    <h3>Hazards</h3>
-    <div class="row"><div>Roads: dodge charging Pokemon like Rapidash and Dodrio.<br/>Rivers: ride Pokemon across the water - miss and you sink.<br/>Stampede lanes flash red, then a Tauros herd charges through.</div></div>
-    <h3>Coins</h3>
-    <div class="howto-coins">
-      ${coinImg('silver', 'Silver = 1')}
-      ${coinImg('gold', 'Gold = 2')}
-      ${coinImg('L', 'Poke L = 10')}
-    </div>
-    <div class="row"><div>Every 100 lanes a gift box appears - run into it to scatter 5 coins across the lanes just ahead.</div></div>
-    <h3>Poke Ball Machine</h3>
-    <div class="row"><div>Spend <b>${GACHA_COST} coins</b> per pull for a random ball containing a new playable Pokemon:</div></div>
-    <ul class="rarity-list">${balls}</ul>
-    <h3>Shiny Forms</h3>
-    <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its shiny form.<br/>
-    - Shiny: <b>20% chance</b> for a gold coin (worth 2) instead of silver.<br/>
-    - Shiny Legendary: <b>1/10</b> chance for gold (worth 2) and <b>1/25</b> chance for a Poke L (worth 10).</div></div>`;
+  // Tabbed topics
+  const tabs = [
+    { id: 'controls', name: 'Controls', html: `
+      <div class="row"><div class="keys-grid">
+        <span></span><span class="key">UP</span><span></span>
+        <span class="key">LT</span><span class="key">DN</span><span class="key">RT</span>
+      </div>
+      <div>Arrow keys hop one tile. <span class="key wide">Space</span> also hops forward.</div></div>
+      <div class="row"><div>On mobile: <b>swipe</b> to move in a direction, <b>tap</b> to hop forward.</div></div>
+      <div class="row"><div>The field slowly scrolls forward and speeds up. Keep moving - fall off the back edge and your run ends. You may step backward, but don't get left behind.</div></div>` },
+    { id: 'hazards', name: 'Hazards', html: `
+      <div class="row"><div><b>Roads:</b> dodge charging Pokemon like Rapidash and Dodrio.</div></div>
+      <div class="row"><div><b>Rivers:</b> ride the water Pokemon across - miss and you sink.</div></div>
+      <div class="row"><div><b>Stampede:</b> the lane flashes red, then a Tauros herd charges through.</div></div>` },
+    { id: 'coins', name: 'Coins', html: `
+      <div class="howto-coins">${coinImg('silver', 'Silver = 1')}${coinImg('gold', 'Gold = 2')}${coinImg('L', 'Poke L = 10')}</div>
+      <div class="row"><div>Every 100 lanes a gift box appears - run into it to scatter 5 coins across the lanes just ahead.</div></div>` },
+    { id: 'balls', name: 'Poke Balls', html: `
+      <div class="row"><div>Spend <b>${GACHA_COST} coins</b> per pull at the Poke Ball Machine for a random ball with a new playable Pokemon:</div></div>
+      <ul class="rarity-list">${balls}</ul>` },
+    { id: 'shiny', name: 'Shinies', html: `
+      <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its shiny form.</div></div>
+      <div class="row"><div>Shiny: <b>${P(20)}</b> chance for a gold coin (worth 2) instead of silver.</div></div>
+      <div class="row"><div>Shiny Legendary: <b>1/10</b> chance for gold (worth 2) and <b>1/25</b> chance for a Poke L (worth 10).</div></div>` },
+  ];
+  el.innerHTML =
+    `<div class="howto-tabs">${tabs.map((t, i) => `<button class="howto-tab${i === 0 ? ' on' : ''}" data-tab="${t.id}">${t.name}</button>`).join('')}</div>` +
+    tabs.map((t, i) => `<div class="howto-section${i === 0 ? ' on' : ''}" id="howto-${t.id}">${t.html}</div>`).join('');
+  el.querySelectorAll('.howto-tab').forEach(btn => btn.addEventListener('click', () => {
+    AudioSys.sfx.click();
+    el.querySelectorAll('.howto-tab').forEach(b => b.classList.toggle('on', b === btn));
+    el.querySelectorAll('.howto-section').forEach(s => s.classList.toggle('on', s.id === 'howto-' + btn.dataset.tab));
+  }));
 }
 function refreshSettingsUI() {
   const m = Math.round((gameState.save.musicVol ?? 0.5) * 100);
   const s = Math.round((gameState.save.sfxVol ?? 0.7) * 100);
-  document.getElementById('set-music').value = m; document.getElementById('set-music-val').textContent = m + '%';
-  document.getElementById('set-sfx').value = s; document.getElementById('set-sfx-val').textContent = s + '%';
+  const pctHTML = v => v + '<span class="pct">%</span>';
+  document.getElementById('set-music').value = m; document.getElementById('set-music-val').innerHTML = pctHTML(m);
+  document.getElementById('set-sfx').value = s; document.getElementById('set-sfx-val').innerHTML = pctHTML(s);
 }
 function wireSettings() {
+  const pctHTML = v => v + '<span class="pct">%</span>';
   const music = document.getElementById('set-music'), sfx = document.getElementById('set-sfx');
   music.addEventListener('input', () => {
-    gameState.save.musicVol = music.value / 100; document.getElementById('set-music-val').textContent = music.value + '%';
+    gameState.save.musicVol = music.value / 100; document.getElementById('set-music-val').innerHTML = pctHTML(music.value);
     AudioSys.applyVolumes(); persistSave();
   });
   sfx.addEventListener('input', () => {
-    gameState.save.sfxVol = sfx.value / 100; document.getElementById('set-sfx-val').textContent = sfx.value + '%';
+    gameState.save.sfxVol = sfx.value / 100; document.getElementById('set-sfx-val').innerHTML = pctHTML(sfx.value);
     AudioSys.applyVolumes(); persistSave();
   });
   sfx.addEventListener('change', () => AudioSys.sfx.coin());
@@ -1545,6 +1684,9 @@ function wireUI() {
   click('btn-settings', () => setMode('settings'));
   click('btn-select-start', () => setMode('playing'));
   click('btn-select-back', () => setMode('menu'));
+  // Shiny / gender toggles
+  click('btn-shiny', () => { gameState.selectedShiny = !gameState.selectedShiny; selectPreview(gameState.previewId, !gameState.save.unlockedIds.includes(gameState.previewId)); });
+  click('btn-gender', () => { gameState.selectedGender = gameState.selectedGender === 'm' ? 'f' : 'm'; selectPreview(gameState.previewId, !gameState.save.unlockedIds.includes(gameState.previewId)); });
   click('btn-gacha-back', () => setMode('menu'));
   click('btn-howto-back', () => setMode('menu'));
   click('btn-retry', () => setMode('playing'));
@@ -1615,7 +1757,17 @@ function animate(now) {
 }
 
 /* ============================== W: BOOTSTRAP ============================== */
+// Load the title logo, trying a few filenames; fall back to styled text if none exist.
+function loadLogo() {
+  const img = document.getElementById('logo-img');
+  // Looks for "Pokemon Rumble Run Logo.png" in the repo root (spaces URL-encoded), with a few fallbacks.
+  const candidates = ['Pokemon Rumble Run Logo.png', 'Pokemon Rumble Run Logo.jpg', 'logo.png', 'logo.jpg'].map(encodeURI);
+  let i = 0;
+  img.onerror = () => { i++; if (i < candidates.length) img.src = candidates[i]; else { img.style.display = 'none'; document.getElementById('logo-fallback').style.display = 'block'; } };
+  img.src = candidates[0];
+}
 gameState.save = loadSave();
+loadLogo();
 onViewportChange();
 wireUI();
 wireGachaUI();
