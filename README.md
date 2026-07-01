@@ -2,6 +2,8 @@
 
 Use models from Pokemon Rumble/ Pokemon Quest
 
+Why on mobile is there a section of the screen up top where the Dynamic Island is that changes color - it is black on the main menu and light blue in game - is that a restriction of Apple or can you remove that?
+
 Obstacles
 
 1. Roads / Cars
