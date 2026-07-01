@@ -12,84 +12,137 @@
     font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
     -webkit-user-select: none; user-select: none;
   }
-  @supports (height: 100dvh) {
-    html, body { height: 100dvh; }
-  }
-  #game-canvas {
-    position: fixed; inset: 0; width: 100vw; height: 100vh;
-    display: block; touch-action: none; outline: none;
-  }
-  @supports (height: 100dvh) {
-    #game-canvas { height: 100dvh; }
-  }
+  @supports (height: 100dvh) { html, body { height: 100dvh; } }
+  #game-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; outline: none; }
+  @supports (height: 100dvh) { #game-canvas { height: 100dvh; } }
+
+  /* Global hidden helper — applies to ANY element, not just .screen (this was missing before). */
+  .hidden { display: none !important; }
 
   #hud {
     position: fixed; top: 0; left: 0; right: 0;
     display: flex; justify-content: space-between; align-items: flex-start;
     padding: max(0.6rem, env(safe-area-inset-top)) 1rem 0.5rem;
-    pointer-events: none; z-index: 5; color: #fff;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+    z-index: 5; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.6);
   }
-  #hud.hidden { display: none; }
+  #hud .hud-left, #hud .hud-right { display: flex; gap: 0.5rem; align-items: center; }
   .hud-pill {
     background: rgba(0,0,0,0.35); border-radius: 999px; padding: 0.35rem 0.9rem;
     font-size: clamp(1rem, 4vw, 1.4rem); font-weight: bold; display: flex; gap: 0.4rem; align-items: center;
   }
+  #btn-pause {
+    background: rgba(0,0,0,0.35); color: #fff; border: none; border-radius: 999px;
+    width: 2.6rem; height: 2.6rem; font-size: 1.1rem; padding: 0; box-shadow: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #btn-pause:active { transform: none; }
 
   #touch-hint {
     position: fixed; left: 50%; bottom: 8%; transform: translateX(-50%);
     background: rgba(0,0,0,0.55); color: #fff; padding: 0.5rem 1rem; border-radius: 999px;
     font-size: 0.9rem; pointer-events: none; z-index: 5; transition: opacity 0.6s ease;
   }
-  #touch-hint.hidden { opacity: 0; display: none; }
 
-  .screen {
+  .screen, .overlay {
     position: fixed; inset: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 1rem;
-    background: linear-gradient(180deg, rgba(15,20,40,0.92), rgba(30,15,45,0.92));
+    background: linear-gradient(180deg, rgba(15,20,40,0.94), rgba(30,15,45,0.94));
     color: #fff; z-index: 10; padding: 1rem; box-sizing: border-box; text-align: center;
   }
-  .screen.hidden { display: none !important; }
-  .screen h1 { font-size: clamp(1.6rem, 6vw, 2.6rem); margin: 0 0 0.5rem; color: #ffd54f; text-shadow: 0 3px 0 #b8860b; }
+  .overlay { z-index: 20; background: rgba(8,10,20,0.72); }
+  .screen h1 { font-size: clamp(1.8rem, 7vw, 3rem); margin: 0 0 0.3rem; color: #ffd54f; text-shadow: 0 3px 0 #b8860b, 0 4px 8px rgba(0,0,0,0.4); letter-spacing: 1px; }
   .screen h2 { font-size: clamp(1.2rem, 5vw, 1.8rem); margin: 0 0 0.25rem; }
+  .subtitle { opacity: 0.75; margin: -0.4rem 0 0.6rem; letter-spacing: 3px; font-size: 0.8rem; text-transform: uppercase; }
 
   button {
-    font: inherit; font-weight: bold; font-size: 1.05rem; color: #222;
+    font: inherit; font-weight: bold; font-size: 1.05rem; color: #23262e;
     background: linear-gradient(180deg, #ffe082, #ffca28);
-    border: none; border-radius: 12px; padding: 0.75rem 1.6rem; cursor: pointer;
-    box-shadow: 0 4px 0 #b8860b; transition: transform 0.05s ease;
+    border: none; border-radius: 12px; padding: 0.7rem 1.5rem; cursor: pointer;
+    box-shadow: 0 4px 0 #b8860b; transition: transform 0.05s ease; min-width: 120px;
   }
   button:active { transform: translateY(3px); box-shadow: 0 1px 0 #b8860b; }
-  button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: 0 4px 0 #555; background: #999; }
-  button.secondary { background: linear-gradient(180deg, #cfd8dc, #90a4ae); box-shadow: 0 4px 0 #546e7a; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: 0 4px 0 #555; background: #999; }
+  button.secondary { background: linear-gradient(180deg, #cfd8dc, #90a4ae); box-shadow: 0 4px 0 #546e7a; color: #1a1d24; }
+  button.small { font-size: 0.9rem; padding: 0.5rem 1rem; min-width: 0; }
 
-  .coin-display { font-size: 1.2rem; font-weight: bold; color: #ffd54f; }
+  .coin-display { font-size: 1.3rem; font-weight: bold; color: #ffd54f; }
+  .menu-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; width: min(92vw, 360px); }
+  .menu-buttons .wide { grid-column: 1 / -1; }
+  .screen-buttons { display: flex; gap: 0.7rem; flex-wrap: wrap; justify-content: center; }
 
-  #roster-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    gap: 0.6rem; max-width: min(92vw, 640px); max-height: 48vh; overflow-y: auto;
-    padding: 0.5rem; background: rgba(0,0,0,0.25); border-radius: 12px;
+  /* ---- Character select ---- */
+  #preview-wrap { position: relative; width: min(80vw, 300px); height: 34vh; }
+  #preview-canvas { width: 100%; height: 100%; display: block; }
+  #preview-name { font-size: 1.3rem; font-weight: bold; margin-top: -0.3rem; }
+  #preview-sub { opacity: 0.8; font-size: 0.85rem; }
+  #roster-strip {
+    display: flex; gap: 0.5rem; overflow-x: auto; max-width: 94vw; padding: 0.5rem;
+    background: rgba(0,0,0,0.25); border-radius: 12px; scroll-behavior: smooth;
   }
-  .roster-card {
-    display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
-    background: rgba(255,255,255,0.08); border: 2px solid transparent; border-radius: 10px;
-    padding: 0.5rem 0.25rem; color: #fff; font-size: 0.75rem;
+  .roster-chip {
+    flex: 0 0 auto; width: 74px; min-width: 74px; border: 2px solid transparent; border-radius: 10px;
+    background: rgba(255,255,255,0.08); color: #fff; padding: 0.5rem 0.3rem; font-size: 0.72rem; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
   }
-  .roster-card.selected { border-color: #ffd54f; background: rgba(255,213,79,0.2); }
-  .roster-thumb { width: 42px; height: 42px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.5); }
-  .roster-card small { opacity: 0.75; }
+  .roster-chip.selected { border-color: #ffd54f; background: rgba(255,213,79,0.22); }
+  .roster-chip.locked { color: #8a8f9a; }
+  .chip-dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); }
+  .roster-chip.locked .chip-dot { background: #14161c !important; border-color: #3a3f4a; }
+  .chip-tier { font-size: 0.6rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
 
-  #gacha-result { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem 1.5rem; min-width: 220px; }
-  #gacha-result .thumb { width: 56px; height: 56px; border-radius: 10px; margin: 0 auto 0.5rem; border: 3px solid #fff; }
+  /* ---- Gacha ---- */
+  #gacha-result { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem 1.5rem; min-width: 240px; min-height: 90px; }
+  #gacha-result .thumb { width: 60px; height: 60px; border-radius: 12px; margin: 0 auto 0.5rem; border: 3px solid #fff; }
+  .ball-name { font-weight: bold; letter-spacing: 0.5px; }
 
-  .screen-buttons { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; }
+  /* ---- Panels (how to play / settings) ---- */
+  .panel {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px;
+    padding: 1rem 1.2rem; max-width: min(94vw, 560px); max-height: 66vh; overflow-y: auto; text-align: left;
+    line-height: 1.5; font-size: 0.92rem;
+  }
+  .panel h3 { color: #ffd54f; margin: 1rem 0 0.4rem; font-size: 1.05rem; }
+  .panel h3:first-child { margin-top: 0; }
+  .panel .row { display: flex; align-items: center; gap: 0.6rem; margin: 0.35rem 0; }
+  .key {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem; padding: 0 0.4rem;
+    background: #eceff4; color: #23262e; border-radius: 7px; font-weight: bold; box-shadow: 0 3px 0 #9aa0ab; font-size: 0.95rem;
+  }
+  .key.wide { min-width: 5.5rem; }
+  .keys-grid { display: grid; grid-template-columns: repeat(3, 2.2rem); grid-auto-rows: 2.2rem; gap: 0.25rem; justify-content: center; }
+  .keys-grid .key { min-width: 0; height: 2.1rem; }
+  .swatch { display: inline-block; width: 1rem; height: 1rem; border-radius: 50%; vertical-align: middle; margin-right: 0.15rem; }
+  .rarity-list { list-style: none; padding: 0; margin: 0.3rem 0; }
+  .rarity-list li { display: flex; justify-content: space-between; padding: 0.3rem 0.5rem; border-radius: 8px; margin: 0.2rem 0; }
+  .rarity-list li span:last-child { font-weight: bold; }
+  .setting-row { display: flex; align-items: center; gap: 1rem; margin: 1.1rem 0; }
+  .setting-row label { flex: 0 0 8rem; text-align: right; font-weight: bold; }
+  .setting-row input[type=range] { flex: 1; }
+  .setting-row .val { flex: 0 0 3rem; text-align: left; opacity: 0.8; }
 
-  @media (orientation: landscape) and (max-height: 500px) {
-    .screen { gap: 0.5rem; }
-    .screen h1 { font-size: 1.4rem; margin-bottom: 0.15rem; }
-    .screen h2 { font-size: 1.1rem; }
+  /* ---- Countdown ---- */
+  #overlay-countdown { background: rgba(8,10,20,0.45); }
+  #countdown-num { font-size: 22vh; font-weight: 900; color: #ffd54f; text-shadow: 0 6px 0 #b8860b, 0 8px 20px rgba(0,0,0,0.5); animation: cd-pop 1s ease; }
+  @keyframes cd-pop { from { transform: scale(1.6); opacity: 0.2; } to { transform: scale(1); opacity: 1; } }
+
+  /* ---- Game over ---- */
+  .go-card { background: rgba(255,255,255,0.07); border-radius: 14px; padding: 0.8rem 1.2rem; width: min(88vw, 340px); }
+  .go-row { display: flex; justify-content: space-between; padding: 0.45rem 0.2rem; font-size: 1.05rem; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .go-row:last-child { border-bottom: none; }
+  .go-row strong { color: #fff; }
+  .go-row.total { margin-top: 0.2rem; border-top: 2px solid rgba(255,213,79,0.4); }
+  .go-row.total span, .go-row.total strong { color: #ffd54f; font-size: 1.15rem; }
+  .badge-new { background: #ff5252; color: #fff; font-size: 0.65rem; padding: 0.05rem 0.4rem; border-radius: 6px; margin-left: 0.4rem; vertical-align: middle; }
+  .shiny-banner { color: #ffd54f; font-weight: bold; font-size: 1.15rem; text-shadow: 0 0 12px rgba(255,213,79,0.7); }
+
+  @media (orientation: landscape) and (max-height: 520px) {
+    .screen, .overlay { gap: 0.5rem; }
+    .screen h1 { font-size: 1.5rem; margin-bottom: 0.1rem; }
+    .subtitle { display: none; }
     button { padding: 0.5rem 1.1rem; font-size: 0.9rem; }
-    #roster-grid { max-height: 38vh; }
+    #preview-wrap { height: 40vh; width: min(60vw, 260px); }
+    .panel { max-height: 78vh; }
+    #countdown-num { font-size: 30vh; }
   }
 </style>
 </head>
@@ -98,54 +151,107 @@
   <canvas id="game-canvas"></canvas>
 
   <div id="hud" class="hidden">
-    <div class="hud-pill">🪙 <span id="coin-count">0</span></div>
-    <div class="hud-pill">Lanes <span id="score-count">0</span></div>
+    <div class="hud-left">
+      <div class="hud-pill">🪙 <span id="coin-count">0</span></div>
+      <div class="hud-pill">Lanes <span id="score-count">0</span></div>
+    </div>
+    <div class="hud-right">
+      <button id="btn-pause" title="Pause">❚❚</button>
+    </div>
   </div>
 
   <div id="touch-hint" class="hidden">Swipe to move &middot; Tap to hop forward</div>
 
+  <!-- MAIN MENU -->
   <div id="screen-menu" class="screen">
     <h1>Pokemon Rumble Run</h1>
+    <div class="subtitle">Hop &middot; Dodge &middot; Collect</div>
     <div class="coin-display">🪙 <span id="menu-coins">0</span></div>
-    <div class="screen-buttons">
-      <button id="btn-play">Play</button>
+    <div class="menu-buttons">
+      <button id="btn-play" class="wide">Play</button>
       <button id="btn-gacha" class="secondary">Gum Ball Machine</button>
+      <button id="btn-howto" class="secondary">How to Play</button>
+      <button id="btn-settings" class="secondary wide">Settings</button>
     </div>
-    <p style="opacity:0.7; font-size:0.85rem; max-width: 480px;">
-      Desktop: Arrow keys to move, Space to hop forward.<br/>
-      Mobile: Swipe to move, tap to hop forward.
-    </p>
   </div>
 
+  <!-- CHARACTER SELECT -->
   <div id="screen-select" class="screen hidden">
     <h2>Choose your Pokemon</h2>
-    <div id="roster-grid"></div>
+    <div id="preview-wrap"><canvas id="preview-canvas"></canvas></div>
+    <div id="preview-name">—</div>
+    <div id="preview-sub"></div>
+    <div id="roster-strip"></div>
     <div class="screen-buttons">
-      <button id="btn-select-back" class="secondary">Back</button>
-      <button id="btn-select-start">Start</button>
+      <button id="btn-select-back" class="secondary small">Back</button>
+      <button id="btn-select-start" class="small">Start</button>
     </div>
   </div>
 
+  <!-- GACHA -->
   <div id="screen-gacha" class="screen hidden">
     <h2>Gum Ball Machine</h2>
     <div class="coin-display">🪙 <span id="gacha-coins">0</span></div>
     <button id="btn-gacha-pull">Pull for 50 coins</button>
     <div id="gacha-result" class="hidden"></div>
     <div class="screen-buttons">
-      <button id="btn-gacha-back" class="secondary">Back</button>
+      <button id="btn-gacha-back" class="secondary small">Back</button>
     </div>
   </div>
 
+  <!-- HOW TO PLAY -->
+  <div id="screen-howto" class="screen hidden">
+    <h2>How to Play</h2>
+    <div class="panel" id="howto-panel"></div>
+    <div class="screen-buttons"><button id="btn-howto-back" class="secondary small">Back</button></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="screen-settings" class="screen hidden">
+    <h2>Settings</h2>
+    <div class="panel">
+      <div class="setting-row">
+        <label for="set-music">Music</label>
+        <input type="range" id="set-music" min="0" max="100" value="50" />
+        <span class="val" id="set-music-val">50%</span>
+      </div>
+      <div class="setting-row">
+        <label for="set-sfx">Sound Effects</label>
+        <input type="range" id="set-sfx" min="0" max="100" value="70" />
+        <span class="val" id="set-sfx-val">70%</span>
+      </div>
+      <p style="opacity:0.7;font-size:0.8rem;text-align:center;">Audio starts after your first tap/click (browser rule).</p>
+    </div>
+    <div class="screen-buttons"><button id="btn-settings-back" class="secondary small">Back</button></div>
+  </div>
+
+  <!-- PAUSE -->
+  <div id="overlay-pause" class="overlay hidden">
+    <h2>Paused</h2>
+    <div class="screen-buttons" style="flex-direction:column;">
+      <button id="btn-resume">Resume</button>
+      <button id="btn-pause-settings" class="secondary">Settings</button>
+      <button id="btn-pause-menu" class="secondary">Quit to Menu</button>
+    </div>
+  </div>
+
+  <!-- COUNTDOWN -->
+  <div id="overlay-countdown" class="overlay hidden"><div id="countdown-num">3</div></div>
+
+  <!-- GAME OVER -->
   <div id="screen-gameover" class="screen hidden">
     <h2>Game Over</h2>
-    <p>Lanes crossed: <strong id="go-score">0</strong></p>
-    <p id="go-best" class="hidden" style="color:#ffd54f;">New best!</p>
-    <p id="go-shiny" class="hidden" style="color:#ffd54f;">✨ Shiny form unlocked!</p>
-    <p>Coins earned: <strong id="go-coins">0</strong></p>
+    <p id="go-shiny" class="hidden shiny-banner">✨ Shiny form unlocked! ✨</p>
+    <div class="go-card">
+      <div class="go-row"><span>Lanes crossed</span><strong id="go-score">0</strong></div>
+      <div class="go-row"><span>Best <span id="go-newbadge" class="badge-new hidden">NEW!</span></span><strong id="go-best">0</strong></div>
+      <div class="go-row"><span>Coins earned</span><strong id="go-coins">0</strong></div>
+      <div class="go-row total"><span>Total coins</span><strong id="go-total">0</strong></div>
+    </div>
     <div class="screen-buttons">
       <button id="btn-retry">Retry</button>
-      <button id="btn-go-select" class="secondary">Change Pokemon</button>
-      <button id="btn-go-menu" class="secondary">Main Menu</button>
+      <button id="btn-go-select" class="secondary small">Change Pokemon</button>
+      <button id="btn-go-menu" class="secondary small">Main Menu</button>
     </div>
   </div>
 </div>
@@ -168,114 +274,118 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 
 /* ============================== A: CONSTANTS & CONFIG ============================== */
 const TILE = 1;
-const GRID_HALF = 4;                 // columns from -4..4  (9 wide)
+const GRID_HALF = 4;
 const GRID_WIDTH = GRID_HALF * 2 + 1;
-const GROUND_WIDTH = 44;              // how wide each lane's ground strip is drawn (fills screen, no blue void)
-const HAZARD_SPAN = 15;               // half-width over which vehicles/platforms travel & wrap (well past the play area)
-const AHEAD_GEN = 20;                 // how many lanes ahead of player to keep generated
-const BEHIND_KEEP = 12;               // how many lanes behind player to keep before pruning (fills the near edge)
-const DIFFICULTY_MAX_DISTANCE = 300;  // distance at which difficulty ramp maxes out
+const GROUND_WIDTH = 44;              // width of each drawn lane strip (fills the screen)
+const HAZARD_SPAN = 15;               // half-width over which vehicles/platforms travel & wrap
+const AHEAD_GEN = 20;
+const BEHIND_KEEP = 14;               // must exceed DEATH_MARGIN so visible lanes aren't pruned
+const DIFFICULTY_MAX_DISTANCE = 300;
 const HOP_DURATION_MS = 140;
-const MODEL_BASE_PATH = 'Pokemon 3D Models/';
+
+// Auto-scroll (Crossy Road style): the world creeps forward and you die if you fall off the back edge.
+const SCROLL_START_SPEED = 0.85;      // tiles / second at the start of a run
+const SCROLL_MAX_SPEED = 2.1;         // tiles / second once fully ramped
+const SCROLL_RAMP_DISTANCE = 350;     // lanes over which the creep speed ramps up
+const DEATH_MARGIN = 6.5;             // tiles behind the camera focus before you're "offscreen"
+
+const MB = 'Pokemon 3D Models/';      // base folder (sibling of index.html)
 
 /* ============================== B: ROSTER DATA ============================== */
+// modelPath is plain/human-readable (spaces & '#' are fine — the loader URL-encodes it).
+// Shiny is rendered by swapping each texture to its "_C" variant (Rumble World convention).
+// Swap in a new model by editing only its modelPath. Gender/Mega variants live in subfolders.
 const ROSTER = [
-  // Playable Pokemon
-  // NOTE ON MODEL PATHS: paths are written here in plain, human-readable form (spaces, '#', etc. are fine).
-  // The loader URL-encodes them automatically, so you can drop a folder named exactly like the ripped model
-  // dump and just point `modelPath` at the .glb / .obj / .dae / .fbx inside it. To swap in a new model,
-  // edit only the `modelPath` (and `shinyModelPath`) string for that entry — nothing else changes.
-  { id: 'bulbasaur', displayName: 'Bulbasaur', role: 'player', tier: 'basic',
-    color: 0x63b866,
-    modelPath: MODEL_BASE_PATH + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0001 Bulbasaur/Bulbasaur.obj',
-    shinyModelPath: null,           // supply a shiny model here later; until then shiny uses a gold tint on the base model
+  // -------- Playable Pokemon (Bulbasaur evolution line) --------
+  { id: 'bulbasaur', displayName: 'Bulbasaur', role: 'player', tier: 'basic', color: 0x63b866,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0001 Bulbasaur/Bulbasaur.obj',
     modelTargetSize: 1.4, boxSize: [0.8, 0.8, 0.8], unlockedByDefault: true },
+  { id: 'ivysaur', displayName: 'Ivysaur', role: 'player', tier: 'stage1', color: 0x4fa06a,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0002 Ivysaur/Ivysaur.obj',
+    modelTargetSize: 1.5, boxSize: [0.9, 0.9, 0.9], unlockedByDefault: false },
+  { id: 'venusaur', displayName: 'Venusaur', role: 'player', tier: 'stage3', color: 0x2e8f6e,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0003 Venusaur/Normalm/Venusaur_Normalm.obj',
+    modelTargetSize: 1.7, boxSize: [1.1, 1.0, 1.1], unlockedByDefault: false },
 
-  // Road-family hazards
-  { id: 'rapidash', displayName: 'Rapidash', role: 'hazard', laneFamily: 'road',
-    color: 0xffa726, modelPath: null, modelTargetSize: 1.4,
-    boxSize: [1.6, 0.9, 0.9], speedRange: [3.0, 4.5], gapMin: 4.2, gapMax: 6.5, direction: 'either' },
-  { id: 'dodrio', displayName: 'Dodrio', role: 'hazard', laneFamily: 'road',
-    color: 0x8d6e63, modelPath: null, modelTargetSize: 1.2,
-    boxSize: [1.1, 1.2, 0.9], speedRange: [2.0, 3.2], gapMin: 3.0, gapMax: 4.8, direction: 'either' },
-  { id: 'car', displayName: 'Car', role: 'hazard', laneFamily: 'road', color: 0xe53935,
-    modelPath: null, boxSize: [1.7, 0.6, 0.95], speedRange: [1.8, 3.0], gapMin: 3.2, gapMax: 5.2, direction: 'either' },
-  { id: 'truck', displayName: 'Truck', role: 'hazard', laneFamily: 'road', color: 0x546e7a,
-    modelPath: null, boxSize: [2.6, 0.9, 1.0], speedRange: [1.4, 2.4], gapMin: 3.6, gapMax: 6.0, direction: 'either' },
+  // -------- Road-family car hazards --------
+  { id: 'rapidash', displayName: 'Rapidash', role: 'hazard', laneFamily: 'road', color: 0xffa726,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0078 Rapidash/Rapidash.obj',
+    modelTargetSize: 1.7, boxSize: [1.7, 1.0, 0.9], speedRange: [3.0, 4.6], gapMin: 4.2, gapMax: 6.6,
+    substitute: { id: 'ponyta', chance: 0.05 } },
+  { id: 'ponyta', displayName: 'Ponyta', role: 'hazard', laneFamily: 'road', color: 0xffcc80,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0077 Ponyta/Ponyta.obj',
+    modelTargetSize: 1.5, boxSize: [1.5, 0.9, 0.9] },
+  { id: 'dodrio', displayName: 'Dodrio', role: 'hazard', laneFamily: 'road', color: 0x8d6e63,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0085 Dodrio/M/Dodrio_M.obj',
+    modelTargetSize: 1.5, boxSize: [1.2, 1.3, 0.9], speedRange: [2.2, 3.4], gapMin: 3.2, gapMax: 5.0,
+    substitute: { id: 'doduo', chance: 0.05 } },
+  { id: 'doduo', displayName: 'Doduo', role: 'hazard', laneFamily: 'road', color: 0xa1887f,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0084 Doduo/M/Doduo_M.obj',
+    modelTargetSize: 1.2, boxSize: [1.0, 1.1, 0.9] },
 
-  // River-family platforms
-  { id: 'lotad_pad', displayName: 'Lotad Lily Pad', role: 'platform', laneFamily: 'river',
-    color: 0x66bb6a, modelPath: null, modelTargetSize: 0.95,
-    boxSize: [0.9, 0.3, 0.9], speedRange: [1.2, 2.2], platformLength: 1, gapMin: 1.1, gapMax: 1.9 },
-  { id: 'lapras_ferry', displayName: 'Lapras Ferry', role: 'platform', laneFamily: 'river',
-    color: 0x4fc3f7, modelPath: null, modelTargetSize: 2.4,
-    boxSize: [2.4, 0.4, 1.6], speedRange: [0.8, 1.4], platformLength: 3, gapMin: 1.6, gapMax: 2.6 },
-  { id: 'wailmer_pod', displayName: 'Wailmer Migration Pod', role: 'platform', laneFamily: 'river',
-    color: 0x1e88e5, modelPath: null, modelTargetSize: 2.0,
-    boxSize: [2.0, 0.5, 1.4], speedRange: [0.9, 1.6], platformLength: 2, gapMin: 1.4, gapMax: 2.3 },
-  { id: 'mantine_surf', displayName: 'Mantine Surfing Route', role: 'platform', laneFamily: 'river',
-    color: 0x26c6da, modelPath: null, modelTargetSize: 2.0,
-    boxSize: [2.0, 0.4, 1.2], speedRange: [1.6, 2.6], platformLength: 2, gapMin: 1.5, gapMax: 2.3 },
+  // -------- Rail-family: Tauros stampede (a herd sweeps the lane) --------
+  { id: 'tauros', displayName: 'Tauros', role: 'hazard', laneFamily: 'rail', color: 0x6d4c41,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0128 Tauros/Tauros.obj',
+    modelTargetSize: 1.5, boxSize: [1.4, 1.1, 1.0], warningMs: 1300, sweepSpeed: 15,
+    herdMin: 4, herdMax: 7 },
 
-  // Rail-family telegraphed hazard
-  { id: 'tauros_stampede', displayName: 'Tauros Stampede', role: 'hazard', laneFamily: 'rail',
-    color: 0x6d4c41, modelPath: null, modelTargetSize: 1.2,
-    boxSize: [6.0, 1.0, 1.0], warningMs: 1300, sweepSpeed: 15, direction: 'either' },
+  // -------- River-family: single-block water crossers (Wailord spans 3) --------
+  { id: 'lotad', displayName: 'Lotad', role: 'platform', laneFamily: 'river', color: 0x66bb6a,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (3rd Generation) - #0270 Lotad/Lotad.obj',
+    modelTargetSize: 1.0, boxSize: [0.95, 0.3, 0.95], speedRange: [1.2, 2.2], platformLength: 1, gapMin: 1.1, gapMax: 1.9 },
+  { id: 'wailmer', displayName: 'Wailmer', role: 'platform', laneFamily: 'river', color: 0x1e88e5,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (3rd Generation) - #0320 Wailmer/Wailmer.obj',
+    modelTargetSize: 1.3, boxSize: [1.1, 0.5, 1.1], speedRange: [1.0, 1.8], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
+  { id: 'lapras', displayName: 'Lapras', role: 'platform', laneFamily: 'river', color: 0x4fc3f7,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0131 Lapras/Lapras.obj',
+    modelTargetSize: 1.3, boxSize: [1.1, 0.6, 1.1], speedRange: [1.0, 1.8], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
+  { id: 'mantine', displayName: 'Mantine', role: 'platform', laneFamily: 'river', color: 0x26c6da,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (2nd Generation) - #0226 Mantine/Mantine.obj',
+    modelTargetSize: 1.4, boxSize: [1.2, 0.4, 1.1], speedRange: [1.4, 2.4], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
+  { id: 'wailord', displayName: 'Wailord', role: 'platform', laneFamily: 'river', color: 0x1565c0,
+    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (3rd Generation) - #0321 Wailord/Wailord.obj',
+    modelTargetSize: 3.0, boxSize: [2.8, 0.6, 1.2], speedRange: [0.8, 1.4], platformLength: 3, gapMin: 1.8, gapMax: 2.8 },
 
-  // Decor (safe-lane static obstacles, block movement, not lethal)
+  // -------- Decor & coin (simple cubes) --------
   { id: 'rock', displayName: 'Rock', role: 'decor', color: 0x9e9e9e, modelPath: null, boxSize: [0.85, 0.7, 0.85] },
-  { id: 'tree', displayName: 'Tree', role: 'decor', color: 0x2e7d32, modelPath: null, boxSize: [0.7, 1.8, 0.7] },
-
-  // Coin
+  { id: 'tree', displayName: 'Tree', role: 'decor', color: 0x2e7d32, modelPath: null, boxSize: [0.7, 1.9, 0.7] },
   { id: 'coin', displayName: 'Coin', role: 'coin', color: 0xffd54f, modelPath: null, boxSize: [0.4, 0.4, 0.4] },
 ];
 const rosterById = Object.fromEntries(ROSTER.map(e => [e.id, e]));
+const PLAYER_ENTRIES = ROSTER.filter(e => e.role === 'player');
 
 /* ============================== C: LANE TYPE DEFINITIONS ============================== */
 const LANE_TYPES = [
-  { key: 'grass', family: 'safe', minDistance: 0, weight: () => 10,
-    build: (lane, ctx) => spawnGrassLane(lane, ctx) },
-  { key: 'road_rapidash', family: 'road', minDistance: 4, weight: (d) => 5 + Math.min(d / 60, 5),
-    build: (lane, ctx) => spawnRoadLane(lane, ctx, rosterById.rapidash) },
-  { key: 'road_dodrio', family: 'road', minDistance: 2, weight: (d) => 6 + Math.min(d / 60, 5),
-    build: (lane, ctx) => spawnRoadLane(lane, ctx, rosterById.dodrio) },
-  { key: 'road_car', family: 'road', minDistance: 0, weight: () => 8,
-    build: (lane, ctx) => spawnRoadLane(lane, ctx, rosterById.car) },
-  { key: 'road_truck', family: 'road', minDistance: 10, weight: () => 5,
-    build: (lane, ctx) => spawnRoadLane(lane, ctx, rosterById.truck) },
-  { key: 'river_lotad', family: 'river', minDistance: 6, weight: (d) => 5 + Math.min(d / 70, 4),
-    build: (lane, ctx) => spawnRiverLane(lane, ctx, rosterById.lotad_pad) },
-  { key: 'river_lapras', family: 'river', minDistance: 16, weight: () => 5,
-    build: (lane, ctx) => spawnRiverLane(lane, ctx, rosterById.lapras_ferry) },
-  { key: 'river_wailmer', family: 'river', minDistance: 22, weight: () => 4,
-    build: (lane, ctx) => spawnRiverLane(lane, ctx, rosterById.wailmer_pod) },
-  { key: 'river_mantine', family: 'river', minDistance: 28, weight: () => 4,
-    build: (lane, ctx) => spawnRiverLane(lane, ctx, rosterById.mantine_surf) },
-  { key: 'rail_tauros', family: 'rail', minDistance: 14, weight: (d) => Math.min(2 + d / 80, 6),
-    build: (lane, ctx) => spawnRailLane(lane, ctx, rosterById.tauros_stampede) },
+  { key: 'grass', family: 'safe', minDistance: 0, weight: () => 10, build: (l) => spawnGrassLane(l) },
+  { key: 'road_dodrio', family: 'road', minDistance: 0, weight: () => 8, build: (l, c) => spawnRoadLane(l, c, rosterById.dodrio) },
+  { key: 'road_rapidash', family: 'road', minDistance: 3, weight: (d) => 5 + Math.min(d / 60, 5), build: (l, c) => spawnRoadLane(l, c, rosterById.rapidash) },
+  { key: 'river_lotad', family: 'river', minDistance: 5, weight: (d) => 5 + Math.min(d / 70, 4), build: (l, c) => spawnRiverLane(l, c, rosterById.lotad) },
+  { key: 'river_wailmer', family: 'river', minDistance: 8, weight: () => 5, build: (l, c) => spawnRiverLane(l, c, rosterById.wailmer) },
+  { key: 'rail_tauros', family: 'rail', minDistance: 12, weight: (d) => Math.min(2 + d / 80, 6), build: (l, c) => spawnRailLane(l, c, rosterById.tauros) },
+  { key: 'river_lapras', family: 'river', minDistance: 14, weight: () => 5, build: (l, c) => spawnRiverLane(l, c, rosterById.lapras) },
+  { key: 'river_mantine', family: 'river', minDistance: 18, weight: () => 4, build: (l, c) => spawnRiverLane(l, c, rosterById.mantine) },
+  { key: 'river_wailord', family: 'river', minDistance: 24, weight: () => 4, build: (l, c) => spawnRiverLane(l, c, rosterById.wailord) },
 ];
 const laneTypesByKey = Object.fromEntries(LANE_TYPES.map(t => [t.key, t]));
 
 /* ============================== D: GACHA CONFIG ============================== */
 const GACHA_COST = 50;
 const BALL_TIERS = [
-  { ball: 'Poke Ball', tier: 'basic', weight: 55 },
-  { ball: 'Great Ball', tier: 'stage1', weight: 27 },
-  { ball: 'Ultra Ball', tier: 'stage3', weight: 14 },
-  { ball: 'Master Ball', tier: 'legendary', weight: 4 },
+  { ball: 'Poke Ball', tier: 'basic', weight: 55, color: 0xef5350 },
+  { ball: 'Great Ball', tier: 'stage1', weight: 27, color: 0x42a5f5 },
+  { ball: 'Ultra Ball', tier: 'stage3', weight: 14, color: 0xfbc02d },
+  { ball: 'Master Ball', tier: 'legendary', weight: 4, color: 0x8e24aa },
 ];
 
 /* ============================== E: PERSISTENCE ============================== */
 const SAVE_KEY = 'pkmn_rumble_run_save_v1';
 const SAVE_VERSION = 1;
-
 function defaultSave() {
   return {
-    version: SAVE_VERSION,
-    coins: 0,
+    version: SAVE_VERSION, coins: 0,
     unlockedIds: ROSTER.filter(e => e.role === 'player' && e.unlockedByDefault).map(e => e.id),
-    bestScoreByCharacter: {},
-    shinyUnlockedByCharacter: {},
+    bestScoreByCharacter: {}, shinyUnlockedByCharacter: {},
+    musicVol: 0.5, sfxVol: 0.7,
   };
 }
 function loadSave() {
@@ -285,10 +395,7 @@ function loadSave() {
     const parsed = JSON.parse(raw);
     if (parsed.version !== SAVE_VERSION) return migrateSave(parsed);
     return { ...defaultSave(), ...parsed };
-  } catch (e) {
-    console.warn('[save] corrupt save, resetting', e);
-    return defaultSave();
-  }
+  } catch (e) { console.warn('[save] corrupt save, resetting', e); return defaultSave(); }
 }
 function migrateSave(old) { return { ...defaultSave(), ...old, version: SAVE_VERSION }; }
 function persistSave() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameState.save)); }
@@ -297,32 +404,78 @@ function persistSave() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameState
 const gameState = {
   mode: 'menu',
   selectedPokemonId: 'bulbasaur',
-  player: {
-    gridX: 0, gridZ: 0, isMoving: false, tween: null,
-    group: null, tier: 'basic', shinyUnlocked: false,
-  },
-  distance: 0,
-  coinsThisRun: 0,
-  lanes: new Map(),
-  nextLaneZ: 0,
-  familyHistory: [],
-  laneGroup: null,
+  previewId: 'bulbasaur',
+  player: { gridX: 0, gridZ: 0, isMoving: false, tween: null, group: null, tier: 'basic', shinyUnlocked: false },
+  distance: 0, coinsThisRun: 0,
+  lanes: new Map(), nextLaneZ: 0, familyHistory: [], laneGroup: null,
+  scrollZ: 0, scrollActive: false,
+  paused: false, countdownUntil: 0,
+  startForest: null,
   input: { touchStart: null },
   save: null,
 };
 
-/* ============================== G: THREE.JS SETUP ============================== */
+/* ============================== G: AUDIO (WebAudio, synthesized) ============================== */
+const AudioSys = (() => {
+  let ctx, musicGain, sfxGain, musicTimer = null, step = 0;
+  function ensure() {
+    if (ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ctx = new AC();
+    musicGain = ctx.createGain(); sfxGain = ctx.createGain();
+    musicGain.connect(ctx.destination); sfxGain.connect(ctx.destination);
+    applyVolumes();
+  }
+  function unlock() { ensure(); if (ctx && ctx.state === 'suspended') ctx.resume(); }
+  function applyVolumes() {
+    if (!ctx) return;
+    musicGain.gain.value = (gameState.save?.musicVol ?? 0.5) * 0.4;
+    sfxGain.gain.value = (gameState.save?.sfxVol ?? 0.7);
+  }
+  function blip(freq, dur, type = 'square', gain = 0.18, slideTo = null) {
+    ensure(); if (!ctx) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t + dur + 0.02);
+  }
+  const sfx = {
+    hop: () => blip(520, 0.11, 'square', 0.13, 720),
+    coin: () => blip(880, 0.09, 'triangle', 0.16, 1250),
+    die: () => { blip(240, 0.5, 'sawtooth', 0.28, 60); },
+    click: () => blip(420, 0.05, 'square', 0.1, 520),
+    gacha: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => blip(f, 0.16, 'triangle', 0.18), i * 90)),
+  };
+  const scale = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33];
+  function startMusic() {
+    ensure(); if (!ctx || musicTimer) return;
+    musicTimer = setInterval(() => {
+      if (!ctx || ctx.state !== 'running') return;
+      const t = ctx.currentTime;
+      const f = scale[(step * 3 + (Math.random() * 2 | 0)) % scale.length] * (Math.random() < 0.25 ? 0.5 : 1);
+      step++;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.14, t + 0.06);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.connect(g); g.connect(musicGain); o.start(t); o.stop(t + 0.55);
+    }, 500);
+  }
+  function stopMusic() { if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } }
+  return { unlock, applyVolumes, sfx, startMusic, stopMusic };
+})();
+
+/* ============================== H: THREE.JS SETUP ============================== */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.Fog(0x87ceeb, 16, 34);
+scene.fog = new THREE.Fog(0x87ceeb, 18, 40);
 
 const FRUSTUM_SIZE = 9;
-function makeCamera(aspect) {
-  return new THREE.OrthographicCamera(
-    -FRUSTUM_SIZE * aspect, FRUSTUM_SIZE * aspect, FRUSTUM_SIZE, -FRUSTUM_SIZE, 0.1, 200
-  );
-}
-const camera = makeCamera(window.innerWidth / window.innerHeight);
+const camera = new THREE.OrthographicCamera(-FRUSTUM_SIZE, FRUSTUM_SIZE, FRUSTUM_SIZE, -FRUSTUM_SIZE, 0.1, 200);
 const CAM_OFFSET = new THREE.Vector3(-11, 13, -11);
 let cameraFollowZ = 0;
 
@@ -331,291 +484,230 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x556b2f, 1.0));
+scene.add(new THREE.HemisphereLight(0xffffff, 0x557033, 1.05));
 const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
 dirLight.position.set(-6, 14, -6);
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.set(1024, 1024);
-dirLight.shadow.camera.left = -20; dirLight.shadow.camera.right = 20;
-dirLight.shadow.camera.top = 20; dirLight.shadow.camera.bottom = -20;
+dirLight.shadow.camera.left = -22; dirLight.shadow.camera.right = 22;
+dirLight.shadow.camera.top = 22; dirLight.shadow.camera.bottom = -22;
 scene.add(dirLight);
+
+// Big grass underlay that follows the camera so any gap between lanes reads as grass, never blue void.
+const groundFill = new THREE.Mesh(
+  new THREE.PlaneGeometry(180, 180),
+  new THREE.MeshStandardMaterial({ color: 0x74bd48 })
+);
+groundFill.rotation.x = -Math.PI / 2;
+groundFill.position.y = -0.06;
+groundFill.receiveShadow = true;
+scene.add(groundFill);
 
 gameState.laneGroup = new THREE.Group();
 scene.add(gameState.laneGroup);
 
-/* ============================== H: ASSET LOADER ============================== */
+/* ============================== I: ASSET LOADER ============================== */
 const modelCache = new Map();
 const boxGeoCache = new Map();
+const texLoader = new THREE.TextureLoader();
 
-// Encode each path segment so folder/file names with spaces or '#' (common in ripped-model dumps)
-// don't break the URL. '#' in particular would otherwise be read as a URL fragment and truncate the request.
-function encodePath(p) {
-  return p.split('/').map(seg => encodeURIComponent(seg)).join('/');
-}
+function encodePath(p) { return p.split('/').map(seg => encodeURIComponent(seg)).join('/'); }
 
-// Format-aware loader: picks the right Three.js loader by file extension and resolves to an Object3D,
-// or resolves to null on any failure (missing file, wrong format, blocked by file:// security) so the
-// caller falls back to the colored placeholder cube. Supports .glb/.gltf, .obj (+.mtl), .dae, .fbx.
 function loadModelOrNull(path) {
   if (!path) return Promise.resolve(null);
   if (modelCache.has(path)) return modelCache.get(path);
-
   const ext = path.split('.').pop().toLowerCase();
   const slash = path.lastIndexOf('/');
   const rawDir = slash >= 0 ? path.slice(0, slash + 1) : '';
   const rawFile = slash >= 0 ? path.slice(slash + 1) : path;
-  const encDir = encodePath(rawDir);
-  const encFile = encodeURIComponent(rawFile);
-  const encFull = encodePath(path);
-
+  const encDir = encodePath(rawDir), encFile = encodeURIComponent(rawFile), encFull = encodePath(path);
   let promise;
   if (ext === 'glb' || ext === 'gltf') {
     promise = new GLTFLoader().loadAsync(encFull).then(g => g.scene);
   } else if (ext === 'obj') {
     const mtlName = rawFile.replace(/\.obj$/i, '.mtl');
-    const objLoad = (materials) => {
-      const loader = new OBJLoader().setPath(encDir);
-      if (materials) loader.setMaterials(materials);
-      return loader.loadAsync(encFile);
-    };
-    promise = new MTLLoader().setPath(encDir).setResourcePath(encDir)
-      .loadAsync(encodeURIComponent(mtlName))
+    const objLoad = (mats) => { const l = new OBJLoader().setPath(encDir); if (mats) l.setMaterials(mats); return l.loadAsync(encFile); };
+    promise = new MTLLoader().setPath(encDir).setResourcePath(encDir).loadAsync(encodeURIComponent(mtlName))
       .then(mtl => { mtl.preload(); return objLoad(mtl); })
-      .catch(() => objLoad(null)); // no/failed .mtl -> load geometry untextured rather than fail outright
+      .catch(() => objLoad(null));
   } else if (ext === 'dae') {
     promise = new ColladaLoader().loadAsync(encFull).then(c => c.scene);
   } else if (ext === 'fbx') {
     promise = new FBXLoader().loadAsync(encFull);
   } else {
-    promise = Promise.reject(new Error('unsupported model format .' + ext));
+    promise = Promise.reject(new Error('unsupported format .' + ext));
   }
-
-  const p = promise.catch(err => {
-    console.warn(`[assets] using placeholder cube (could not load ${path}): ${err && err.message || err}`);
-    return null;
-  });
+  const p = promise.catch(err => { console.warn(`[assets] placeholder cube for ${path}: ${err && err.message || err}`); return null; });
   modelCache.set(path, p);
   return p;
 }
 
-// Uniformly scale a loaded model so its largest dimension ~= targetSize, then recenter it
-// horizontally and rest it on the ground (y=0). Makes any model — regardless of its native
-// units/origin — sit correctly on a tile without per-model hand-tuning.
-function normalizeModel(obj, targetSize) {
-  const box = new THREE.Box3().setFromObject(obj);
-  const size = new THREE.Vector3(); box.getSize(size);
-  const maxDim = Math.max(size.x, size.y, size.z) || 1;
-  obj.scale.setScalar(targetSize / maxDim);
-  const box2 = new THREE.Box3().setFromObject(obj);
-  const center = new THREE.Vector3(); box2.getCenter(center);
-  obj.position.x -= center.x;
-  obj.position.z -= center.z;
-  obj.position.y -= box2.min.y;
-}
-
 function getBoxGeometry(boxSize) {
   const key = boxSize.join(',');
-  if (!boxGeoCache.has(key)) {
-    boxGeoCache.set(key, new THREE.BoxGeometry(boxSize[0], boxSize[1], boxSize[2]));
-  }
+  if (!boxGeoCache.has(key)) boxGeoCache.set(key, new THREE.BoxGeometry(boxSize[0], boxSize[1], boxSize[2]));
   return boxGeoCache.get(key);
 }
-
-function makeCubeMesh(entry) {
-  const geo = getBoxGeometry(entry.boxSize);
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: entry.color }));
+function makeCubeMesh(entry, colorOverride) {
+  const mesh = new THREE.Mesh(getBoxGeometry(entry.boxSize), new THREE.MeshStandardMaterial({ color: colorOverride ?? entry.color }));
   mesh.position.y = entry.boxSize[1] / 2;
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
+  mesh.castShadow = true; mesh.receiveShadow = true;
   return mesh;
 }
-
-function applyShinyTint(object3d) {
-  const tint = new THREE.Color(0xffd700);
-  object3d.traverse(obj => {
-    if (obj.isMesh) {
-      obj.material = obj.material.clone();
-      obj.material.emissive = tint.clone();
-      obj.material.emissiveIntensity = 0.4;
-      obj.material.color.lerp(tint, 0.25);
-    }
+function normalizeModel(obj, targetSize) {
+  const box = new THREE.Box3().setFromObject(obj); const size = new THREE.Vector3(); box.getSize(size);
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  obj.scale.setScalar(targetSize / maxDim);
+  const box2 = new THREE.Box3().setFromObject(obj); const c = new THREE.Vector3(); box2.getCenter(c);
+  obj.position.x -= c.x; obj.position.z -= c.z; obj.position.y -= box2.min.y;
+}
+function addSparkle(object3d) {
+  const geo = new THREE.SphereGeometry(0.06, 6, 6);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+  for (let i = 0; i < 4; i++) {
+    const s = new THREE.Mesh(geo, mat);
+    s.position.set((Math.random() - 0.5) * 0.7, 0.4 + Math.random() * 0.7, (Math.random() - 0.5) * 0.7);
+    s.userData.sparklePhase = Math.random() * Math.PI * 2; s.userData.isSparkle = true;
+    object3d.add(s);
+  }
+}
+// Shiny: swap each texture map to its "_C" variant. Gold tint fallback if a _C file is missing.
+function shinyTexUrl(url) {
+  if (/_C\.[a-z0-9]+(\?|#|$)/i.test(url)) return url;
+  return url.replace(/(\.[a-z0-9]+)(\?.*)?$/i, '_C$1$2');
+}
+function applyShiny(object3d) {
+  object3d.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const wasArray = Array.isArray(o.material);
+    const mats = wasArray ? o.material : [o.material];
+    const swapped = mats.map(mat => {
+      const m = mat.clone();
+      const img = m.map && m.map.image;
+      const src = img && (img.currentSrc || img.src);
+      if (src) {
+        const surl = shinyTexUrl(src);
+        if (surl !== src) {
+          const base = m.map;
+          const t = texLoader.load(surl, undefined, undefined, () => { m.color.set(0xffd54f); m.needsUpdate = true; });
+          t.colorSpace = base.colorSpace; t.flipY = base.flipY; t.wrapS = base.wrapS; t.wrapT = base.wrapT;
+          m.map = t;
+        }
+      } else {
+        m.color = new THREE.Color(0xffd54f);
+      }
+      m.needsUpdate = true;
+      return m;
+    });
+    o.material = wasArray ? swapped : swapped[0];
   });
   addSparkle(object3d);
 }
 
-function addSparkle(object3d) {
-  const geo = new THREE.SphereGeometry(0.06, 6, 6);
-  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
-  for (let i = 0; i < 3; i++) {
-    const s = new THREE.Mesh(geo, mat);
-    s.position.set((Math.random() - 0.5) * 0.6, 0.5 + Math.random() * 0.5, (Math.random() - 0.5) * 0.6);
-    s.userData.sparklePhase = Math.random() * Math.PI * 2;
-    s.userData.isSparkle = true;
-    object3d.add(s);
-  }
-}
-
-/* Entity factory: returns a THREE.Group that starts as a cube placeholder and
-   hot-swaps to the real GLTF model once (if) it loads successfully. */
+// Entity factory: instant cube placeholder, hot-swap to the real model when it loads.
 function createEntityObject(entryId, { shiny = false } = {}) {
   const entry = rosterById[entryId];
   const group = new THREE.Group();
   group.userData.rosterId = entryId;
-
-  const cube = makeCubeMesh(entry);
-  if (shiny) applyShinyTint(cube);
+  const cube = makeCubeMesh(entry, shiny ? 0xffd54f : undefined);
   group.add(cube);
-
-  const preferShinyModel = shiny && !!entry.shinyModelPath;
-  const path = preferShinyModel ? entry.shinyModelPath : entry.modelPath;
-  const needsTintOnModel = shiny && !preferShinyModel;
-
-  if (path) {
-    loadModelOrNull(path).then(model => {
+  if (entry.modelPath) {
+    loadModelOrNull(entry.modelPath).then(model => {
       if (!model || group.userData.destroyed) return;
       const inst = model.clone(true);
       inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-      const target = entry.modelTargetSize ?? Math.max(entry.boxSize[0], entry.boxSize[1], entry.boxSize[2]);
-      normalizeModel(inst, target);
-      if (needsTintOnModel) applyShinyTint(inst);
-      group.remove(cube);
-      group.add(inst);
+      normalizeModel(inst, entry.modelTargetSize ?? Math.max(...entry.boxSize));
+      if (shiny) applyShiny(inst);
+      group.remove(cube); group.add(inst);
     });
+  } else if (shiny) {
+    addSparkle(group);
   }
   return group;
 }
 
-/* ============================== I: DIFFICULTY / FAIRNESS HELPERS ============================== */
-function difficultyFactor(distance) {
-  return Math.min(1, distance / DIFFICULTY_MAX_DISTANCE);
-}
-
+/* ============================== J: DIFFICULTY / FAIRNESS ============================== */
+function difficultyFactor(distance) { return Math.min(1, Math.max(0, distance) / DIFFICULTY_MAX_DISTANCE); }
 function passesFairness(laneType, distance) {
-  const hist = gameState.familyHistory;
-  const last1 = hist[hist.length - 1];
-  const last2 = hist[hist.length - 2];
+  const h = gameState.familyHistory, l1 = h[h.length - 1], l2 = h[h.length - 2];
   if (distance < 3) return laneType.family === 'safe';
-  if (laneType.family === 'rail' && last1 === 'rail') return false;
-  if (laneType.family === 'rail' && last1 === 'river' && last2 === 'river') return false;
-  if (last1 === 'rail' && laneType.family !== 'safe') return false;
-  if (laneType.family === 'river' && last1 === 'river' && last2 === 'river') return false;
+  if (laneType.family === 'rail' && l1 === 'rail') return false;
+  if (l1 === 'rail' && laneType.family !== 'safe') return false;
+  if (laneType.family === 'river' && l1 === 'river' && l2 === 'river') return false;
   return true;
 }
-
 function pickLaneType(distance) {
   const candidates = LANE_TYPES.filter(lt => distance >= lt.minDistance && passesFairness(lt, distance));
   const pool = candidates.length ? candidates : [laneTypesByKey.grass];
   const total = pool.reduce((s, lt) => s + lt.weight(distance), 0);
   let r = Math.random() * total;
-  for (const lt of pool) {
-    r -= lt.weight(distance);
-    if (r <= 0) return lt;
-  }
+  for (const lt of pool) { r -= lt.weight(distance); if (r <= 0) return lt; }
   return pool[pool.length - 1];
 }
 
-/* ============================== J: LANE GENERATOR ============================== */
-function freeXPositions(exclude = []) {
-  const xs = [];
-  for (let x = -GRID_HALF; x <= GRID_HALF; x++) if (!exclude.includes(x)) xs.push(x);
-  return xs;
-}
+/* ============================== K: LANE GENERATION ============================== */
+function freeXPositions(exclude = []) { const xs = []; for (let x = -GRID_HALF; x <= GRID_HALF; x++) if (!exclude.includes(x)) xs.push(x); return xs; }
 
 function createLaneGroundMesh(z, family) {
-  // Alternate the two safe-lane greens like Crossy Road's striped grass for readability.
   const safeColor = (z % 2 === 0) ? 0x7ec850 : 0x74bd48;
   const colors = { safe: safeColor, road: 0x4a4a4a, river: 0x2f7ec9, rail: 0x7a6455 };
-  const geo = new THREE.PlaneGeometry(GROUND_WIDTH, TILE);
-  const mat = new THREE.MeshStandardMaterial({ color: colors[family] || safeColor });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set(0, 0, z * TILE);
-  mesh.receiveShadow = true;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_WIDTH, TILE), new THREE.MeshStandardMaterial({ color: colors[family] || safeColor }));
+  mesh.rotation.x = -Math.PI / 2; mesh.position.set(0, 0, z * TILE); mesh.receiveShadow = true;
   return mesh;
 }
-
-// Frame the play area on safe lanes with continuous side "forest" scenery, so the ground strip that
-// extends off the play area still reads as bounded (matches Crossy Road's tree-lined grass borders).
 function addBoundaryScenery(lane) {
   for (const side of [-1, 1]) {
     for (let i = 1; i <= 3; i++) {
-      const decorEntry = (i === 1 || Math.random() < 0.6) ? rosterById.tree : rosterById.rock;
-      const obj = createEntityObject(decorEntry.id);
-      const jitter = (Math.random() - 0.5) * 0.3;
-      obj.position.set(side * (GRID_HALF + i) + jitter, 0, lane.z * TILE + (Math.random() - 0.5) * 0.4);
+      const decor = (i === 1 || Math.random() < 0.6) ? rosterById.tree : rosterById.rock;
+      const obj = createEntityObject(decor.id);
+      obj.position.set(side * (GRID_HALF + i) + (Math.random() - 0.5) * 0.3, 0, lane.z * TILE + (Math.random() - 0.5) * 0.4);
       obj.rotation.y = Math.random() * Math.PI;
       lane.root.add(obj);
     }
   }
 }
-
 function newLane(z, typeKey, family) {
-  return {
-    z, typeKey, family,
-    entities: [],       // {kind:'hazard'|'platform', entry, group, x, vx, halfWidth}
-    decor: [],          // blocked x positions (rock/tree)
-    coins: [],          // {x, taken, group}
-    isWater: family === 'river',
-    railState: 'idle', railTimer: 0, railEntry: null, railWarningMesh: null, railCooldown: 0,
-    root: new THREE.Group(),
-  };
+  return { z, typeKey, family, entities: [], decor: [], coins: [], isWater: family === 'river',
+    railState: 'idle', railTimer: 0, railEntry: null, railWarningMesh: null, railCooldown: 0, root: new THREE.Group() };
 }
-
 function spawnGrassLane(lane) {
   addBoundaryScenery(lane);
-  const decorChance = lane.z <= 0 ? 0 : 0.4;
   const usedX = [];
-  if (Math.random() < decorChance) {
-    const count = 1 + (Math.random() < 0.3 ? 1 : 0);
+  if (lane.z > 0 && Math.random() < 0.4) {
     const options = freeXPositions();
+    const count = 1 + (Math.random() < 0.3 ? 1 : 0);
     for (let i = 0; i < count && options.length; i++) {
-      const idx = Math.floor(Math.random() * options.length);
-      const x = options.splice(idx, 1)[0];
-      const decorEntry = Math.random() < 0.5 ? rosterById.rock : rosterById.tree;
-      const obj = createEntityObject(decorEntry.id);
-      obj.position.set(x, 0, lane.z * TILE);
-      lane.root.add(obj);
-      lane.decor.push(x);
-      usedX.push(x);
+      const x = options.splice(Math.floor(Math.random() * options.length), 1)[0];
+      const decor = Math.random() < 0.5 ? rosterById.rock : rosterById.tree;
+      const obj = createEntityObject(decor.id);
+      obj.position.set(x, 0, lane.z * TILE); lane.root.add(obj);
+      lane.decor.push(x); usedX.push(x);
     }
   }
-  if (lane.z !== 0 && Math.random() < 0.55) {
+  if (lane.z > 0 && Math.random() < 0.55) {
     const options = freeXPositions(usedX);
     const count = Math.min(options.length, 1 + Math.floor(Math.random() * 2));
-    for (let i = 0; i < count; i++) {
-      const idx = Math.floor(Math.random() * options.length);
-      const x = options.splice(idx, 1)[0];
-      spawnCoin(lane, x);
-    }
+    for (let i = 0; i < count; i++) spawnCoin(lane, options.splice(Math.floor(Math.random() * options.length), 1)[0]);
   }
 }
-
 function spawnCoin(lane, x) {
   const obj = createEntityObject('coin');
-  obj.position.set(x, 0.4, lane.z * TILE);
-  obj.userData.spin = true;
-  lane.root.add(obj);
+  obj.position.set(x, 0.45, lane.z * TILE); lane.root.add(obj);
   lane.coins.push({ x, taken: false, group: obj });
 }
-
 function spawnRoadLane(lane, ctx, entry) {
   const dir = Math.random() < 0.5 ? 1 : -1;
   const df = difficultyFactor(ctx.distance);
   const speed = THREE.MathUtils.lerp(entry.speedRange[0], entry.speedRange[1], df);
-  // Evenly space vehicles a full "stride" (length + gap) apart across the travel span. The gap
-  // shrinks toward gapMin as difficulty rises but never below the player's tile, so there is always
-  // a crossable window — this is what keeps the pacing fair, Crossy-Road style.
   const gap = THREE.MathUtils.lerp(entry.gapMax, entry.gapMin, df);
   const stride = entry.boxSize[0] + gap;
-  const span = HAZARD_SPAN * 2;
-  const count = Math.max(1, Math.floor(span / stride));
+  const count = Math.max(1, Math.floor((HAZARD_SPAN * 2) / stride));
   const start = -HAZARD_SPAN + Math.random() * stride;
   for (let i = 0; i < count; i++) {
-    spawnHazardEntity(lane, entry, start + i * stride, speed * dir);
+    const use = (entry.substitute && Math.random() < entry.substitute.chance) ? rosterById[entry.substitute.id] : entry;
+    spawnHazardEntity(lane, use, start + i * stride, speed * dir);
   }
   if (Math.random() < 0.15) spawnCoin(lane, -GRID_HALF + Math.floor(Math.random() * GRID_WIDTH));
 }
-
 function spawnHazardEntity(lane, entry, x, vx) {
   const group = createEntityObject(entry.id);
   group.position.set(x, 0, lane.z * TILE);
@@ -623,7 +715,6 @@ function spawnHazardEntity(lane, entry, x, vx) {
   lane.root.add(group);
   lane.entities.push({ kind: 'hazard', entry, group, x, vx, halfWidth: entry.boxSize[0] / 2 });
 }
-
 function spawnRiverLane(lane, ctx, entry) {
   lane.isWater = true;
   const dir = Math.random() < 0.5 ? 1 : -1;
@@ -634,7 +725,6 @@ function spawnRiverLane(lane, ctx, entry) {
     x += entry.platformLength + THREE.MathUtils.lerp(entry.gapMin, entry.gapMax, Math.random());
   }
 }
-
 function spawnPlatformEntity(lane, entry, x, vx) {
   const group = createEntityObject(entry.id);
   group.position.set(x, 0, lane.z * TILE);
@@ -642,60 +732,43 @@ function spawnPlatformEntity(lane, entry, x, vx) {
   lane.root.add(group);
   lane.entities.push({ kind: 'platform', entry, group, x, vx, halfWidth: entry.platformLength / 2 });
 }
-
 function createWarningIndicator(z) {
-  const geo = new THREE.PlaneGeometry(GROUND_WIDTH, TILE * 0.95);
-  const mat = new THREE.MeshBasicMaterial({ color: 0xff1744, transparent: true, opacity: 0.0 });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set(0, 0.02, z * TILE);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_WIDTH, TILE * 0.95), new THREE.MeshBasicMaterial({ color: 0xff1744, transparent: true, opacity: 0 }));
+  mesh.rotation.x = -Math.PI / 2; mesh.position.set(0, 0.02, z * TILE);
   return mesh;
 }
-
 function spawnRailLane(lane, ctx, entry) {
-  lane.railEntry = entry;
-  lane.railState = 'idle';
-  lane.railTimer = 0;
-  lane.railWarningMesh = createWarningIndicator(lane.z);
-  lane.root.add(lane.railWarningMesh);
+  lane.railEntry = entry; lane.railState = 'idle'; lane.railTimer = 0;
+  lane.railWarningMesh = createWarningIndicator(lane.z); lane.root.add(lane.railWarningMesh);
 }
-
 function updateRailLane(lane, dt) {
   const entry = lane.railEntry;
   if (lane.railState === 'idle') {
-    const distToPlayer = lane.z - gameState.player.gridZ;
-    if (distToPlayer > 0 && distToPlayer <= 5) {
-      lane.railState = 'warning';
-      lane.railTimer = 0;
-    }
+    const d = lane.z - gameState.player.gridZ;
+    if (d > 0 && d <= 5) { lane.railState = 'warning'; lane.railTimer = 0; }
   } else if (lane.railState === 'warning') {
     lane.railTimer += dt * 1000;
-    const pulse = 0.25 + 0.55 * Math.abs(Math.sin(lane.railTimer / 90));
-    lane.railWarningMesh.material.opacity = pulse;
+    lane.railWarningMesh.material.opacity = 0.25 + 0.55 * Math.abs(Math.sin(lane.railTimer / 90));
     if (lane.railTimer >= entry.warningMs) {
-      lane.railState = 'sweeping';
-      lane.railWarningMesh.material.opacity = 0;
+      lane.railState = 'sweeping'; lane.railWarningMesh.material.opacity = 0;
       const dir = Math.random() < 0.5 ? 1 : -1;
-      spawnHazardEntity(lane, entry, -dir * (HAZARD_SPAN + 2), entry.sweepSpeed * dir);
+      const herd = (entry.herdMin ?? 4) + Math.floor(Math.random() * ((entry.herdMax ?? 6) - (entry.herdMin ?? 4) + 1));
+      const spacing = entry.boxSize[0] + 0.25;
+      for (let k = 0; k < herd; k++) spawnHazardEntity(lane, entry, -dir * (HAZARD_SPAN + 2) - dir * k * spacing, entry.sweepSpeed * dir);
       lane.entities.forEach(e => { e.isSweep = true; });
     }
   } else if (lane.railState === 'sweeping') {
-    const sweep = lane.entities.find(e => e.isSweep);
-    if (!sweep || Math.abs(sweep.x) > HAZARD_SPAN + 2) {
-      lane.entities.forEach(e => lane.root.remove(e.group));
-      lane.entities = [];
-      lane.railState = 'done';
-      lane.railCooldown = 900;
+    const sweeps = lane.entities.filter(e => e.isSweep);
+    if (!sweeps.length || sweeps.every(e => Math.abs(e.x) > HAZARD_SPAN + 3)) {
+      lane.entities.forEach(e => lane.root.remove(e.group)); lane.entities = [];
+      lane.railState = 'done'; lane.railCooldown = 1000;
     }
   } else if (lane.railState === 'done') {
-    lane.railCooldown -= dt * 1000;
-    if (lane.railCooldown <= 0) lane.railState = 'idle';
+    lane.railCooldown -= dt * 1000; if (lane.railCooldown <= 0) lane.railState = 'idle';
   }
 }
-
 function generateNextLane() {
-  const z = gameState.nextLaneZ;
-  const distance = z;
+  const z = gameState.nextLaneZ, distance = z;
   const laneType = pickLaneType(distance);
   const lane = newLane(z, laneType.key, laneType.family);
   lane.root.add(createLaneGroundMesh(z, laneType.family));
@@ -706,57 +779,62 @@ function generateNextLane() {
   if (gameState.familyHistory.length > 6) gameState.familyHistory.shift();
   gameState.nextLaneZ++;
 }
-
 function maintainLaneWindow() {
-  while (gameState.nextLaneZ <= gameState.player.gridZ + AHEAD_GEN) generateNextLane();
-  const minZ = gameState.player.gridZ - BEHIND_KEEP;
-  for (const [z, lane] of gameState.lanes) {
-    if (z < minZ) {
-      gameState.laneGroup.remove(lane.root);
-      gameState.lanes.delete(z);
-    }
-  }
+  const frontier = Math.max(gameState.player.gridZ, Math.ceil(gameState.scrollZ));
+  while (gameState.nextLaneZ <= frontier + AHEAD_GEN) generateNextLane();
+  const minZ = Math.floor(cameraFollowZ) - BEHIND_KEEP;
+  for (const [z, lane] of gameState.lanes) if (z < minZ) { gameState.laneGroup.remove(lane.root); gameState.lanes.delete(z); }
 }
-
 function resetLanes() {
   for (const lane of gameState.lanes.values()) gameState.laneGroup.remove(lane.root);
   gameState.lanes.clear();
-  // Start generation a few rows behind the player so there is visible ground under and behind the
-  // starting tile (all forced to safe grass since distance < 3), not empty blue void near the camera.
   gameState.nextLaneZ = -(BEHIND_KEEP + 1);
   gameState.familyHistory = [];
 }
+// A dense decorative forest just behind the start so the opening frame shows trees, not empty space.
+function buildStartForest() {
+  if (gameState.startForest) scene.remove(gameState.startForest);
+  const g = new THREE.Group();
+  for (let z = -3; z >= -14; z--) {
+    for (let x = -GRID_HALF - 2; x <= GRID_HALF + 2; x++) {
+      if (Math.random() < 0.55) continue;
+      const t = createEntityObject(Math.random() < 0.75 ? 'tree' : 'rock');
+      t.position.set(x + (Math.random() - 0.5) * 0.5, 0, z + (Math.random() - 0.5) * 0.5);
+      t.rotation.y = Math.random() * Math.PI;
+      g.add(t);
+    }
+  }
+  scene.add(g); gameState.startForest = g;
+}
 
-/* ============================== K: INPUT HANDLING ============================== */
+/* ============================== L: INPUT ============================== */
+// NOTE: left/right were reversed relative to the on-screen isometric view — corrected here.
 window.addEventListener('keydown', (e) => {
-  if (gameState.mode !== 'playing' || gameState.player.isMoving) return;
+  if (e.code === 'Escape' && gameState.mode === 'playing') { togglePause(); return; }
+  if (gameState.mode !== 'playing' || gameState.paused || gameState.countdownUntil || gameState.player.isMoving) return;
   switch (e.code) {
     case 'ArrowUp': case 'Space': e.preventDefault(); tryMove(0, 1); break;
     case 'ArrowDown': e.preventDefault(); tryMove(0, -1); break;
-    case 'ArrowLeft': e.preventDefault(); tryMove(-1, 0); break;
-    case 'ArrowRight': e.preventDefault(); tryMove(1, 0); break;
+    case 'ArrowLeft': e.preventDefault(); tryMove(1, 0); break;
+    case 'ArrowRight': e.preventDefault(); tryMove(-1, 0); break;
   }
 }, { passive: false });
 
 const SWIPE_MIN_DIST = 28, SWIPE_MAX_TIME = 550, TAP_MAX_TIME = 250, TAP_MAX_MOVE = 12;
-
 canvas.addEventListener('touchstart', (e) => {
   const t = e.changedTouches[0];
   gameState.input.touchStart = { x: t.clientX, y: t.clientY, time: performance.now() };
 }, { passive: true });
-
 canvas.addEventListener('touchend', (e) => {
-  const start = gameState.input.touchStart;
-  gameState.input.touchStart = null;
-  if (!start || gameState.mode !== 'playing' || gameState.player.isMoving) return;
+  const start = gameState.input.touchStart; gameState.input.touchStart = null;
+  if (!start || gameState.mode !== 'playing' || gameState.paused || gameState.countdownUntil || gameState.player.isMoving) return;
   const t = e.changedTouches[0];
   const dx = t.clientX - start.x, dy = t.clientY - start.y;
   const dist = Math.hypot(dx, dy), dt = performance.now() - start.time;
-
   if (dist < TAP_MAX_MOVE && dt < TAP_MAX_TIME) { tryMove(0, 1); return; }
   if (dist >= SWIPE_MIN_DIST && dt <= SWIPE_MAX_TIME) {
-    if (Math.abs(dx) > Math.abs(dy)) tryMove(Math.sign(dx), 0);
-    else tryMove(0, -Math.sign(dy)); // screen-up (negative dy) = forward
+    if (Math.abs(dx) > Math.abs(dy)) tryMove(-Math.sign(dx), 0); // swipe right -> move screen-right
+    else tryMove(0, -Math.sign(dy));                            // swipe up -> forward
   }
 }, { passive: true });
 
@@ -764,66 +842,44 @@ function onViewportChange() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false);
   const aspect = w / h;
-  camera.left = -FRUSTUM_SIZE * aspect;
-  camera.right = FRUSTUM_SIZE * aspect;
-  camera.top = FRUSTUM_SIZE;
-  camera.bottom = -FRUSTUM_SIZE;
-  camera.updateProjectionMatrix();
+  camera.left = -FRUSTUM_SIZE * aspect; camera.right = FRUSTUM_SIZE * aspect;
+  camera.top = FRUSTUM_SIZE; camera.bottom = -FRUSTUM_SIZE; camera.updateProjectionMatrix();
+  if (previewRenderer) resizePreview();
 }
 window.addEventListener('resize', onViewportChange);
-window.addEventListener('orientationchange', () => {
-  requestAnimationFrame(() => requestAnimationFrame(onViewportChange));
-});
+window.addEventListener('orientationchange', () => requestAnimationFrame(() => requestAnimationFrame(onViewportChange)));
 
-/* ============================== L: PLAYER MOVEMENT ============================== */
+/* ============================== M: PLAYER MOVEMENT ============================== */
 function isTileWalkable(x, z) {
-  if (x < -GRID_HALF || x > GRID_HALF) return false;
-  if (z < 0) return false;
+  if (x < -GRID_HALF || x > GRID_HALF) return false;   // side walls
   const lane = gameState.lanes.get(z);
   if (!lane) return true;
   if (lane.decor.includes(x)) return false;
   return true;
 }
-
 function tryMove(dx, dz) {
   const p = gameState.player;
-  const targetX = p.gridX + dx;
-  const targetZ = p.gridZ + dz;
-  if (!isTileWalkable(targetX, targetZ)) {
-    playBumpAnimation(dx, dz);
-    return;
-  }
+  const tx = p.gridX + dx, tz = p.gridZ + dz;
+  if (!isTileWalkable(tx, tz)) { playBumpAnimation(dx, dz); return; }
+  gameState.scrollActive = true;                        // world starts creeping on first move
+  AudioSys.sfx.hop();
   p.isMoving = true;
-  const from = { x: p.gridX * TILE, z: p.gridZ * TILE };
-  const to = { x: targetX * TILE, z: targetZ * TILE };
-  p.tween = { from, to, startTime: performance.now(), duration: HOP_DURATION_MS, dx, dz };
-  p.gridX = targetX;
-  p.gridZ = targetZ;
-  if (targetZ > gameState.distance) gameState.distance = targetZ;
+  p.tween = { from: { x: p.gridX * TILE, z: p.gridZ * TILE }, to: { x: tx * TILE, z: tz * TILE }, startTime: performance.now(), duration: HOP_DURATION_MS, dx, dz };
+  p.gridX = tx; p.gridZ = tz;
+  if (tz > gameState.distance) gameState.distance = tz;
 }
-
 function playBumpAnimation(dx, dz) {
-  const p = gameState.player;
-  if (!p.group || p.isMoving) return;
-  const nudge = { x: dx * 0.18, z: dz * 0.18 };
-  const baseX = p.group.position.x, baseZ = p.group.position.z;
-  const start = performance.now();
-  function step(now) {
-    const t = Math.min(1, (now - start) / 160);
-    const k = Math.sin(t * Math.PI);
-    p.group.position.x = baseX + nudge.x * k;
-    p.group.position.z = baseZ + nudge.z * k;
-    if (t < 1) requestAnimationFrame(step);
-    else { p.group.position.x = baseX; p.group.position.z = baseZ; }
-  }
-  requestAnimationFrame(step);
+  const p = gameState.player; if (!p.group || p.isMoving) return;
+  const baseX = p.group.position.x, baseZ = p.group.position.z, start = performance.now();
+  (function step(now) {
+    const t = Math.min(1, (now - start) / 160), k = Math.sin(t * Math.PI);
+    p.group.position.x = baseX + dx * 0.18 * k; p.group.position.z = baseZ + dz * 0.18 * k;
+    if (t < 1) requestAnimationFrame(step); else { p.group.position.x = baseX; p.group.position.z = baseZ; }
+  })(start);
 }
-
 function updatePlayerTween(now) {
-  const p = gameState.player;
-  if (!p.tween || !p.group) return;
-  const t = Math.min(1, (now - p.tween.startTime) / p.tween.duration);
-  const eased = 1 - Math.pow(1 - t, 3);
+  const p = gameState.player; if (!p.tween || !p.group) return;
+  const t = Math.min(1, (now - p.tween.startTime) / p.tween.duration), eased = 1 - Math.pow(1 - t, 3);
   p.group.position.x = THREE.MathUtils.lerp(p.tween.from.x, p.tween.to.x, eased);
   p.group.position.z = THREE.MathUtils.lerp(p.tween.from.z, p.tween.to.z, eased);
   p.group.position.y = Math.sin(eased * Math.PI) * 0.4;
@@ -831,269 +887,369 @@ function updatePlayerTween(now) {
   if (t >= 1) { p.group.position.y = 0; p.isMoving = false; p.tween = null; }
 }
 
-/* ============================== M: CAMERA FOLLOW ============================== */
+/* ============================== N: CAMERA & SCROLL ============================== */
+function updateScroll(dt) {
+  if (!gameState.scrollActive) return;
+  const spd = THREE.MathUtils.lerp(SCROLL_START_SPEED, SCROLL_MAX_SPEED, difficultyFactor(gameState.distance));
+  gameState.scrollZ += spd * dt;
+}
 function updateCamera(dt) {
-  const targetZ = gameState.player.gridZ * TILE;
+  let targetZ = gameState.player.gridZ * TILE;
+  if (gameState.mode === 'playing') targetZ = Math.max(gameState.scrollZ, gameState.player.gridZ * TILE);
   cameraFollowZ = THREE.MathUtils.damp(cameraFollowZ, targetZ, 6, dt);
   camera.position.set(CAM_OFFSET.x, CAM_OFFSET.y, CAM_OFFSET.z + cameraFollowZ);
   camera.lookAt(0, 0, cameraFollowZ);
+  groundFill.position.z = cameraFollowZ;
 }
 
-/* ============================== N: COIN / HAZARD / SAFETY LOGIC ============================== */
+/* ============================== O: COINS / HAZARDS / SAFETY ============================== */
 function resolveCoinValue() {
   const p = gameState.player;
   if (p.shinyUnlocked) {
     if (p.tier === 'legendary') {
       const r = Math.random();
-      if (r < 0.04) return 10;   // red coin, 1/25
-      if (r < 0.14) return 2;    // blue coin, 1/10
+      if (r < 0.04) return 10;   // red coin  (1/25)
+      if (r < 0.14) return 2;    // blue coin (1/10)
       return 1;
     }
-    return Math.random() < 0.20 ? 2 : 1; // 20% chance to double
+    return Math.random() < 0.20 ? 2 : 1;
   }
   return 1;
 }
-
 function checkCoinPickup(lane) {
   const p = gameState.player;
   for (const coin of lane.coins) {
-    if (!coin.taken && coin.x === p.gridX) {
-      coin.taken = true;
-      lane.root.remove(coin.group);
+    if (!coin.taken && Math.round(p.gridX) === coin.x) {
+      coin.taken = true; lane.root.remove(coin.group);
       gameState.coinsThisRun += resolveCoinValue();
-      updateHUD();
+      AudioSys.sfx.coin(); updateHUD();
     }
   }
 }
-
 function findPlatformUnderTile(lane, x) {
-  for (const ent of lane.entities) {
-    if (ent.kind !== 'platform') continue;
-    if (Math.abs(ent.x - x) <= ent.halfWidth) return ent;
-  }
+  for (const ent of lane.entities) if (ent.kind === 'platform' && Math.abs(ent.x - x) <= ent.halfWidth) return ent;
   return null;
 }
-
 function hazardOverlapsTile(lane, x) {
-  const playerHalf = 0.4;
-  for (const ent of lane.entities) {
-    if (ent.kind !== 'hazard') continue;
-    if (Math.abs(ent.x - x) < ent.halfWidth + playerHalf) return true;
-  }
+  const ph = 0.4;
+  for (const ent of lane.entities) if (ent.kind === 'hazard' && Math.abs(ent.x - x) < ent.halfWidth + ph) return true;
   return false;
 }
-
 function checkPlayerSafety(dt) {
   const p = gameState.player;
   const lane = gameState.lanes.get(p.gridZ);
-  if (!lane) return;
-  checkCoinPickup(lane);
-
-  if (lane.family === 'river' && !p.isMoving) {
-    const platform = findPlatformUnderTile(lane, p.gridX);
-    if (!platform) { triggerGameOver('drowned'); return; }
-    const deltaX = platform.vx * dt;
-    p.group.position.x += deltaX;
-    p.gridX = p.group.position.x / TILE;
-    if (p.group.position.x < (-GRID_HALF - 0.5) * TILE || p.group.position.x > (GRID_HALF + 0.5) * TILE) {
-      triggerGameOver('drowned'); return;
+  if (lane) {
+    checkCoinPickup(lane);
+    if (lane.family === 'river' && !p.isMoving) {
+      const platform = findPlatformUnderTile(lane, p.gridX);
+      if (!platform) { triggerGameOver('drowned'); return; }
+      p.group.position.x += platform.vx * dt; p.gridX = p.group.position.x / TILE;
+      if (p.group.position.x < (-GRID_HALF - 0.5) || p.group.position.x > (GRID_HALF + 0.5)) { triggerGameOver('drowned'); return; }
     }
+    if ((lane.family === 'road' || lane.family === 'rail') && !p.isMoving && hazardOverlapsTile(lane, p.gridX)) { triggerGameOver('squashed'); return; }
   }
-  if ((lane.family === 'road' || lane.family === 'rail') && !p.isMoving) {
-    if (hazardOverlapsTile(lane, p.gridX)) { triggerGameOver('squashed'); return; }
-  }
+  // Offscreen (fell behind the advancing world)
+  if (gameState.scrollActive && !p.isMoving && p.gridZ * TILE < cameraFollowZ - DEATH_MARGIN) triggerGameOver('offscreen');
 }
-
 function updateLanes(dt) {
   for (const lane of gameState.lanes.values()) {
     if (lane.family === 'rail') updateRailLane(lane, dt);
     for (const ent of lane.entities) {
-      ent.x += ent.vx * dt;
-      ent.group.position.x = ent.x;
+      ent.x += ent.vx * dt; ent.group.position.x = ent.x;
       if (!ent.isSweep) {
         const bound = HAZARD_SPAN + ent.halfWidth;
-        if (ent.x > bound) ent.x = -bound, ent.group.position.x = ent.x;
-        if (ent.x < -bound) ent.x = bound, ent.group.position.x = ent.x;
+        if (ent.x > bound) { ent.x = -bound; ent.group.position.x = ent.x; }
+        if (ent.x < -bound) { ent.x = bound; ent.group.position.x = ent.x; }
       }
     }
     lane.entities = lane.entities.filter(e => lane.root.children.includes(e.group) || e.isSweep);
-    for (const coin of lane.coins) {
-      if (!coin.taken) coin.group.rotation.y += dt * 3;
-    }
+    for (const coin of lane.coins) if (!coin.taken) coin.group.rotation.y += dt * 3;
   }
-  // sparkle bob
   const t = performance.now() / 500;
-  gameState.laneGroup.traverse(obj => {
-    if (obj.userData.isSparkle) obj.position.y = 0.5 + Math.sin(t + obj.userData.sparklePhase) * 0.15;
-  });
+  gameState.laneGroup.traverse(obj => { if (obj.userData.isSparkle) obj.position.y = 0.5 + Math.sin(t + obj.userData.sparklePhase) * 0.15; });
+  if (gameState.player.group) gameState.player.group.traverse(obj => { if (obj.userData.isSparkle) obj.position.y = 0.5 + Math.sin(t + obj.userData.sparklePhase) * 0.15; });
 }
 
-/* ============================== O: GACHA LOGIC + UI ============================== */
+/* ============================== P: GACHA ============================== */
 function pullGacha() {
   const save = gameState.save;
   if (save.coins < GACHA_COST) return { error: 'not_enough_coins' };
   save.coins -= GACHA_COST;
-  const totalWeight = BALL_TIERS.reduce((s, b) => s + b.weight, 0);
-  let r = Math.random() * totalWeight;
+  const total = BALL_TIERS.reduce((s, b) => s + b.weight, 0);
+  let r = Math.random() * total;
   const picked = BALL_TIERS.find(b => (r -= b.weight) < 0) ?? BALL_TIERS[0];
   const pool = ROSTER.filter(e => e.role === 'player' && e.tier === picked.tier);
-  persistSave();
-  if (pool.length === 0) return { ball: picked.ball, mon: null };
+  if (pool.length === 0) { persistSave(); return { ball: picked, mon: null }; }
   const mon = pool[Math.floor(Math.random() * pool.length)];
   const alreadyOwned = save.unlockedIds.includes(mon.id);
   if (!alreadyOwned) save.unlockedIds.push(mon.id);
   persistSave();
-  return { ball: picked.ball, mon, alreadyOwned };
+  return { ball: picked, mon, alreadyOwned };
 }
-
 function hexColor(c) { return '#' + c.toString(16).padStart(6, '0'); }
-
 function wireGachaUI() {
   document.getElementById('btn-gacha-pull').addEventListener('click', () => {
-    const resultEl = document.getElementById('gacha-result');
-    const result = pullGacha();
-    updateGachaCoinDisplays();
-    if (result.error === 'not_enough_coins') {
-      resultEl.classList.remove('hidden');
-      resultEl.innerHTML = `<p>Not enough coins! You need ${GACHA_COST} 🪙.</p>`;
-      return;
-    }
-    resultEl.classList.remove('hidden');
-    if (!result.mon) {
-      resultEl.innerHTML = `<p>You got a <strong>${result.ball}</strong>... but no Pokemon exists in that tier yet!</p>`;
-      return;
-    }
-    resultEl.innerHTML = `
-      <div class="thumb" style="background:${hexColor(result.mon.color)}"></div>
-      <p><strong>${result.ball}</strong></p>
-      <p>${result.mon.displayName}${result.alreadyOwned ? ' (already owned)' : ' — NEW!'}</p>
-    `;
+    const el = document.getElementById('gacha-result');
+    const res = pullGacha(); updateGachaCoinDisplays(); el.classList.remove('hidden');
+    if (res.error === 'not_enough_coins') { el.innerHTML = `<p>Not enough coins! You need ${GACHA_COST} 🪙.</p>`; return; }
+    AudioSys.sfx.gacha();
+    if (!res.mon) { el.innerHTML = `<p class="ball-name" style="color:${hexColor(res.ball.color)}">${res.ball.ball}</p><p>No Pokemon in this tier yet!</p>`; return; }
+    el.innerHTML = `<div class="thumb" style="background:${hexColor(res.mon.color)}"></div>
+      <p class="ball-name" style="color:${hexColor(res.ball.color)}">${res.ball.ball}</p>
+      <p><strong>${res.mon.displayName}</strong> ${res.alreadyOwned ? '<span style="opacity:.7">(already owned)</span>' : '<span style="color:#ffd54f">— NEW!</span>'}</p>`;
   });
 }
-
 function updateGachaCoinDisplays() {
   document.getElementById('gacha-coins').textContent = gameState.save.coins;
   document.getElementById('menu-coins').textContent = gameState.save.coins;
 }
 
-/* ============================== P: CHARACTER SELECT UI ============================== */
-function renderRosterGrid() {
-  const grid = document.getElementById('roster-grid');
-  grid.innerHTML = '';
-  for (const id of gameState.save.unlockedIds) {
-    const entry = rosterById[id];
-    if (!entry) continue;
-    const shiny = !!gameState.save.shinyUnlockedByCharacter[id];
-    const best = gameState.save.bestScoreByCharacter[id] ?? 0;
-    const card = document.createElement('button');
-    card.type = 'button';
-    card.className = 'roster-card' + (id === gameState.selectedPokemonId ? ' selected' : '');
-    card.innerHTML = `
-      <div class="roster-thumb" style="background:${hexColor(entry.color)}"></div>
-      <span>${entry.displayName}${shiny ? ' ✨' : ''}</span>
-      <small>Best: ${best}</small>
-    `;
-    card.addEventListener('click', () => {
-      gameState.selectedPokemonId = id;
-      document.getElementById('btn-select-start').disabled = false;
-      renderRosterGrid();
+/* ============================== Q: CHARACTER SELECT (3D preview + silhouettes) ============================== */
+let previewRenderer, previewScene, previewCamera, previewHolder;
+function initPreview() {
+  const pcanvas = document.getElementById('preview-canvas');
+  previewRenderer = new THREE.WebGLRenderer({ canvas: pcanvas, antialias: true, alpha: true });
+  previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  previewScene = new THREE.Scene();
+  previewScene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.2));
+  const dl = new THREE.DirectionalLight(0xffffff, 1.1); dl.position.set(2, 4, 3); previewScene.add(dl);
+  previewCamera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+  previewCamera.position.set(0, 1.0, 3.4); previewCamera.lookAt(0, 0.7, 0);
+  previewHolder = new THREE.Group(); previewScene.add(previewHolder);
+}
+function resizePreview() {
+  const pcanvas = document.getElementById('preview-canvas');
+  const w = pcanvas.clientWidth || 300, h = pcanvas.clientHeight || 300;
+  previewRenderer.setSize(w, h, false);
+  previewCamera.aspect = w / h; previewCamera.updateProjectionMatrix();
+}
+function blacken(obj) { obj.traverse(o => { if (o.isMesh) o.material = new THREE.MeshStandardMaterial({ color: 0x0e1014, roughness: 1 }); }); }
+function loadPreviewModel(id) {
+  while (previewHolder.children.length) previewHolder.remove(previewHolder.children[0]);
+  const entry = rosterById[id];
+  const locked = !gameState.save.unlockedIds.includes(id);
+  const shiny = !locked && !!gameState.save.shinyUnlockedByCharacter[id];
+  const holder = new THREE.Group(); previewHolder.add(holder);
+  const cube = makeCubeMesh(entry, locked ? 0x0e1014 : undefined); cube.position.y = 0; holder.add(cube);
+  if (entry.modelPath) {
+    loadModelOrNull(entry.modelPath).then(model => {
+      if (!model) return;
+      const inst = model.clone(true); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
+      normalizeModel(inst, 1.7);
+      if (locked) blacken(inst); else if (shiny) applyShiny(inst);
+      holder.remove(cube); holder.add(inst);
     });
-    grid.appendChild(card);
+  }
+  previewHolder.userData.bounce = performance.now();
+}
+function renderRosterStrip() {
+  const strip = document.getElementById('roster-strip');
+  strip.innerHTML = '';
+  for (const entry of PLAYER_ENTRIES) {
+    const locked = !gameState.save.unlockedIds.includes(entry.id);
+    const shiny = !!gameState.save.shinyUnlockedByCharacter[entry.id];
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'roster-chip' + (entry.id === gameState.previewId ? ' selected' : '') + (locked ? ' locked' : '');
+    chip.innerHTML = `<span class="chip-dot" style="background:${hexColor(entry.color)}"></span>
+      <span>${locked ? '???' : entry.displayName + (shiny ? ' ✨' : '')}</span>
+      <span class="chip-tier">${entry.tier}</span>`;
+    chip.addEventListener('click', () => selectPreview(entry.id, locked));
+    strip.appendChild(chip);
   }
 }
+function selectPreview(id, locked) {
+  gameState.previewId = id;
+  if (!locked) gameState.selectedPokemonId = id;
+  const entry = rosterById[id];
+  const best = gameState.save.bestScoreByCharacter[id] ?? 0;
+  document.getElementById('preview-name').textContent = locked ? '???' : entry.displayName;
+  document.getElementById('preview-sub').textContent = locked
+    ? `Locked — win from the Gum Ball Machine`
+    : `Tier: ${entry.tier}   •   Best: ${best}${gameState.save.shinyUnlockedByCharacter[id] ? '   •   ✨ Shiny' : ''}`;
+  document.getElementById('btn-select-start').disabled = locked;
+  loadPreviewModel(id);
+  renderRosterStrip();
+}
+function openSelect() {
+  if (!previewRenderer) initPreview();
+  resizePreview();
+  // default the preview to the currently-selected (unlocked) mon
+  const startId = gameState.save.unlockedIds.includes(gameState.selectedPokemonId) ? gameState.selectedPokemonId : gameState.save.unlockedIds[0];
+  selectPreview(startId, !gameState.save.unlockedIds.includes(startId));
+}
 
-/* ============================== Q: HUD / UI HELPERS ============================== */
+/* ============================== R: HUD / PAUSE / COUNTDOWN ============================== */
 function updateHUD() {
   document.getElementById('coin-count').textContent = gameState.coinsThisRun;
   document.getElementById('score-count').textContent = gameState.distance;
 }
+function togglePause() {
+  if (gameState.mode !== 'playing') return;
+  if (gameState.countdownUntil) return;
+  if (gameState.paused) resumeFromPause();
+  else { gameState.paused = true; document.getElementById('overlay-pause').classList.remove('hidden'); }
+}
+function resumeFromPause() {
+  document.getElementById('overlay-pause').classList.add('hidden');
+  gameState.countdownUntil = performance.now() + 3000;
+  document.getElementById('overlay-countdown').classList.remove('hidden');
+}
+function updateCountdown(now) {
+  const rem = gameState.countdownUntil - now;
+  if (rem <= 0) {
+    gameState.countdownUntil = 0; gameState.paused = false;
+    document.getElementById('overlay-countdown').classList.add('hidden');
+    return;
+  }
+  const num = Math.ceil(rem / 1000);
+  const el = document.getElementById('countdown-num');
+  if (el.textContent !== String(num)) { el.textContent = num; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = 'cd-pop 1s ease'; }
+}
 
-/* ============================== R: GAME STATE MACHINE ============================== */
+/* ============================== S: STATE MACHINE ============================== */
 function setMode(next) {
   document.querySelectorAll('.screen').forEach(el => el.classList.add('hidden'));
+  document.getElementById('overlay-pause').classList.add('hidden');
+  document.getElementById('overlay-countdown').classList.add('hidden');
   document.getElementById('hud').classList.toggle('hidden', next !== 'playing');
   document.getElementById('touch-hint').classList.toggle('hidden', next !== 'playing' || !isTouchDevice());
+  if (next !== 'playing') { gameState.paused = false; gameState.countdownUntil = 0; }
   gameState.mode = next;
-  if (next === 'select') renderRosterGrid();
-  if (next === 'gacha') updateGachaCoinDisplays();
-  if (next === 'menu') document.getElementById('menu-coins').textContent = gameState.save.coins;
-  if (next === 'playing') startRun(gameState.selectedPokemonId);
+  // Show the target screen FIRST so per-mode init (e.g. sizing the 3D preview canvas) sees real dimensions.
   const screen = document.getElementById(`screen-${next}`);
   if (screen) screen.classList.remove('hidden');
-  if (next === 'playing') {
-    setTimeout(() => document.getElementById('touch-hint').classList.add('hidden'), 3500);
-  }
+  if (next === 'select') openSelect();
+  if (next === 'gacha') { updateGachaCoinDisplays(); document.getElementById('gacha-result').classList.add('hidden'); }
+  if (next === 'menu') document.getElementById('menu-coins').textContent = gameState.save.coins;
+  if (next === 'settings') refreshSettingsUI();
+  if (next === 'playing') startRun(gameState.selectedPokemonId);
+  if (next === 'playing') setTimeout(() => document.getElementById('touch-hint').classList.add('hidden'), 3500);
 }
-
-function isTouchDevice() {
-  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-}
-
+function isTouchDevice() { return 'ontouchstart' in window || navigator.maxTouchPoints > 0; }
 function startRun(pokemonId) {
   const entry = rosterById[pokemonId];
   const shinyUnlocked = !!gameState.save.shinyUnlockedByCharacter[pokemonId];
-
   resetLanes();
-  if (gameState.player.group) scene.remove(gameState.player.group);
-
-  gameState.player.gridX = 0;
-  gameState.player.gridZ = 0;
-  gameState.player.isMoving = false;
-  gameState.player.tween = null;
-  gameState.player.tier = entry.tier;
-  gameState.player.shinyUnlocked = shinyUnlocked;
-  gameState.distance = 0;
-  gameState.coinsThisRun = 0;
-
+  if (gameState.player.group) { gameState.player.group.userData.destroyed = true; scene.remove(gameState.player.group); }
+  gameState.player.gridX = 0; gameState.player.gridZ = 0; gameState.player.isMoving = false; gameState.player.tween = null;
+  gameState.player.tier = entry.tier; gameState.player.shinyUnlocked = shinyUnlocked;
+  gameState.distance = 0; gameState.coinsThisRun = 0;
+  gameState.scrollZ = 0; gameState.scrollActive = false;
+  gameState.paused = false; gameState.countdownUntil = 0;
   const group = createEntityObject(pokemonId, { shiny: shinyUnlocked });
-  group.position.set(0, 0, 0);
-  scene.add(group);
-  gameState.player.group = group;
-
+  group.position.set(0, 0, 0); scene.add(group); gameState.player.group = group;
   cameraFollowZ = 0;
   maintainLaneWindow();
+  buildStartForest();
   updateHUD();
 }
-
 function finalizeRun() {
-  const id = gameState.selectedPokemonId;
-  const save = gameState.save;
+  const id = gameState.selectedPokemonId, save = gameState.save;
   const prevBest = save.bestScoreByCharacter[id] ?? 0;
   const newBest = gameState.distance > prevBest;
   if (newBest) save.bestScoreByCharacter[id] = gameState.distance;
-
   let shinyJustUnlocked = false;
-  if (gameState.distance >= 1000 && !save.shinyUnlockedByCharacter[id]) {
-    save.shinyUnlockedByCharacter[id] = true;
-    shinyJustUnlocked = true;
-  }
+  if (gameState.distance >= 1000 && !save.shinyUnlockedByCharacter[id]) { save.shinyUnlockedByCharacter[id] = true; shinyJustUnlocked = true; }
   save.coins += gameState.coinsThisRun;
   persistSave();
-  return { newBest, shinyJustUnlocked };
+  return { newBest, shinyJustUnlocked, best: save.bestScoreByCharacter[id] ?? gameState.distance };
 }
-
 function triggerGameOver() {
   if (gameState.mode !== 'playing') return;
-  const { newBest, shinyJustUnlocked } = finalizeRun();
+  AudioSys.sfx.die();
+  const { newBest, shinyJustUnlocked, best } = finalizeRun();
   document.getElementById('go-score').textContent = gameState.distance;
+  document.getElementById('go-best').textContent = best;
   document.getElementById('go-coins').textContent = gameState.coinsThisRun;
-  document.getElementById('go-best').classList.toggle('hidden', !newBest);
+  document.getElementById('go-total').textContent = gameState.save.coins;
+  document.getElementById('go-newbadge').classList.toggle('hidden', !newBest);
   document.getElementById('go-shiny').classList.toggle('hidden', !shinyJustUnlocked);
   setMode('gameover');
 }
 
-function wireStateMachineUI() {
-  document.getElementById('btn-play').addEventListener('click', () => setMode('select'));
-  document.getElementById('btn-select-start').addEventListener('click', () => setMode('playing'));
-  document.getElementById('btn-select-back').addEventListener('click', () => setMode('menu'));
-  document.getElementById('btn-gacha').addEventListener('click', () => setMode('gacha'));
-  document.getElementById('btn-gacha-back').addEventListener('click', () => setMode('menu'));
-  document.getElementById('btn-retry').addEventListener('click', () => setMode('playing'));
-  document.getElementById('btn-go-select').addEventListener('click', () => setMode('select'));
-  document.getElementById('btn-go-menu').addEventListener('click', () => setMode('menu'));
+/* ============================== T: HOW TO PLAY / SETTINGS ============================== */
+function buildHowTo() {
+  const el = document.getElementById('howto-panel');
+  const balls = BALL_TIERS.map(b => {
+    const total = BALL_TIERS.reduce((s, x) => s + x.weight, 0);
+    const pct = Math.round(b.weight / total * 100);
+    const label = { basic: 'Basic Pokemon', stage1: 'Stage-1 Pokemon', stage3: 'Stage-3 Pokemon', legendary: 'Legendary / Mythical' }[b.tier];
+    return `<li style="background:rgba(255,255,255,0.05)"><span><span class="swatch" style="background:${hexColor(b.color)}"></span>${b.ball} — ${label}</span><span>${pct}%</span></li>`;
+  }).join('');
+  el.innerHTML = `
+    <h3>Move</h3>
+    <div class="row"><div class="keys-grid">
+      <span></span><span class="key">↑</span><span></span>
+      <span class="key">←</span><span class="key">↓</span><span class="key">→</span>
+    </div>
+    <div>Arrow keys hop one tile. <span class="key wide">Space</span> also hops forward.</div></div>
+    <div class="row"><div>📱 On mobile: <b>swipe</b> to move in a direction, <b>tap</b> to hop forward.</div></div>
+    <h3>Stay on screen</h3>
+    <div class="row"><div>The world slowly scrolls forward and speeds up over time. Keep moving — if you fall off the back edge, you're done. You may step backward, but don't get left behind!</div></div>
+    <h3>Hazards</h3>
+    <div class="row"><div>🐴 Roads: dodge charging Pokemon (Rapidash, Dodrio &amp; friends).<br/>🌊 Rivers: ride Pokemon across the water — fall in and you sink.<br/>🐂 Stampede lanes flash red, then a Tauros herd charges through.</div></div>
+    <h3>Coins &amp; the Gum Ball Machine</h3>
+    <div class="row"><div>Collect 🪙 coins on the way. Spend <b>${GACHA_COST} coins</b> per pull to get a random ball containing a new playable Pokemon:</div></div>
+    <ul class="rarity-list">${balls}</ul>
+    <h3>Shiny forms</h3>
+    <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its ✨ shiny form.<br/>
+    • Shiny: <b>20% chance</b> to double each coin you grab.<br/>
+    • Shiny Legendary: coins have a <b>1/10</b> chance to be a blue coin (worth 2) and a <b>1/25</b> chance to be a red coin (worth 10).</div></div>`;
+}
+function refreshSettingsUI() {
+  const m = Math.round((gameState.save.musicVol ?? 0.5) * 100);
+  const s = Math.round((gameState.save.sfxVol ?? 0.7) * 100);
+  document.getElementById('set-music').value = m; document.getElementById('set-music-val').textContent = m + '%';
+  document.getElementById('set-sfx').value = s; document.getElementById('set-sfx-val').textContent = s + '%';
+}
+function wireSettings() {
+  const music = document.getElementById('set-music'), sfx = document.getElementById('set-sfx');
+  music.addEventListener('input', () => {
+    gameState.save.musicVol = music.value / 100; document.getElementById('set-music-val').textContent = music.value + '%';
+    AudioSys.applyVolumes(); persistSave();
+  });
+  sfx.addEventListener('input', () => {
+    gameState.save.sfxVol = sfx.value / 100; document.getElementById('set-sfx-val').textContent = sfx.value + '%';
+    AudioSys.applyVolumes(); persistSave();
+  });
+  sfx.addEventListener('change', () => AudioSys.sfx.coin());
 }
 
-/* ============================== S: MAIN LOOP ============================== */
+/* ============================== U: WIRING ============================== */
+function wireUI() {
+  const click = (id, fn) => document.getElementById(id).addEventListener('click', () => { AudioSys.sfx.click(); fn(); });
+  click('btn-play', () => setMode('select'));
+  click('btn-gacha', () => setMode('gacha'));
+  click('btn-howto', () => setMode('howto'));
+  click('btn-settings', () => setMode('settings'));
+  click('btn-select-start', () => setMode('playing'));
+  click('btn-select-back', () => setMode('menu'));
+  click('btn-gacha-back', () => setMode('menu'));
+  click('btn-howto-back', () => setMode('menu'));
+  click('btn-retry', () => setMode('playing'));
+  click('btn-go-select', () => setMode('select'));
+  click('btn-go-menu', () => setMode('menu'));
+  document.getElementById('btn-pause').addEventListener('click', () => { AudioSys.sfx.click(); togglePause(); });
+  click('btn-resume', () => resumeFromPause());
+  click('btn-pause-settings', () => { document.getElementById('overlay-pause').classList.add('hidden'); refreshSettingsUI(); document.getElementById('screen-settings').classList.remove('hidden'); });
+  click('btn-pause-menu', () => setMode('menu'));
+  document.getElementById('btn-settings-back').addEventListener('click', () => {
+    AudioSys.sfx.click();
+    // Opened from the in-game pause overlay -> return to pause; otherwise return to the main menu.
+    if (gameState.mode === 'playing') {
+      document.getElementById('screen-settings').classList.add('hidden');
+      document.getElementById('overlay-pause').classList.remove('hidden');
+    } else {
+      setMode('menu');
+    }
+  });
+  // Unlock/boot audio on the first interaction anywhere.
+  const bootAudio = () => { AudioSys.unlock(); AudioSys.startMusic(); window.removeEventListener('pointerdown', bootAudio); window.removeEventListener('keydown', bootAudio); };
+  window.addEventListener('pointerdown', bootAudio); window.addEventListener('keydown', bootAudio);
+}
+
+/* ============================== V: MAIN LOOP ============================== */
 let lastTime = performance.now();
 function animate(now) {
   requestAnimationFrame(animate);
@@ -1101,21 +1257,38 @@ function animate(now) {
   lastTime = now;
 
   if (gameState.mode === 'playing') {
-    updatePlayerTween(now);
-    updateLanes(dt);
-    checkPlayerSafety(dt);
-    maintainLaneWindow();
-    updateHUD();
+    if (gameState.countdownUntil) {
+      updateCountdown(now);
+    } else if (!gameState.paused) {
+      updatePlayerTween(now);
+      updateScroll(dt);
+      updateLanes(dt);
+      checkPlayerSafety(dt);
+      maintainLaneWindow();
+      // remove the start forest once it has scrolled off behind us
+      if (gameState.startForest && cameraFollowZ > 3) { scene.remove(gameState.startForest); gameState.startForest = null; }
+      updateHUD();
+    }
   }
   updateCamera(dt);
   renderer.render(scene, camera);
+
+  if (gameState.mode === 'select' && previewRenderer) {
+    previewHolder.rotation.y += dt * 0.8;
+    const b = performance.now() - (previewHolder.userData.bounce || 0);
+    previewHolder.scale.setScalar(b < 300 ? 1 + Math.sin(b / 300 * Math.PI) * 0.12 : 1);
+    previewRenderer.render(previewScene, previewCamera);
+  }
 }
 
-/* ============================== T: BOOTSTRAP ============================== */
+/* ============================== W: BOOTSTRAP ============================== */
 gameState.save = loadSave();
 onViewportChange();
-wireStateMachineUI();
+wireUI();
 wireGachaUI();
+wireSettings();
+buildHowTo();
+refreshSettingsUI();
 document.getElementById('menu-coins').textContent = gameState.save.coins;
 setMode('menu');
 requestAnimationFrame(animate);
