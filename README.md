@@ -1,1 +1,49 @@
 # Pokemon-Rumble-Run
+
+Use models from Pokemon Rumble/ Pokemon Quest
+
+Obstacles
+
+1. Roads / Cars
+Crossy Road equivalent: Cars and trucks moving at different speeds.
+
+Pokémon alternatives
+* Cyclizar traffic (Pokémon Scarlet/Violet) riding along established routes.
+* Rapidash racing lanes (Pokémon races exist throughout the anime and games).
+* Dodrio courier routes (Pokémon delivery services have appeared multiple times in canon).
+
+2. Rivers / Floating Logs
+Crossy Road equivalent: Jumping across moving platforms.
+
+Pokémon alternatives
+* Lotad lily pads
+* Lapras ferry routes (Kanto and Johto canon transportation).
+* Wailmer migration pods.
+* Mantine surfing routes (Alola Mantine Surf).
+
+3. Trains
+Crossy Road equivalent: Fast, lethal obstacles.
+
+Pokémon alternatives
+* Tauros stampedes (Pokédex frequently describes aggressive charging behavior).
+
+To keep it feeling like classic Crossy Road, the key rule is: the player still only hops, swipes, and times movement. 
+
+Collect coins along the way to use in a gum ball machine that dispenses Poke balls with new playable characters (poke ball - basic pokemon, great ball - stage 1, ultra ball - stage 3, Masterball - legendary/mythical)
+
+Each pokemon type has a cooldown based ability that recharges based on progress steps taken forward 
+- Fire – Move through one fire or lava hazard without stopping once per cooldown.
+- Water – Next water section becomes safe instant hops instead of timed crossings.
+- Electric – Reveals and highlights the safe timing gap in the next mechanical hazard sequence.
+- Ground – Negates the next pitfall, sinkhole, or collapsing tile on contact.
+- Ghost – Passes through one solid obstacle or blocked lane during cooldown.
+- Grass – Automatically clears one blocked natural hazard cluster ahead into a safe path opening. (They can bypass a special obstacle that provides an easy route through an area)
+- ? Poison – Delays activation of the next spore, gas, or toxic hazard on screen.
+- ? Bug – Slight collision forgiveness that allows slipping through tight multi-hazard gaps.
+- Rock – Pushes you back and absorbs the first impact from a hazard once per cooldown. (Long cooldown)
+- Flying – Grants one extended hop that ignores ground hazards in a straight line.
+- ? Psychic – Temporarily slows one selected hazard’s timing window for easier reaction.
+- Ice – Stabilizes the next slippery or moving hazard into a predictable landing path.
+- ? Fighting – Knocks aside one small moving obstacle on contact.
+- Dark – Increases reward density but reduces hazard visibility for the next segment.
+- ? Dragon – Builds momentum to briefly slow overall hazard speed after a long streak.
