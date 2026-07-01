@@ -4,14 +4,25 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Pokemon Rumble Run</title>
+<!-- Web icon (favicon) uses the logo; home-screen icon on iOS uses apple-touch-icon.jpg -->
+<link rel="icon" type="image/png" href="logo.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.jpg" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Rumble Run" />
+<!-- Silkscreen pixel font -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%; width: 100%;
     overflow: hidden; background: #87ceeb;
     touch-action: none; overscroll-behavior: none;
-    font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    font-family: 'Silkscreen', 'Trebuchet MS', system-ui, sans-serif;
     -webkit-user-select: none; user-select: none;
   }
+  /* Silkscreen is a pixel font with a small x-height — nudge letter-spacing/line-height for readability. */
+  body, button, input, .panel { letter-spacing: 0.5px; line-height: 1.6; }
   @supports (height: 100dvh) { html, body { height: 100dvh; } }
   #game-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; outline: none; }
   @supports (height: 100dvh) { #game-canvas { height: 100dvh; } }
@@ -135,14 +146,75 @@
   .badge-new { background: #ff5252; color: #fff; font-size: 0.65rem; padding: 0.05rem 0.4rem; border-radius: 6px; margin-left: 0.4rem; vertical-align: middle; }
   .shiny-banner { color: #ffd54f; font-weight: bold; font-size: 1.15rem; text-shadow: 0 0 12px rgba(255,213,79,0.7); }
 
+  /* ---- Menu: transparent over the live 3D grass field; clicks pass through to the field except on controls ---- */
+  #screen-menu {
+    background: linear-gradient(180deg, rgba(10,14,30,0.15), rgba(10,14,30,0.35));
+    justify-content: flex-start; pointer-events: none; padding-top: 2vh;
+  }
+  #screen-menu > * { pointer-events: auto; }
+  #logo-img { width: min(78vw, 460px); max-height: 30vh; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.45)); margin-bottom: 0.3rem; }
+  #logo-fallback { color: #ffd54f; font-size: clamp(1.6rem, 7vw, 2.8rem); text-shadow: 0 3px 0 #b8860b; }
+  #menu-coins-pill { background: rgba(0,0,0,0.4); border-radius: 999px; padding: 0.3rem 1rem; }
+  .menu-buttons { margin-top: auto; margin-bottom: 4vh; }
+
+  /* Play button with an embedded 3D render of the selected Pokemon */
+  #btn-play { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.6rem; overflow: hidden; min-height: 64px; }
+  #play-pokemon-canvas { width: 58px; height: 58px; display: block; }
+  #btn-play .play-label { font-size: 1.3rem; }
+  #btn-play.jump #play-pokemon-canvas { animation: mini-jump 0.6s ease-in-out infinite; }
+  @keyframes mini-jump { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+  /* ---- Character select: 5-column grid, 100 slots ---- */
+  #roster-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem;
+    width: min(94vw, 460px); max-height: 34vh; overflow-y: auto; padding: 0.5rem;
+    background: rgba(0,0,0,0.28); border-radius: 12px;
+  }
+  .slot {
+    aspect-ratio: 1 / 1; border: 2px solid transparent; border-radius: 9px; cursor: pointer;
+    background: rgba(255,255,255,0.07); color: #fff; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2px; font-size: 0.5rem; padding: 2px; overflow: hidden;
+  }
+  .slot.selected { border-color: #ffd54f; background: rgba(255,213,79,0.22); }
+  .slot.locked { color: #6b7280; }
+  .slot.empty { background: rgba(255,255,255,0.03); border-style: dashed; border-color: rgba(255,255,255,0.08); cursor: default; color: #4b5563; }
+  .slot .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); }
+  .slot.locked .dot { background: #14161c !important; border-color: #3a3f4a; }
+  .slot .nm { line-height: 1.1; text-align: center; word-break: break-word; }
+
+  /* ---- Coins (rotating icons in How to Play + gacha) ---- */
+  .coin-spin { width: 34px; height: 34px; image-rendering: auto; animation: coin-rot 1.6s linear infinite; }
+  @keyframes coin-rot { 0% { transform: rotateY(0deg); } 100% { transform: rotateY(360deg); } }
+  .howto-coins { display: flex; gap: 1.4rem; justify-content: center; align-items: center; margin: 0.5rem 0; }
+  .howto-coins .c { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; font-size: 0.72rem; }
+
+  /* ---- Developer / reset keypad ---- */
+  #screen-dev .panel { max-width: min(96vw, 520px); }
+  #dev-display {
+    font-size: 1.2rem; letter-spacing: 2px; background: #10131a; border: 2px solid #333a48; border-radius: 8px;
+    padding: 0.6rem; min-height: 1.4rem; text-align: center; margin-bottom: 0.6rem; word-break: break-all; color: #ffd54f;
+  }
+  #dev-msg { min-height: 1.2rem; font-size: 0.8rem; margin: 0.4rem 0; }
+  .kbd-rows { display: flex; flex-direction: column; gap: 0.3rem; align-items: center; }
+  .kbd-row { display: flex; gap: 0.3rem; justify-content: center; }
+  .kbd-key {
+    min-width: 1.9rem; height: 2.3rem; padding: 0 0.2rem; font-size: 0.85rem; border-radius: 6px;
+    background: linear-gradient(180deg,#eceff4,#c7ccd6); color: #23262e; box-shadow: 0 3px 0 #8b909b; border: none; cursor: pointer;
+  }
+  .kbd-key.wide { min-width: 4rem; }
+  .kbd-key:active { transform: translateY(3px); box-shadow: 0 0 0 #8b909b; }
+  .dev-actions { display: flex; gap: 0.6rem; justify-content: center; margin-top: 0.7rem; flex-wrap: wrap; }
+
   @media (orientation: landscape) and (max-height: 520px) {
     .screen, .overlay { gap: 0.5rem; }
     .screen h1 { font-size: 1.5rem; margin-bottom: 0.1rem; }
-    .subtitle { display: none; }
     button { padding: 0.5rem 1.1rem; font-size: 0.9rem; }
     #preview-wrap { height: 40vh; width: min(60vw, 260px); }
+    #logo-img { max-height: 22vh; }
+    .menu-buttons { margin-bottom: 1vh; }
     .panel { max-height: 78vh; }
     #countdown-num { font-size: 30vh; }
+    #roster-grid { max-height: 46vh; }
   }
 </style>
 </head>
@@ -152,26 +224,27 @@
 
   <div id="hud" class="hidden">
     <div class="hud-left">
-      <div class="hud-pill">🪙 <span id="coin-count">0</span></div>
+      <div class="hud-pill"><img class="hud-coin" src="Pokemon%203D%20Models/Poke%20Coins/poke_silver.png" alt="coins" style="width:1.3em;height:1.3em;object-fit:contain;" /> <span id="coin-count">0</span></div>
       <div class="hud-pill">Lanes <span id="score-count">0</span></div>
     </div>
     <div class="hud-right">
-      <button id="btn-pause" title="Pause">❚❚</button>
+      <button id="btn-pause" title="Pause">| |</button>
     </div>
   </div>
 
   <div id="touch-hint" class="hidden">Swipe to move &middot; Tap to hop forward</div>
 
-  <!-- MAIN MENU -->
+  <!-- MAIN MENU (transparent over the live 3D field) -->
   <div id="screen-menu" class="screen">
-    <h1>Pokemon Rumble Run</h1>
-    <div class="subtitle">Hop &middot; Dodge &middot; Collect</div>
-    <div class="coin-display">🪙 <span id="menu-coins">0</span></div>
+    <img id="logo-img" src="logo.png" alt="Pokemon Rumble Run" onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block';" />
+    <div id="logo-fallback" style="display:none;">Pokemon Rumble Run</div>
+    <div id="menu-coins-pill" class="coin-display"><img class="hud-coin" src="Pokemon%203D%20Models/Poke%20Coins/poke_silver.png" style="width:1.1em;height:1.1em;vertical-align:-2px;" /> <span id="menu-coins">0</span></div>
     <div class="menu-buttons">
-      <button id="btn-play" class="wide">Play</button>
-      <button id="btn-gacha" class="secondary">Gum Ball Machine</button>
+      <button id="btn-play" class="wide"><canvas id="play-pokemon-canvas"></canvas><span class="play-label">Play</span></button>
+      <button id="btn-select" class="secondary">Select Pokemon</button>
+      <button id="btn-gacha" class="secondary">Poke Ball Machine</button>
       <button id="btn-howto" class="secondary">How to Play</button>
-      <button id="btn-settings" class="secondary wide">Settings</button>
+      <button id="btn-settings" class="secondary">Settings</button>
     </div>
   </div>
 
@@ -181,17 +254,17 @@
     <div id="preview-wrap"><canvas id="preview-canvas"></canvas></div>
     <div id="preview-name">—</div>
     <div id="preview-sub"></div>
-    <div id="roster-strip"></div>
+    <div id="roster-grid"></div>
     <div class="screen-buttons">
       <button id="btn-select-back" class="secondary small">Back</button>
       <button id="btn-select-start" class="small">Start</button>
     </div>
   </div>
 
-  <!-- GACHA -->
+  <!-- POKE BALL MACHINE -->
   <div id="screen-gacha" class="screen hidden">
-    <h2>Gum Ball Machine</h2>
-    <div class="coin-display">🪙 <span id="gacha-coins">0</span></div>
+    <h2>Poke Ball Machine</h2>
+    <div class="coin-display"><img class="hud-coin" src="Pokemon%203D%20Models/Poke%20Coins/poke_silver.png" style="width:1.1em;height:1.1em;vertical-align:-2px;" /> <span id="gacha-coins">0</span></div>
     <button id="btn-gacha-pull">Pull for 50 coins</button>
     <div id="gacha-result" class="hidden"></div>
     <div class="screen-buttons">
@@ -216,13 +289,33 @@
         <span class="val" id="set-music-val">50%</span>
       </div>
       <div class="setting-row">
-        <label for="set-sfx">Sound Effects</label>
+        <label for="set-sfx">Sound FX</label>
         <input type="range" id="set-sfx" min="0" max="100" value="70" />
         <span class="val" id="set-sfx-val">70%</span>
       </div>
-      <p style="opacity:0.7;font-size:0.8rem;text-align:center;">Audio starts after your first tap/click (browser rule).</p>
+      <div class="dev-actions">
+        <button id="btn-dev" class="secondary small">Developer Access</button>
+        <button id="btn-reset" class="secondary small">Reset All Progress</button>
+      </div>
+      <p style="opacity:0.7;font-size:0.7rem;text-align:center;margin-top:0.6rem;">Audio starts after your first tap/click (browser rule).</p>
     </div>
     <div class="screen-buttons"><button id="btn-settings-back" class="secondary small">Back</button></div>
+  </div>
+
+  <!-- DEVELOPER / RESET KEYPAD -->
+  <div id="screen-dev" class="screen hidden">
+    <h2 id="dev-title">Developer Access</h2>
+    <div class="panel">
+      <p id="dev-prompt" style="text-align:center;font-size:0.8rem;opacity:0.85;">Enter password</p>
+      <div id="dev-display"></div>
+      <div id="dev-msg"></div>
+      <div class="kbd-rows" id="dev-keyboard"></div>
+      <div class="dev-actions">
+        <button id="btn-dev-submit" class="small">Enter</button>
+        <button id="btn-dev-clear" class="secondary small">Clear</button>
+        <button id="btn-dev-back" class="secondary small">Back</button>
+      </div>
+    </div>
   </div>
 
   <!-- PAUSE -->
@@ -290,6 +383,17 @@ const SCROLL_RAMP_DISTANCE = 350;     // lanes over which the creep speed ramps 
 const DEATH_MARGIN = 6.5;             // tiles behind the camera focus before you're "offscreen"
 
 const MB = 'Pokemon 3D Models/';      // base folder (sibling of index.html)
+
+// Coin sprites (2D). silver = base, gold = 2x, "L" = 10x. Coin type is pre-rolled at spawn so the
+// visible sprite matches its value (this replaces the old invisible-multiplier scheme).
+const COIN_TYPES = {
+  silver: { value: 1, tex: MB + 'Poke Coins/poke_silver.png' },
+  gold:   { value: 2, tex: MB + 'Poke Coins/poke_gold.png' },
+  L:      { value: 10, tex: MB + 'Poke Coins/poke_L.png' },
+};
+const GIFT_TEX = MB + 'Gift Box/obj_frame_red.png';
+const GIFT_INTERVAL = 100;            // a gift box appears on lane 100, 200, 300, ...
+const ROSTER_SLOTS = 100;             // character-select grid reserves this many slots
 
 /* ============================== B: ROSTER DATA ============================== */
 // modelPath is plain/human-readable (spaces & '#' are fine — the loader URL-encodes it).
@@ -553,6 +657,31 @@ function makeCubeMesh(entry, colorOverride) {
   mesh.castShadow = true; mesh.receiveShadow = true;
   return mesh;
 }
+// Coin sprites rendered as an upright textured quad that spins about Y (classic collectible look).
+const coinTexCache = {};
+function coinTexture(key) {
+  if (!coinTexCache[key]) { const t = texLoader.load(encodePath(COIN_TYPES[key].tex)); t.colorSpace = THREE.SRGBColorSpace; coinTexCache[key] = t; }
+  return coinTexCache[key];
+}
+const coinGeo = new THREE.PlaneGeometry(0.7, 0.7);
+function makeCoinMesh(key) {
+  const m = new THREE.Mesh(coinGeo, new THREE.MeshBasicMaterial({ map: coinTexture(key), transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
+  m.position.y = 0.5;
+  return m;
+}
+// Gift box: no geometry was supplied, so build a small textured present from the frame texture.
+let giftTex = null;
+function makeGiftMesh() {
+  if (!giftTex) { giftTex = texLoader.load(encodePath(GIFT_TEX)); giftTex.colorSpace = THREE.SRGBColorSpace; }
+  const grp = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ map: giftTex });
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), mat);
+  base.position.y = 0.35; base.castShadow = true;
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.28, 0.9), mat);
+  lid.position.y = 0.84; lid.castShadow = true;
+  grp.add(base); grp.add(lid);
+  return grp;
+}
 function normalizeModel(obj, targetSize) {
   const box = new THREE.Box3().setFromObject(obj); const size = new THREE.Vector3(); box.getSize(size);
   const maxDim = Math.max(size.x, size.y, size.z) || 1;
@@ -666,7 +795,7 @@ function addBoundaryScenery(lane) {
   }
 }
 function newLane(z, typeKey, family) {
-  return { z, typeKey, family, entities: [], decor: [], coins: [], isWater: family === 'river',
+  return { z, typeKey, family, entities: [], decor: [], coins: [], gift: null, isWater: family === 'river',
     railState: 'idle', railTimer: 0, railEntry: null, railWarningMesh: null, railCooldown: 0, root: new THREE.Group() };
 }
 function spawnGrassLane(lane) {
@@ -689,10 +818,26 @@ function spawnGrassLane(lane) {
     for (let i = 0; i < count; i++) spawnCoin(lane, options.splice(Math.floor(Math.random() * options.length), 1)[0]);
   }
 }
-function spawnCoin(lane, x) {
-  const obj = createEntityObject('coin');
-  obj.position.set(x, 0.45, lane.z * TILE); lane.root.add(obj);
-  lane.coins.push({ x, taken: false, group: obj });
+// Pre-roll a coin's type from the current character's shiny status (same expected value as before,
+// now expressed as a visible silver / gold / L sprite).
+function rollCoinType() {
+  const p = gameState.player;
+  if (p.shinyUnlocked) {
+    if (p.tier === 'legendary') {
+      const r = Math.random();
+      if (r < 0.04) return 'L';     // 1/25
+      if (r < 0.14) return 'gold';  // 1/10
+      return 'silver';
+    }
+    return Math.random() < 0.20 ? 'gold' : 'silver'; // 20% double
+  }
+  return 'silver';
+}
+function spawnCoin(lane, x, forceType) {
+  const type = forceType || rollCoinType();
+  const mesh = makeCoinMesh(type);
+  mesh.position.set(x, 0.5, lane.z * TILE); lane.root.add(mesh);
+  lane.coins.push({ x, taken: false, group: mesh, value: COIN_TYPES[type].value });
 }
 function spawnRoadLane(lane, ctx, entry) {
   const dir = Math.random() < 0.5 ? 1 : -1;
@@ -769,10 +914,19 @@ function updateRailLane(lane, dt) {
 }
 function generateNextLane() {
   const z = gameState.nextLaneZ, distance = z;
-  const laneType = pickLaneType(distance);
+  const isGiftLane = z > 0 && z % GIFT_INTERVAL === 0;
+  const laneType = isGiftLane ? laneTypesByKey.grass : pickLaneType(distance);
   const lane = newLane(z, laneType.key, laneType.family);
   lane.root.add(createLaneGroundMesh(z, laneType.family));
   laneType.build(lane, { distance });
+  if (isGiftLane) {
+    const gx = -GRID_HALF + 1 + Math.floor(Math.random() * (GRID_WIDTH - 2));
+    lane.decor = lane.decor.filter(dx => dx !== gx);   // make sure its tile is reachable
+    const g = makeGiftMesh();
+    g.position.set(gx, 0, z * TILE);
+    lane.root.add(g);
+    lane.gift = { x: gx, group: g, taken: false };
+  }
   gameState.lanes.set(z, lane);
   gameState.laneGroup.add(lane.root);
   gameState.familyHistory.push(laneType.family);
@@ -810,6 +964,13 @@ function buildStartForest() {
 /* ============================== L: INPUT ============================== */
 // NOTE: left/right were reversed relative to the on-screen isometric view — corrected here.
 window.addEventListener('keydown', (e) => {
+  // Developer/reset keypad: allow physical typing.
+  if (gameState.mode === 'dev') {
+    if (e.key === 'Enter') { devSubmit(); return; }
+    if (e.key === 'Backspace') { devBuffer = devBuffer.slice(0, -1); renderDevDisplay(); return; }
+    if (/^[a-zA-Z]$/.test(e.key)) { devType(e.key.toLowerCase()); return; }
+    return;
+  }
   if (e.code === 'Escape' && gameState.mode === 'playing') { togglePause(); return; }
   if (gameState.mode !== 'playing' || gameState.paused || gameState.countdownUntil || gameState.player.isMoving) return;
   switch (e.code) {
@@ -902,28 +1063,25 @@ function updateCamera(dt) {
   groundFill.position.z = cameraFollowZ;
 }
 
-/* ============================== O: COINS / HAZARDS / SAFETY ============================== */
-function resolveCoinValue() {
-  const p = gameState.player;
-  if (p.shinyUnlocked) {
-    if (p.tier === 'legendary') {
-      const r = Math.random();
-      if (r < 0.04) return 10;   // red coin  (1/25)
-      if (r < 0.14) return 2;    // blue coin (1/10)
-      return 1;
-    }
-    return Math.random() < 0.20 ? 2 : 1;
-  }
-  return 1;
-}
+/* ============================== O: COINS / GIFT / HAZARDS / SAFETY ============================== */
 function checkCoinPickup(lane) {
   const p = gameState.player;
   for (const coin of lane.coins) {
     if (!coin.taken && Math.round(p.gridX) === coin.x) {
       coin.taken = true; lane.root.remove(coin.group);
-      gameState.coinsThisRun += resolveCoinValue();
+      gameState.coinsThisRun += coin.value;
       AudioSys.sfx.coin(); updateHUD();
     }
+  }
+}
+// Running into the gift box scatters 5 coins across the next 10 lanes ahead.
+function openGiftBox(lane) {
+  lane.gift.taken = true;
+  lane.root.remove(lane.gift.group);
+  AudioSys.sfx.gacha();
+  for (let i = 0; i < 5; i++) {
+    const target = gameState.lanes.get(lane.z + 1 + Math.floor(Math.random() * 10));
+    if (target && target.family !== 'rail') spawnCoin(target, -GRID_HALF + Math.floor(Math.random() * GRID_WIDTH));
   }
 }
 function findPlatformUnderTile(lane, x) {
@@ -940,6 +1098,7 @@ function checkPlayerSafety(dt) {
   const lane = gameState.lanes.get(p.gridZ);
   if (lane) {
     checkCoinPickup(lane);
+    if (lane.gift && !lane.gift.taken && Math.round(p.gridX) === lane.gift.x) openGiftBox(lane);
     if (lane.family === 'river' && !p.isMoving) {
       const platform = findPlatformUnderTile(lane, p.gridX);
       if (!platform) { triggerGameOver('drowned'); return; }
@@ -964,6 +1123,7 @@ function updateLanes(dt) {
     }
     lane.entities = lane.entities.filter(e => lane.root.children.includes(e.group) || e.isSweep);
     for (const coin of lane.coins) if (!coin.taken) coin.group.rotation.y += dt * 3;
+    if (lane.gift && !lane.gift.taken) lane.gift.group.rotation.y += dt * 1.1;
   }
   const t = performance.now() / 500;
   gameState.laneGroup.traverse(obj => { if (obj.userData.isSparkle) obj.position.y = 0.5 + Math.sin(t + obj.userData.sparklePhase) * 0.15; });
@@ -1042,34 +1202,42 @@ function loadPreviewModel(id) {
   }
   previewHolder.userData.bounce = performance.now();
 }
-function renderRosterStrip() {
-  const strip = document.getElementById('roster-strip');
-  strip.innerHTML = '';
-  for (const entry of PLAYER_ENTRIES) {
+// 5-column grid with ROSTER_SLOTS (100) cells: defined Pokemon (unlocked or locked silhouette)
+// then empty placeholder slots to grow into.
+function renderRosterGrid() {
+  const grid = document.getElementById('roster-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < ROSTER_SLOTS; i++) {
+    const entry = PLAYER_ENTRIES[i];
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    if (!entry) {
+      cell.className = 'slot empty';
+      cell.innerHTML = `<span class="nm">${i + 1}</span>`;
+      cell.disabled = true;
+      grid.appendChild(cell); continue;
+    }
     const locked = !gameState.save.unlockedIds.includes(entry.id);
     const shiny = !!gameState.save.shinyUnlockedByCharacter[entry.id];
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'roster-chip' + (entry.id === gameState.previewId ? ' selected' : '') + (locked ? ' locked' : '');
-    chip.innerHTML = `<span class="chip-dot" style="background:${hexColor(entry.color)}"></span>
-      <span>${locked ? '???' : entry.displayName + (shiny ? ' ✨' : '')}</span>
-      <span class="chip-tier">${entry.tier}</span>`;
-    chip.addEventListener('click', () => selectPreview(entry.id, locked));
-    strip.appendChild(chip);
+    cell.className = 'slot' + (entry.id === gameState.previewId ? ' selected' : '') + (locked ? ' locked' : '');
+    cell.innerHTML = `<span class="dot" style="background:${hexColor(entry.color)}"></span>
+      <span class="nm">${locked ? '???' : entry.displayName + (shiny ? ' *' : '')}</span>`;
+    cell.addEventListener('click', () => { AudioSys.sfx.click(); selectPreview(entry.id, locked); });
+    grid.appendChild(cell);
   }
 }
 function selectPreview(id, locked) {
   gameState.previewId = id;
-  if (!locked) gameState.selectedPokemonId = id;
+  if (!locked) { gameState.selectedPokemonId = id; updatePlayButtonModel(); }
   const entry = rosterById[id];
   const best = gameState.save.bestScoreByCharacter[id] ?? 0;
   document.getElementById('preview-name').textContent = locked ? '???' : entry.displayName;
   document.getElementById('preview-sub').textContent = locked
-    ? `Locked — win from the Gum Ball Machine`
-    : `Tier: ${entry.tier}   •   Best: ${best}${gameState.save.shinyUnlockedByCharacter[id] ? '   •   ✨ Shiny' : ''}`;
+    ? `Locked - win it from the Poke Ball Machine`
+    : `Tier: ${entry.tier}   -   Best: ${best}${gameState.save.shinyUnlockedByCharacter[id] ? '   -   SHINY' : ''}`;
   document.getElementById('btn-select-start').disabled = locked;
   loadPreviewModel(id);
-  renderRosterStrip();
+  renderRosterGrid();
 }
 function openSelect() {
   if (!previewRenderer) initPreview();
@@ -1077,6 +1245,145 @@ function openSelect() {
   // default the preview to the currently-selected (unlocked) mon
   const startId = gameState.save.unlockedIds.includes(gameState.selectedPokemonId) ? gameState.selectedPokemonId : gameState.save.unlockedIds[0];
   selectPreview(startId, !gameState.save.unlockedIds.includes(startId));
+}
+
+/* ============================== Q2: MENU DIORAMA + PLAY BUTTON ============================== */
+const menuGroup = new THREE.Group(); scene.add(menuGroup);
+const menuAgents = [];
+const raycaster = new THREE.Raycaster();
+
+function randomFieldTarget() { return new THREE.Vector2((Math.random() - 0.5) * 12, (Math.random() * 11) - 2.5); }
+function clearField() {
+  for (const lane of gameState.lanes.values()) gameState.laneGroup.remove(lane.root);
+  gameState.lanes.clear();
+  if (gameState.player.group) { gameState.player.group.userData.destroyed = true; scene.remove(gameState.player.group); gameState.player.group = null; }
+  if (gameState.startForest) { scene.remove(gameState.startForest); gameState.startForest = null; }
+  gameState.player.gridZ = 0; gameState.player.gridX = 0; gameState.scrollActive = false; gameState.scrollZ = 0;
+}
+function buildMenuDiorama() {
+  for (const a of menuAgents) menuGroup.remove(a.group);
+  menuAgents.length = 0;
+  const ids = gameState.save.unlockedIds.slice(0, 14);
+  if (!ids.length) ids.push('bulbasaur');
+  for (const id of ids) {
+    const group = createEntityObject(id, { shiny: !!gameState.save.shinyUnlockedByCharacter[id] });
+    group.userData.pokemonId = id;
+    const x = (Math.random() - 0.5) * 11, z = (Math.random() * 10) - 2;
+    group.position.set(x, 0, z);
+    menuGroup.add(group);
+    menuAgents.push({ id, group, pos: new THREE.Vector2(x, z), target: randomFieldTarget(), speed: 0.5 + Math.random() * 0.6, hopPhase: Math.random() * Math.PI * 2 });
+  }
+}
+function updateMenuDiorama(dt) {
+  const t = performance.now() / 1000;
+  for (const a of menuAgents) {
+    const dir = a.target.clone().sub(a.pos);
+    if (dir.length() < 0.3) { a.target = randomFieldTarget(); continue; }
+    dir.normalize();
+    a.pos.addScaledVector(dir, a.speed * dt);
+    a.group.position.x = a.pos.x; a.group.position.z = a.pos.y;
+    a.group.rotation.y = Math.atan2(dir.x, dir.y);
+    a.group.position.y = Math.abs(Math.sin(t * 4 + a.hopPhase)) * 0.18;
+  }
+}
+function onMenuClick(e) {
+  if (gameState.mode !== 'menu') return;
+  const rect = canvas.getBoundingClientRect();
+  const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObjects(menuGroup.children, true);
+  if (!hits.length) return;
+  let o = hits[0].object; while (o && !o.userData.pokemonId) o = o.parent;
+  if (!o) return;
+  AudioSys.sfx.click();
+  gameState.selectedPokemonId = o.userData.pokemonId;
+  updatePlayButtonModel();
+  const a = menuAgents.find(x => x.group === o); if (a) a.hopPhase = t2Phase();
+  const lbl = document.querySelector('#btn-play .play-label');
+  if (lbl) { lbl.textContent = rosterById[gameState.selectedPokemonId].displayName; clearTimeout(lbl._t); lbl._t = setTimeout(() => { lbl.textContent = 'Play'; }, 1400); }
+}
+function t2Phase() { return performance.now() / 1000 * 4; }
+canvas.addEventListener('click', onMenuClick);
+
+// Small 3D render of the selected Pokemon inside the Play button (faces 45°; CSS jumps it on hover).
+let playRenderer, playScene, playCamera, playHolder;
+function initPlayButton() {
+  const pc = document.getElementById('play-pokemon-canvas');
+  playRenderer = new THREE.WebGLRenderer({ canvas: pc, antialias: true, alpha: true });
+  playRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  playRenderer.setSize(58, 58, false);
+  playScene = new THREE.Scene();
+  playScene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.3));
+  const dl = new THREE.DirectionalLight(0xffffff, 1.0); dl.position.set(2, 4, 3); playScene.add(dl);
+  playCamera = new THREE.PerspectiveCamera(42, 1, 0.1, 50);
+  playCamera.position.set(0, 0.95, 3.0); playCamera.lookAt(0, 0.7, 0);
+  playHolder = new THREE.Group(); playHolder.rotation.y = Math.PI / 4; playScene.add(playHolder); // 45°
+  updatePlayButtonModel();
+}
+function updatePlayButtonModel() {
+  if (!playHolder) return;
+  while (playHolder.children.length) playHolder.remove(playHolder.children[0]);
+  const id = gameState.selectedPokemonId, entry = rosterById[id];
+  const holder = new THREE.Group(); playHolder.add(holder);
+  const cube = makeCubeMesh(entry); holder.add(cube);
+  if (entry.modelPath) loadModelOrNull(entry.modelPath).then(m => {
+    if (!m || !playHolder.children.includes(holder)) return;
+    const inst = m.clone(true); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
+    normalizeModel(inst, 1.5);
+    if (gameState.save.shinyUnlockedByCharacter[id]) applyShiny(inst);
+    holder.remove(cube); holder.add(inst);
+  });
+}
+
+/* ============================== Q3: DEVELOPER / RESET KEYPAD ============================== */
+let devMode = 'dev', devBuffer = '';
+const DEV_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+function buildDevKeyboard() {
+  const kb = document.getElementById('dev-keyboard'); kb.innerHTML = '';
+  for (const row of DEV_ROWS) {
+    const r = document.createElement('div'); r.className = 'kbd-row';
+    for (const ch of row) {
+      const k = document.createElement('button'); k.type = 'button'; k.className = 'kbd-key'; k.textContent = ch;
+      k.addEventListener('click', () => { AudioSys.sfx.click(); devType(ch); });
+      r.appendChild(k);
+    }
+    kb.appendChild(r);
+  }
+  const r2 = document.createElement('div'); r2.className = 'kbd-row';
+  const del = document.createElement('button'); del.type = 'button'; del.className = 'kbd-key wide'; del.textContent = 'DEL';
+  del.addEventListener('click', () => { AudioSys.sfx.click(); devBuffer = devBuffer.slice(0, -1); renderDevDisplay(); });
+  r2.appendChild(del); kb.appendChild(r2);
+}
+function renderDevDisplay() { document.getElementById('dev-display').textContent = devBuffer || '-'; }
+function devType(ch) { if (devBuffer.length < 32) { devBuffer += ch; renderDevDisplay(); } }
+function openDev(mode) {
+  devMode = mode; devBuffer = '';
+  document.getElementById('dev-title').textContent = mode === 'reset' ? 'Reset All Progress' : 'Developer Access';
+  document.getElementById('dev-prompt').textContent = mode === 'reset' ? 'Type the confirm word to erase ALL progress' : 'Enter the developer password';
+  document.getElementById('dev-msg').textContent = '';
+  renderDevDisplay();
+  setMode('dev');
+}
+function devSubmit() {
+  const msg = document.getElementById('dev-msg');
+  if (devMode === 'dev') {
+    if (devBuffer === 'pokemonrumblerush') {
+      gameState.save.coins += 999;
+      gameState.save.unlockedIds = PLAYER_ENTRIES.map(e => e.id);
+      persistSave();
+      msg.style.color = '#8CFF9E'; msg.textContent = 'Unlocked all Pokemon + 999 coins!';
+      AudioSys.sfx.gacha();
+    } else { msg.style.color = '#ff9a8a'; msg.textContent = 'Incorrect password.'; }
+  } else {
+    if (devBuffer === 'reset') {
+      localStorage.removeItem(SAVE_KEY);
+      gameState.save = defaultSave(); persistSave();
+      refreshSettingsUI(); AudioSys.applyVolumes();
+      msg.style.color = '#8CFF9E'; msg.textContent = 'All progress reset.';
+      AudioSys.sfx.die();
+    } else { msg.style.color = '#ff9a8a'; msg.textContent = 'Type the confirm word exactly.'; }
+  }
+  devBuffer = ''; renderDevDisplay();
 }
 
 /* ============================== R: HUD / PAUSE / COUNTDOWN ============================== */
@@ -1116,12 +1423,16 @@ function setMode(next) {
   document.getElementById('touch-hint').classList.toggle('hidden', next !== 'playing' || !isTouchDevice());
   if (next !== 'playing') { gameState.paused = false; gameState.countdownUntil = 0; }
   gameState.mode = next;
+  menuGroup.visible = (next === 'menu');
   // Show the target screen FIRST so per-mode init (e.g. sizing the 3D preview canvas) sees real dimensions.
   const screen = document.getElementById(`screen-${next}`);
   if (screen) screen.classList.remove('hidden');
   if (next === 'select') openSelect();
   if (next === 'gacha') { updateGachaCoinDisplays(); document.getElementById('gacha-result').classList.add('hidden'); }
-  if (next === 'menu') document.getElementById('menu-coins').textContent = gameState.save.coins;
+  if (next === 'menu') {
+    document.getElementById('menu-coins').textContent = gameState.save.coins;
+    clearField(); buildMenuDiorama(); updatePlayButtonModel();
+  }
   if (next === 'settings') refreshSettingsUI();
   if (next === 'playing') startRun(gameState.selectedPokemonId);
   if (next === 'playing') setTimeout(() => document.getElementById('touch-hint').classList.add('hidden'), 3500);
@@ -1175,27 +1486,35 @@ function buildHowTo() {
     const total = BALL_TIERS.reduce((s, x) => s + x.weight, 0);
     const pct = Math.round(b.weight / total * 100);
     const label = { basic: 'Basic Pokemon', stage1: 'Stage-1 Pokemon', stage3: 'Stage-3 Pokemon', legendary: 'Legendary / Mythical' }[b.tier];
-    return `<li style="background:rgba(255,255,255,0.05)"><span><span class="swatch" style="background:${hexColor(b.color)}"></span>${b.ball} — ${label}</span><span>${pct}%</span></li>`;
+    return `<li style="background:rgba(255,255,255,0.05)"><span><span class="swatch" style="background:${hexColor(b.color)}"></span>${b.ball} - ${label}</span><span>${pct}%</span></li>`;
   }).join('');
+  const coinImg = (k, cap) => `<div class="c"><img class="coin-spin" src="${encodePath(COIN_TYPES[k].tex)}" alt="${cap}"/><span>${cap}</span></div>`;
   el.innerHTML = `
     <h3>Move</h3>
     <div class="row"><div class="keys-grid">
-      <span></span><span class="key">↑</span><span></span>
-      <span class="key">←</span><span class="key">↓</span><span class="key">→</span>
+      <span></span><span class="key">UP</span><span></span>
+      <span class="key">LT</span><span class="key">DN</span><span class="key">RT</span>
     </div>
     <div>Arrow keys hop one tile. <span class="key wide">Space</span> also hops forward.</div></div>
-    <div class="row"><div>📱 On mobile: <b>swipe</b> to move in a direction, <b>tap</b> to hop forward.</div></div>
-    <h3>Stay on screen</h3>
-    <div class="row"><div>The world slowly scrolls forward and speeds up over time. Keep moving — if you fall off the back edge, you're done. You may step backward, but don't get left behind!</div></div>
+    <div class="row"><div>On mobile: <b>swipe</b> to move in a direction, <b>tap</b> to hop forward.</div></div>
+    <h3>Stay On Screen</h3>
+    <div class="row"><div>The field slowly scrolls forward and speeds up over time. Keep moving - if you fall off the back edge, your run ends. You may step backward, but don't get left behind.</div></div>
     <h3>Hazards</h3>
-    <div class="row"><div>🐴 Roads: dodge charging Pokemon (Rapidash, Dodrio &amp; friends).<br/>🌊 Rivers: ride Pokemon across the water — fall in and you sink.<br/>🐂 Stampede lanes flash red, then a Tauros herd charges through.</div></div>
-    <h3>Coins &amp; the Gum Ball Machine</h3>
-    <div class="row"><div>Collect 🪙 coins on the way. Spend <b>${GACHA_COST} coins</b> per pull to get a random ball containing a new playable Pokemon:</div></div>
+    <div class="row"><div>Roads: dodge charging Pokemon like Rapidash and Dodrio.<br/>Rivers: ride Pokemon across the water - miss and you sink.<br/>Stampede lanes flash red, then a Tauros herd charges through.</div></div>
+    <h3>Coins</h3>
+    <div class="howto-coins">
+      ${coinImg('silver', 'Silver = 1')}
+      ${coinImg('gold', 'Gold = 2')}
+      ${coinImg('L', 'Poke L = 10')}
+    </div>
+    <div class="row"><div>Every 100 lanes a gift box appears - run into it to scatter 5 coins across the lanes just ahead.</div></div>
+    <h3>Poke Ball Machine</h3>
+    <div class="row"><div>Spend <b>${GACHA_COST} coins</b> per pull for a random ball containing a new playable Pokemon:</div></div>
     <ul class="rarity-list">${balls}</ul>
-    <h3>Shiny forms</h3>
-    <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its ✨ shiny form.<br/>
-    • Shiny: <b>20% chance</b> to double each coin you grab.<br/>
-    • Shiny Legendary: coins have a <b>1/10</b> chance to be a blue coin (worth 2) and a <b>1/25</b> chance to be a red coin (worth 10).</div></div>`;
+    <h3>Shiny Forms</h3>
+    <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its shiny form.<br/>
+    - Shiny: <b>20% chance</b> for a gold coin (worth 2) instead of silver.<br/>
+    - Shiny Legendary: <b>1/10</b> chance for gold (worth 2) and <b>1/25</b> chance for a Poke L (worth 10).</div></div>`;
 }
 function refreshSettingsUI() {
   const m = Math.round((gameState.save.musicVol ?? 0.5) * 100);
@@ -1219,7 +1538,8 @@ function wireSettings() {
 /* ============================== U: WIRING ============================== */
 function wireUI() {
   const click = (id, fn) => document.getElementById(id).addEventListener('click', () => { AudioSys.sfx.click(); fn(); });
-  click('btn-play', () => setMode('select'));
+  click('btn-play', () => setMode('playing'));   // Play launches a run with the currently selected Pokemon
+  click('btn-select', () => setMode('select'));
   click('btn-gacha', () => setMode('gacha'));
   click('btn-howto', () => setMode('howto'));
   click('btn-settings', () => setMode('settings'));
@@ -1230,6 +1550,16 @@ function wireUI() {
   click('btn-retry', () => setMode('playing'));
   click('btn-go-select', () => setMode('select'));
   click('btn-go-menu', () => setMode('menu'));
+  // Developer / reset keypad
+  click('btn-dev', () => openDev('dev'));
+  click('btn-reset', () => openDev('reset'));
+  click('btn-dev-submit', () => devSubmit());
+  click('btn-dev-clear', () => { devBuffer = ''; renderDevDisplay(); document.getElementById('dev-msg').textContent = ''; });
+  click('btn-dev-back', () => setMode('settings'));
+  // Play button: hovering makes the embedded Pokemon jump (CSS on the canvas)
+  const playBtn = document.getElementById('btn-play');
+  playBtn.addEventListener('mouseenter', () => playBtn.classList.add('jump'));
+  playBtn.addEventListener('mouseleave', () => playBtn.classList.remove('jump'));
   document.getElementById('btn-pause').addEventListener('click', () => { AudioSys.sfx.click(); togglePause(); });
   click('btn-resume', () => resumeFromPause());
   click('btn-pause-settings', () => { document.getElementById('overlay-pause').classList.add('hidden'); refreshSettingsUI(); document.getElementById('screen-settings').classList.remove('hidden'); });
@@ -1270,8 +1600,11 @@ function animate(now) {
       updateHUD();
     }
   }
+  if (gameState.mode === 'menu') updateMenuDiorama(dt);
   updateCamera(dt);
   renderer.render(scene, camera);
+
+  if (gameState.mode === 'menu' && playRenderer) playRenderer.render(playScene, playCamera);
 
   if (gameState.mode === 'select' && previewRenderer) {
     previewHolder.rotation.y += dt * 0.8;
@@ -1288,6 +1621,8 @@ wireUI();
 wireGachaUI();
 wireSettings();
 buildHowTo();
+buildDevKeyboard();
+initPlayButton();
 refreshSettingsUI();
 document.getElementById('menu-coins').textContent = gameState.save.coins;
 setMode('menu');
