@@ -2,7 +2,28 @@
 
 Use models from Pokemon Rumble/ Pokemon Quest
 
-Why on mobile is there a section of the screen up top where the Dynamic Island is that changes color - it is black on the main menu and light blue in game - is that a restriction of Apple or can you remove that?
+Upcoming changes
+- CHECK chat with previous changes I made!!!  
+- Coins are still not rending textures on their model
+- On the title screen
+    - only show “Bulbasaur selected” for example above the Pokemon itself walking on the ranch after you click on it then the text disappears. 
+    - center the Pokemon icon to the right of the play button vertically in the center
+    - Remove the circle behind the coin counter total and make the coin number gold and show an icon of the gold P coin
+- Why on mobile is there a section of the screen up top where the Dynamic Island is that changes color - it is black on the main menu and light blue in game - is that a restriction of Apple or can you remove that? - include a reference screenshot from iOS
+- In Pokemon selection screen
+    - Pokemon types not displaying properly on unlocked pokemon and wrong size (??? Type looks good but is blurry), 
+    - Add a small gap between runs and high score, 
+    - During a run, some of the hitboxes are too large or make bigger spacing with the “cars”, - look up how Crossy Road handles this issue.
+    - condense the information at the top so you can see more of the small boxes at the bottom
+    - Label the boxes with 3 digits (001, 002, …)
+    - In the boxes, you can make the Pokemon icon 20% bigger and the name 20% bigger
+- Make the poke ball machine only show Pokemon you can pull. 
+- Pokemon selection screen,
+- You can make the text 30% bigger universally
+- During a run
+    - Remove the circle behind the coin counter total and make the coin number gold and show an icon of the gold P coin
+    - Make the pause button align with the coin counter above it and redesign the pause button to be pixel art
+    - Add gray lines between road sections  
 
 Obstacles
 
