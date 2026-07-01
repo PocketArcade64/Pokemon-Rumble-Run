@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Pokemon Rumble Run</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    overflow: hidden; background: #87ceeb;
+    touch-action: none; overscroll-behavior: none;
+    font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+    -webkit-user-select: none; user-select: none;
+  }
+  @supports (height: 100dvh) {
+    html, body { height: 100dvh; }
+  }
+  #game-canvas {
+    position: fixed; inset: 0; width: 100vw; height: 100vh;
+    display: block; touch-action: none; outline: none;
+  }
+  @supports (height: 100dvh) {
+    #game-canvas { height: 100dvh; }
+  }
+
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: max(0.6rem, env(safe-area-inset-top)) 1rem 0.5rem;
+    pointer-events: none; z-index: 5; color: #fff;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  }
+  #hud.hidden { display: none; }
+  .hud-pill {
+    background: rgba(0,0,0,0.35); border-radius: 999px; padding: 0.35rem 0.9rem;
+    font-size: clamp(1rem, 4vw, 1.4rem); font-weight: bold; display: flex; gap: 0.4rem; align-items: center;
+  }
+
+  #touch-hint {
+    position: fixed; left: 50%; bottom: 8%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.55); color: #fff; padding: 0.5rem 1rem; border-radius: 999px;
+    font-size: 0.9rem; pointer-events: none; z-index: 5; transition: opacity 0.6s ease;
+  }
+  #touch-hint.hidden { opacity: 0; display: none; }
+
+  .screen {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 1rem;
+    background: linear-gradient(180deg, rgba(15,20,40,0.92), rgba(30,15,45,0.92));
+    color: #fff; z-index: 10; padding: 1rem; box-sizing: border-box; text-align: center;
+  }
+  .screen.hidden { display: none !important; }
+  .screen h1 { font-size: clamp(1.6rem, 6vw, 2.6rem); margin: 0 0 0.5rem; color: #ffd54f; text-shadow: 0 3px 0 #b8860b; }
+  .screen h2 { font-size: clamp(1.2rem, 5vw, 1.8rem); margin: 0 0 0.25rem; }
+
+  button {
+    font: inherit; font-weight: bold; font-size: 1.05rem; color: #222;
+    background: linear-gradient(180deg, #ffe082, #ffca28);
+    border: none; border-radius: 12px; padding: 0.75rem 1.6rem; cursor: pointer;
+    box-shadow: 0 4px 0 #b8860b; transition: transform 0.05s ease;
+  }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 #b8860b; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: 0 4px 0 #555; background: #999; }
+  button.secondary { background: linear-gradient(180deg, #cfd8dc, #90a4ae); box-shadow: 0 4px 0 #546e7a; }
+
+  .coin-display { font-size: 1.2rem; font-weight: bold; color: #ffd54f; }
+
+  #roster-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 0.6rem; max-width: min(92vw, 640px); max-height: 48vh; overflow-y: auto;
+    padding: 0.5rem; background: rgba(0,0,0,0.25); border-radius: 12px;
+  }
+  .roster-card {
+    display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+    background: rgba(255,255,255,0.08); border: 2px solid transparent; border-radius: 10px;
+    padding: 0.5rem 0.25rem; color: #fff; font-size: 0.75rem;
+  }
+  .roster-card.selected { border-color: #ffd54f; background: rgba(255,213,79,0.2); }
+  .roster-thumb { width: 42px; height: 42px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.5); }
+  .roster-card small { opacity: 0.75; }
+
+  #gacha-result { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem 1.5rem; min-width: 220px; }
+  #gacha-result .thumb { width: 56px; height: 56px; border-radius: 10px; margin: 0 auto 0.5rem; border: 3px solid #fff; }
+
+  .screen-buttons { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; }
+
+  @media (orientation: landscape) and (max-height: 500px) {
+    .screen { gap: 0.5rem; }
+    .screen h1 { font-size: 1.4rem; margin-bottom: 0.15rem; }
+    .screen h2 { font-size: 1.1rem; }
+    button { padding: 0.5rem 1.1rem; font-size: 0.9rem; }
+    #roster-grid { max-height: 38vh; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game-canvas"></canvas>
+
+  <div id="hud" class="hidden">
+    <div class="hud-pill">🪙 <span id="coin-count">0</span></div>
+    <div class="hud-pill">Lanes <span id="score-count">0</span></div>
+  </div>
+
+  <div id="touch-hint" class="hidden">Swipe to move &middot; Tap to hop forward</div>
+
+  <div id="screen-menu" class="screen">
+    <h1>Pokemon Rumble Run</h1>
+    <div class="coin-display">🪙 <span id="menu-coins">0</span></div>
+    <div class="screen-buttons">
+      <button id="btn-play">Play</button>
+      <button id="btn-gacha" class="secondary">Gum Ball Machine</button>
+    </div>
+    <p style="opacity:0.7; font-size:0.85rem; max-width: 480px;">
+      Desktop: Arrow keys to move, Space to hop forward.<br/>
+      Mobile: Swipe to move, tap to hop forward.
+    </p>
+  </div>
+
+  <div id="screen-select" class="screen hidden">
+    <h2>Choose your Pokemon</h2>
+    <div id="roster-grid"></div>
+    <div class="screen-buttons">
+      <button id="btn-select-back" class="secondary">Back</button>
+      <button id="btn-select-start">Start</button>
+    </div>
+  </div>
+
+  <div id="screen-gacha" class="screen hidden">
+    <h2>Gum Ball Machine</h2>
+    <div class="coin-display">🪙 <span id="gacha-coins">0</span></div>
+    <button id="btn-gacha-pull">Pull for 50 coins</button>
+    <div id="gacha-result" class="hidden"></div>
+    <div class="screen-buttons">
+      <button id="btn-gacha-back" class="secondary">Back</button>
+    </div>
+  </div>
+
+  <div id="screen-gameover" class="screen hidden">
+    <h2>Game Over</h2>
+    <p>Lanes crossed: <strong id="go-score">0</strong></p>
+    <p id="go-best" class="hidden" style="color:#ffd54f;">New best!</p>
+    <p id="go-shiny" class="hidden" style="color:#ffd54f;">✨ Shiny form unlocked!</p>
+    <p>Coins earned: <strong id="go-coins">0</strong></p>
+    <div class="screen-buttons">
+      <button id="btn-retry">Retry</button>
+      <button id="btn-go-select" class="secondary">Change Pokemon</button>
+      <button id="btn-go-menu" class="secondary">Main Menu</button>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+
+/* ============================== A: CONSTANTS & CONFIG ============================== */
+const TILE = 1;
+const GRID_HALF = 4;                 // columns from -4..4  (9 wide)
+const GRID_WIDTH = GRID_HALF * 2 + 1;
+const GROUND_WIDTH = 44;              // how wide each lane's ground strip is drawn (fills screen, no blue void)
+const HAZARD_SPAN = 15;               // half-width over which vehicles/platforms travel & wrap (well past the play area)
+const AHEAD_GEN = 20;                 // how many lanes ahead of player to keep generated
+const BEHIND_KEEP = 12;               // how many lanes behind player to keep before pruning (fills the near edge)
+const DIFFICULTY_MAX_DISTANCE = 300;  // distance at which difficulty ramp maxes out
+const HOP_DURATION_MS = 140;
+const MODEL_BASE_PATH = 'Pokemon 3D Models/';
+
+/* ============================== B: ROSTER DATA ============================== */
+const ROSTER = [
+  // Playable Pokemon
+  // NOTE ON MODEL PATHS: paths are written here in plain, human-readable form (spaces, '#', etc. are fine).
+  // The loader URL-encodes them automatically, so you can drop a folder named exactly like the ripped model
+  // dump and just point `modelPath` at the .glb / .obj / .dae / .fbx inside it. To swap in a new model,
+  // edit only the `modelPath` (and `shinyModelPath`) string for that entry — nothing else changes.
+  { id: 'bulbasaur', displayName: 'Bulbasaur', role: 'player', tier: 'basic',
+    color: 0x63b866,
+    modelPath: MODEL_BASE_PATH + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0001 Bulbasaur/Bulbasaur.obj',
+    shinyModelPath: null,           // supply a shiny model here later; until then shiny uses a gold tint on the base model
+    modelTargetSize: 1.4, boxSize: [0.8, 0.8, 0.8], unlockedByDefault: true },
+
+  // Road-family hazards
+  { id: 'rapidash', displayName: 'Rapidash', role: 'hazard', laneFamily: 'road',
+    color: 0xffa726, modelPath: null, modelTargetSize: 1.4,
+    boxSize: [1.6, 0.9, 0.9], speedRange: [3.0, 4.5], gapMin: 4.2, gapMax: 6.5, direction: 'either' },
+  { id: 'dodrio', displayName: 'Dodrio', role: 'hazard', laneFamily: 'road',
+    color: 0x8d6e63, modelPath: null, modelTargetSize: 1.2,
+    boxSize: [1.1, 1.2, 0.9], speedRange: [2.0, 3.2], gapMin: 3.0, gapMax: 4.8, direction: 'either' },
+  { id: 'car', displayName: 'Car', role: 'hazard', laneFamily: 'road', color: 0xe53935,
+    modelPath: null, boxSize: [1.7, 0.6, 0.95], speedRange: [1.8, 3.0], gapMin: 3.2, gapMax: 5.2, direction: 'either' },
+  { id: 'truck', displayName: 'Truck', role: 'hazard', laneFamily: 'road', color: 0x546e7a,
+    modelPath: null, boxSize: [2.6, 0.9, 1.0], speedRange: [1.4, 2.4], gapMin: 3.6, gapMax: 6.0, direction: 'either' },
+
+  // River-family platforms
+  { id: 'lotad_pad', displayName: 'Lotad Lily Pad', role: 'platform', laneFamily: 'river',
+    color: 0x66bb6a, modelPath: null, modelTargetSize: 0.95,
+    boxSize: [0.9, 0.3, 0.9], speedRange: [1.2, 2.2], platformLength: 1, gapMin: 1.1, gapMax: 1.9 },
+  { id: 'lapras_ferry', displayName: 'Lapras Ferry', role: 'platform', laneFamily: 'river',
+    color: 0x4fc3f7, modelPath: null, modelTargetSize: 2.4,
+    boxSize: [2.4, 0.4, 1.6], speedRange: [0.8, 1.4], platformLength: 3, gapMin: 1.6, gapMax: 2.6 },
+  { id: 'wailmer_pod', displayName: 'Wailmer Migration Pod', role: 'platform', laneFamily: 'river',
+    color: 0x1e88e5, modelPath: null, modelTargetSize: 2.0,
+    boxSize: [2.0, 0.5, 1.4], speedRange: [0.9, 1.6], platformLength: 2, gapMin: 1.4, gapMax: 2.3 },
+  { id: 'mantine_surf', displayName: 'Mantine Surfing Route', role: 'platform', laneFamily: 'river',
+    color: 0x26c6da, modelPath: null, modelTargetSize: 2.0,
+    boxSize: [2.0, 0.4, 1.2], speedRange: [1.6, 2.6], platformLength: 2, gapMin: 1.5, gapMax: 2.3 },
+
+  // Rail-family telegraphed hazard
+  { id: 'tauros_stampede', displayName: 'Tauros Stampede', role: 'hazard', laneFamily: 'rail',
+    color: 0x6d4c41, modelPath: null, modelTargetSize: 1.2,
+    boxSize: [6.0, 1.0, 1.0], warningMs: 1300, sweepSpeed: 15, direction: 'either' },
+
+  // Decor (safe-lane static obstacles, block movement, not lethal)
+  { id: 'rock', displayName: 'Rock', role: 'decor', color: 0x9e9e9e, modelPath: null, boxSize: [0.85, 0.7, 0.85] },
+  { id: 'tree', displayName: 'Tree', role: 'decor', color: 0x2e7d32, modelPath: null, boxSize: [0.7, 1.8, 0.7] },
+
+  // Coin
+  { id: 'coin', displayName: 'Coin', role: 'coin', color: 0xffd54f, modelPath: null, boxSize: [0.4, 0.4, 0.4] },
+];
+const rosterById = Object.fromEntries(ROSTER.map(e => [e.id, e]));
+
+/* ============================== C: LANE TYPE DEFINITIONS ============================== */
+const LANE_TYPES = [
+  { key: 'grass', family: 'safe', minDistance: 0, weight: () => 10,
+    build: (lane, ctx) => spawnGrassLane(lane, ctx) },
+  { key: 'road_rapidash', family: 'road', minDistance: 4, weight: (d) => 5 + Math.min(d / 60, 5),
+    build: (lane, ctx) => spawnRoadLane(lane, ctx, rosterById.rapidash) },
+  { key: 'road_dodrio', family: 'road', minDistance: 2, weight: (d) => 6 + Math.min(d / 60, 5),
+    build: (lane, ctx) => spawnRoadLane(lane, ctx, rosterById.dodrio) },
+  { key: 'road_car', family: 'road', minDistance: 0, weight: () => 8,
+    build: (lane, ctx) => spawnRoadLane(lane, ctx, rosterById.car) },
+  { key: 'road_truck', family: 'road', minDistance: 10, weight: () => 5,
+    build: (lane, ctx) => spawnRoadLane(lane, ctx, rosterById.truck) },
+  { key: 'river_lotad', family: 'river', minDistance: 6, weight: (d) => 5 + Math.min(d / 70, 4),
+    build: (lane, ctx) => spawnRiverLane(lane, ctx, rosterById.lotad_pad) },
+  { key: 'river_lapras', family: 'river', minDistance: 16, weight: () => 5,
+    build: (lane, ctx) => spawnRiverLane(lane, ctx, rosterById.lapras_ferry) },
+  { key: 'river_wailmer', family: 'river', minDistance: 22, weight: () => 4,
+    build: (lane, ctx) => spawnRiverLane(lane, ctx, rosterById.wailmer_pod) },
+  { key: 'river_mantine', family: 'river', minDistance: 28, weight: () => 4,
+    build: (lane, ctx) => spawnRiverLane(lane, ctx, rosterById.mantine_surf) },
+  { key: 'rail_tauros', family: 'rail', minDistance: 14, weight: (d) => Math.min(2 + d / 80, 6),
+    build: (lane, ctx) => spawnRailLane(lane, ctx, rosterById.tauros_stampede) },
+];
+const laneTypesByKey = Object.fromEntries(LANE_TYPES.map(t => [t.key, t]));
+
+/* ============================== D: GACHA CONFIG ============================== */
+const GACHA_COST = 50;
+const BALL_TIERS = [
+  { ball: 'Poke Ball', tier: 'basic', weight: 55 },
+  { ball: 'Great Ball', tier: 'stage1', weight: 27 },
+  { ball: 'Ultra Ball', tier: 'stage3', weight: 14 },
+  { ball: 'Master Ball', tier: 'legendary', weight: 4 },
+];
+
+/* ============================== E: PERSISTENCE ============================== */
+const SAVE_KEY = 'pkmn_rumble_run_save_v1';
+const SAVE_VERSION = 1;
+
+function defaultSave() {
+  return {
+    version: SAVE_VERSION,
+    coins: 0,
+    unlockedIds: ROSTER.filter(e => e.role === 'player' && e.unlockedByDefault).map(e => e.id),
+    bestScoreByCharacter: {},
+    shinyUnlockedByCharacter: {},
+  };
+}
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return defaultSave();
+    const parsed = JSON.parse(raw);
+    if (parsed.version !== SAVE_VERSION) return migrateSave(parsed);
+    return { ...defaultSave(), ...parsed };
+  } catch (e) {
+    console.warn('[save] corrupt save, resetting', e);
+    return defaultSave();
+  }
+}
+function migrateSave(old) { return { ...defaultSave(), ...old, version: SAVE_VERSION }; }
+function persistSave() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameState.save)); }
+
+/* ============================== F: GAME STATE ============================== */
+const gameState = {
+  mode: 'menu',
+  selectedPokemonId: 'bulbasaur',
+  player: {
+    gridX: 0, gridZ: 0, isMoving: false, tween: null,
+    group: null, tier: 'basic', shinyUnlocked: false,
+  },
+  distance: 0,
+  coinsThisRun: 0,
+  lanes: new Map(),
+  nextLaneZ: 0,
+  familyHistory: [],
+  laneGroup: null,
+  input: { touchStart: null },
+  save: null,
+};
+
+/* ============================== G: THREE.JS SETUP ============================== */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb, 16, 34);
+
+const FRUSTUM_SIZE = 9;
+function makeCamera(aspect) {
+  return new THREE.OrthographicCamera(
+    -FRUSTUM_SIZE * aspect, FRUSTUM_SIZE * aspect, FRUSTUM_SIZE, -FRUSTUM_SIZE, 0.1, 200
+  );
+}
+const camera = makeCamera(window.innerWidth / window.innerHeight);
+const CAM_OFFSET = new THREE.Vector3(-11, 13, -11);
+let cameraFollowZ = 0;
+
+const canvas = document.getElementById('game-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x556b2f, 1.0));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+dirLight.position.set(-6, 14, -6);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(1024, 1024);
+dirLight.shadow.camera.left = -20; dirLight.shadow.camera.right = 20;
+dirLight.shadow.camera.top = 20; dirLight.shadow.camera.bottom = -20;
+scene.add(dirLight);
+
+gameState.laneGroup = new THREE.Group();
+scene.add(gameState.laneGroup);
+
+/* ============================== H: ASSET LOADER ============================== */
+const modelCache = new Map();
+const boxGeoCache = new Map();
+
+// Encode each path segment so folder/file names with spaces or '#' (common in ripped-model dumps)
+// don't break the URL. '#' in particular would otherwise be read as a URL fragment and truncate the request.
+function encodePath(p) {
+  return p.split('/').map(seg => encodeURIComponent(seg)).join('/');
+}
+
+// Format-aware loader: picks the right Three.js loader by file extension and resolves to an Object3D,
+// or resolves to null on any failure (missing file, wrong format, blocked by file:// security) so the
+// caller falls back to the colored placeholder cube. Supports .glb/.gltf, .obj (+.mtl), .dae, .fbx.
+function loadModelOrNull(path) {
+  if (!path) return Promise.resolve(null);
+  if (modelCache.has(path)) return modelCache.get(path);
+
+  const ext = path.split('.').pop().toLowerCase();
+  const slash = path.lastIndexOf('/');
+  const rawDir = slash >= 0 ? path.slice(0, slash + 1) : '';
+  const rawFile = slash >= 0 ? path.slice(slash + 1) : path;
+  const encDir = encodePath(rawDir);
+  const encFile = encodeURIComponent(rawFile);
+  const encFull = encodePath(path);
+
+  let promise;
+  if (ext === 'glb' || ext === 'gltf') {
+    promise = new GLTFLoader().loadAsync(encFull).then(g => g.scene);
+  } else if (ext === 'obj') {
+    const mtlName = rawFile.replace(/\.obj$/i, '.mtl');
+    const objLoad = (materials) => {
+      const loader = new OBJLoader().setPath(encDir);
+      if (materials) loader.setMaterials(materials);
+      return loader.loadAsync(encFile);
+    };
+    promise = new MTLLoader().setPath(encDir).setResourcePath(encDir)
+      .loadAsync(encodeURIComponent(mtlName))
+      .then(mtl => { mtl.preload(); return objLoad(mtl); })
+      .catch(() => objLoad(null)); // no/failed .mtl -> load geometry untextured rather than fail outright
+  } else if (ext === 'dae') {
+    promise = new ColladaLoader().loadAsync(encFull).then(c => c.scene);
+  } else if (ext === 'fbx') {
+    promise = new FBXLoader().loadAsync(encFull);
+  } else {
+    promise = Promise.reject(new Error('unsupported model format .' + ext));
+  }
+
+  const p = promise.catch(err => {
+    console.warn(`[assets] using placeholder cube (could not load ${path}): ${err && err.message || err}`);
+    return null;
+  });
+  modelCache.set(path, p);
+  return p;
+}
+
+// Uniformly scale a loaded model so its largest dimension ~= targetSize, then recenter it
+// horizontally and rest it on the ground (y=0). Makes any model — regardless of its native
+// units/origin — sit correctly on a tile without per-model hand-tuning.
+function normalizeModel(obj, targetSize) {
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  obj.scale.setScalar(targetSize / maxDim);
+  const box2 = new THREE.Box3().setFromObject(obj);
+  const center = new THREE.Vector3(); box2.getCenter(center);
+  obj.position.x -= center.x;
+  obj.position.z -= center.z;
+  obj.position.y -= box2.min.y;
+}
+
+function getBoxGeometry(boxSize) {
+  const key = boxSize.join(',');
+  if (!boxGeoCache.has(key)) {
+    boxGeoCache.set(key, new THREE.BoxGeometry(boxSize[0], boxSize[1], boxSize[2]));
+  }
+  return boxGeoCache.get(key);
+}
+
+function makeCubeMesh(entry) {
+  const geo = getBoxGeometry(entry.boxSize);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: entry.color }));
+  mesh.position.y = entry.boxSize[1] / 2;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+function applyShinyTint(object3d) {
+  const tint = new THREE.Color(0xffd700);
+  object3d.traverse(obj => {
+    if (obj.isMesh) {
+      obj.material = obj.material.clone();
+      obj.material.emissive = tint.clone();
+      obj.material.emissiveIntensity = 0.4;
+      obj.material.color.lerp(tint, 0.25);
+    }
+  });
+  addSparkle(object3d);
+}
+
+function addSparkle(object3d) {
+  const geo = new THREE.SphereGeometry(0.06, 6, 6);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+  for (let i = 0; i < 3; i++) {
+    const s = new THREE.Mesh(geo, mat);
+    s.position.set((Math.random() - 0.5) * 0.6, 0.5 + Math.random() * 0.5, (Math.random() - 0.5) * 0.6);
+    s.userData.sparklePhase = Math.random() * Math.PI * 2;
+    s.userData.isSparkle = true;
+    object3d.add(s);
+  }
+}
+
+/* Entity factory: returns a THREE.Group that starts as a cube placeholder and
+   hot-swaps to the real GLTF model once (if) it loads successfully. */
+function createEntityObject(entryId, { shiny = false } = {}) {
+  const entry = rosterById[entryId];
+  const group = new THREE.Group();
+  group.userData.rosterId = entryId;
+
+  const cube = makeCubeMesh(entry);
+  if (shiny) applyShinyTint(cube);
+  group.add(cube);
+
+  const preferShinyModel = shiny && !!entry.shinyModelPath;
+  const path = preferShinyModel ? entry.shinyModelPath : entry.modelPath;
+  const needsTintOnModel = shiny && !preferShinyModel;
+
+  if (path) {
+    loadModelOrNull(path).then(model => {
+      if (!model || group.userData.destroyed) return;
+      const inst = model.clone(true);
+      inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      const target = entry.modelTargetSize ?? Math.max(entry.boxSize[0], entry.boxSize[1], entry.boxSize[2]);
+      normalizeModel(inst, target);
+      if (needsTintOnModel) applyShinyTint(inst);
+      group.remove(cube);
+      group.add(inst);
+    });
+  }
+  return group;
+}
+
+/* ============================== I: DIFFICULTY / FAIRNESS HELPERS ============================== */
+function difficultyFactor(distance) {
+  return Math.min(1, distance / DIFFICULTY_MAX_DISTANCE);
+}
+
+function passesFairness(laneType, distance) {
+  const hist = gameState.familyHistory;
+  const last1 = hist[hist.length - 1];
+  const last2 = hist[hist.length - 2];
+  if (distance < 3) return laneType.family === 'safe';
+  if (laneType.family === 'rail' && last1 === 'rail') return false;
+  if (laneType.family === 'rail' && last1 === 'river' && last2 === 'river') return false;
+  if (last1 === 'rail' && laneType.family !== 'safe') return false;
+  if (laneType.family === 'river' && last1 === 'river' && last2 === 'river') return false;
+  return true;
+}
+
+function pickLaneType(distance) {
+  const candidates = LANE_TYPES.filter(lt => distance >= lt.minDistance && passesFairness(lt, distance));
+  const pool = candidates.length ? candidates : [laneTypesByKey.grass];
+  const total = pool.reduce((s, lt) => s + lt.weight(distance), 0);
+  let r = Math.random() * total;
+  for (const lt of pool) {
+    r -= lt.weight(distance);
+    if (r <= 0) return lt;
+  }
+  return pool[pool.length - 1];
+}
+
+/* ============================== J: LANE GENERATOR ============================== */
+function freeXPositions(exclude = []) {
+  const xs = [];
+  for (let x = -GRID_HALF; x <= GRID_HALF; x++) if (!exclude.includes(x)) xs.push(x);
+  return xs;
+}
+
+function createLaneGroundMesh(z, family) {
+  // Alternate the two safe-lane greens like Crossy Road's striped grass for readability.
+  const safeColor = (z % 2 === 0) ? 0x7ec850 : 0x74bd48;
+  const colors = { safe: safeColor, road: 0x4a4a4a, river: 0x2f7ec9, rail: 0x7a6455 };
+  const geo = new THREE.PlaneGeometry(GROUND_WIDTH, TILE);
+  const mat = new THREE.MeshStandardMaterial({ color: colors[family] || safeColor });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.set(0, 0, z * TILE);
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+// Frame the play area on safe lanes with continuous side "forest" scenery, so the ground strip that
+// extends off the play area still reads as bounded (matches Crossy Road's tree-lined grass borders).
+function addBoundaryScenery(lane) {
+  for (const side of [-1, 1]) {
+    for (let i = 1; i <= 3; i++) {
+      const decorEntry = (i === 1 || Math.random() < 0.6) ? rosterById.tree : rosterById.rock;
+      const obj = createEntityObject(decorEntry.id);
+      const jitter = (Math.random() - 0.5) * 0.3;
+      obj.position.set(side * (GRID_HALF + i) + jitter, 0, lane.z * TILE + (Math.random() - 0.5) * 0.4);
+      obj.rotation.y = Math.random() * Math.PI;
+      lane.root.add(obj);
+    }
+  }
+}
+
+function newLane(z, typeKey, family) {
+  return {
+    z, typeKey, family,
+    entities: [],       // {kind:'hazard'|'platform', entry, group, x, vx, halfWidth}
+    decor: [],          // blocked x positions (rock/tree)
+    coins: [],          // {x, taken, group}
+    isWater: family === 'river',
+    railState: 'idle', railTimer: 0, railEntry: null, railWarningMesh: null, railCooldown: 0,
+    root: new THREE.Group(),
+  };
+}
+
+function spawnGrassLane(lane) {
+  addBoundaryScenery(lane);
+  const decorChance = lane.z <= 0 ? 0 : 0.4;
+  const usedX = [];
+  if (Math.random() < decorChance) {
+    const count = 1 + (Math.random() < 0.3 ? 1 : 0);
+    const options = freeXPositions();
+    for (let i = 0; i < count && options.length; i++) {
+      const idx = Math.floor(Math.random() * options.length);
+      const x = options.splice(idx, 1)[0];
+      const decorEntry = Math.random() < 0.5 ? rosterById.rock : rosterById.tree;
+      const obj = createEntityObject(decorEntry.id);
+      obj.position.set(x, 0, lane.z * TILE);
+      lane.root.add(obj);
+      lane.decor.push(x);
+      usedX.push(x);
+    }
+  }
+  if (lane.z !== 0 && Math.random() < 0.55) {
+    const options = freeXPositions(usedX);
+    const count = Math.min(options.length, 1 + Math.floor(Math.random() * 2));
+    for (let i = 0; i < count; i++) {
+      const idx = Math.floor(Math.random() * options.length);
+      const x = options.splice(idx, 1)[0];
+      spawnCoin(lane, x);
+    }
+  }
+}
+
+function spawnCoin(lane, x) {
+  const obj = createEntityObject('coin');
+  obj.position.set(x, 0.4, lane.z * TILE);
+  obj.userData.spin = true;
+  lane.root.add(obj);
+  lane.coins.push({ x, taken: false, group: obj });
+}
+
+function spawnRoadLane(lane, ctx, entry) {
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  const df = difficultyFactor(ctx.distance);
+  const speed = THREE.MathUtils.lerp(entry.speedRange[0], entry.speedRange[1], df);
+  // Evenly space vehicles a full "stride" (length + gap) apart across the travel span. The gap
+  // shrinks toward gapMin as difficulty rises but never below the player's tile, so there is always
+  // a crossable window — this is what keeps the pacing fair, Crossy-Road style.
+  const gap = THREE.MathUtils.lerp(entry.gapMax, entry.gapMin, df);
+  const stride = entry.boxSize[0] + gap;
+  const span = HAZARD_SPAN * 2;
+  const count = Math.max(1, Math.floor(span / stride));
+  const start = -HAZARD_SPAN + Math.random() * stride;
+  for (let i = 0; i < count; i++) {
+    spawnHazardEntity(lane, entry, start + i * stride, speed * dir);
+  }
+  if (Math.random() < 0.15) spawnCoin(lane, -GRID_HALF + Math.floor(Math.random() * GRID_WIDTH));
+}
+
+function spawnHazardEntity(lane, entry, x, vx) {
+  const group = createEntityObject(entry.id);
+  group.position.set(x, 0, lane.z * TILE);
+  group.rotation.y = vx >= 0 ? Math.PI / 2 : -Math.PI / 2;
+  lane.root.add(group);
+  lane.entities.push({ kind: 'hazard', entry, group, x, vx, halfWidth: entry.boxSize[0] / 2 });
+}
+
+function spawnRiverLane(lane, ctx, entry) {
+  lane.isWater = true;
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  const speed = THREE.MathUtils.lerp(entry.speedRange[0], entry.speedRange[1], difficultyFactor(ctx.distance));
+  let x = -HAZARD_SPAN;
+  while (x < HAZARD_SPAN) {
+    spawnPlatformEntity(lane, entry, x, speed * dir);
+    x += entry.platformLength + THREE.MathUtils.lerp(entry.gapMin, entry.gapMax, Math.random());
+  }
+}
+
+function spawnPlatformEntity(lane, entry, x, vx) {
+  const group = createEntityObject(entry.id);
+  group.position.set(x, 0, lane.z * TILE);
+  group.rotation.y = vx >= 0 ? Math.PI / 2 : -Math.PI / 2;
+  lane.root.add(group);
+  lane.entities.push({ kind: 'platform', entry, group, x, vx, halfWidth: entry.platformLength / 2 });
+}
+
+function createWarningIndicator(z) {
+  const geo = new THREE.PlaneGeometry(GROUND_WIDTH, TILE * 0.95);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xff1744, transparent: true, opacity: 0.0 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.set(0, 0.02, z * TILE);
+  return mesh;
+}
+
+function spawnRailLane(lane, ctx, entry) {
+  lane.railEntry = entry;
+  lane.railState = 'idle';
+  lane.railTimer = 0;
+  lane.railWarningMesh = createWarningIndicator(lane.z);
+  lane.root.add(lane.railWarningMesh);
+}
+
+function updateRailLane(lane, dt) {
+  const entry = lane.railEntry;
+  if (lane.railState === 'idle') {
+    const distToPlayer = lane.z - gameState.player.gridZ;
+    if (distToPlayer > 0 && distToPlayer <= 5) {
+      lane.railState = 'warning';
+      lane.railTimer = 0;
+    }
+  } else if (lane.railState === 'warning') {
+    lane.railTimer += dt * 1000;
+    const pulse = 0.25 + 0.55 * Math.abs(Math.sin(lane.railTimer / 90));
+    lane.railWarningMesh.material.opacity = pulse;
+    if (lane.railTimer >= entry.warningMs) {
+      lane.railState = 'sweeping';
+      lane.railWarningMesh.material.opacity = 0;
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      spawnHazardEntity(lane, entry, -dir * (HAZARD_SPAN + 2), entry.sweepSpeed * dir);
+      lane.entities.forEach(e => { e.isSweep = true; });
+    }
+  } else if (lane.railState === 'sweeping') {
+    const sweep = lane.entities.find(e => e.isSweep);
+    if (!sweep || Math.abs(sweep.x) > HAZARD_SPAN + 2) {
+      lane.entities.forEach(e => lane.root.remove(e.group));
+      lane.entities = [];
+      lane.railState = 'done';
+      lane.railCooldown = 900;
+    }
+  } else if (lane.railState === 'done') {
+    lane.railCooldown -= dt * 1000;
+    if (lane.railCooldown <= 0) lane.railState = 'idle';
+  }
+}
+
+function generateNextLane() {
+  const z = gameState.nextLaneZ;
+  const distance = z;
+  const laneType = pickLaneType(distance);
+  const lane = newLane(z, laneType.key, laneType.family);
+  lane.root.add(createLaneGroundMesh(z, laneType.family));
+  laneType.build(lane, { distance });
+  gameState.lanes.set(z, lane);
+  gameState.laneGroup.add(lane.root);
+  gameState.familyHistory.push(laneType.family);
+  if (gameState.familyHistory.length > 6) gameState.familyHistory.shift();
+  gameState.nextLaneZ++;
+}
+
+function maintainLaneWindow() {
+  while (gameState.nextLaneZ <= gameState.player.gridZ + AHEAD_GEN) generateNextLane();
+  const minZ = gameState.player.gridZ - BEHIND_KEEP;
+  for (const [z, lane] of gameState.lanes) {
+    if (z < minZ) {
+      gameState.laneGroup.remove(lane.root);
+      gameState.lanes.delete(z);
+    }
+  }
+}
+
+function resetLanes() {
+  for (const lane of gameState.lanes.values()) gameState.laneGroup.remove(lane.root);
+  gameState.lanes.clear();
+  // Start generation a few rows behind the player so there is visible ground under and behind the
+  // starting tile (all forced to safe grass since distance < 3), not empty blue void near the camera.
+  gameState.nextLaneZ = -(BEHIND_KEEP + 1);
+  gameState.familyHistory = [];
+}
+
+/* ============================== K: INPUT HANDLING ============================== */
+window.addEventListener('keydown', (e) => {
+  if (gameState.mode !== 'playing' || gameState.player.isMoving) return;
+  switch (e.code) {
+    case 'ArrowUp': case 'Space': e.preventDefault(); tryMove(0, 1); break;
+    case 'ArrowDown': e.preventDefault(); tryMove(0, -1); break;
+    case 'ArrowLeft': e.preventDefault(); tryMove(-1, 0); break;
+    case 'ArrowRight': e.preventDefault(); tryMove(1, 0); break;
+  }
+}, { passive: false });
+
+const SWIPE_MIN_DIST = 28, SWIPE_MAX_TIME = 550, TAP_MAX_TIME = 250, TAP_MAX_MOVE = 12;
+
+canvas.addEventListener('touchstart', (e) => {
+  const t = e.changedTouches[0];
+  gameState.input.touchStart = { x: t.clientX, y: t.clientY, time: performance.now() };
+}, { passive: true });
+
+canvas.addEventListener('touchend', (e) => {
+  const start = gameState.input.touchStart;
+  gameState.input.touchStart = null;
+  if (!start || gameState.mode !== 'playing' || gameState.player.isMoving) return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - start.x, dy = t.clientY - start.y;
+  const dist = Math.hypot(dx, dy), dt = performance.now() - start.time;
+
+  if (dist < TAP_MAX_MOVE && dt < TAP_MAX_TIME) { tryMove(0, 1); return; }
+  if (dist >= SWIPE_MIN_DIST && dt <= SWIPE_MAX_TIME) {
+    if (Math.abs(dx) > Math.abs(dy)) tryMove(Math.sign(dx), 0);
+    else tryMove(0, -Math.sign(dy)); // screen-up (negative dy) = forward
+  }
+}, { passive: true });
+
+function onViewportChange() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  const aspect = w / h;
+  camera.left = -FRUSTUM_SIZE * aspect;
+  camera.right = FRUSTUM_SIZE * aspect;
+  camera.top = FRUSTUM_SIZE;
+  camera.bottom = -FRUSTUM_SIZE;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', onViewportChange);
+window.addEventListener('orientationchange', () => {
+  requestAnimationFrame(() => requestAnimationFrame(onViewportChange));
+});
+
+/* ============================== L: PLAYER MOVEMENT ============================== */
+function isTileWalkable(x, z) {
+  if (x < -GRID_HALF || x > GRID_HALF) return false;
+  if (z < 0) return false;
+  const lane = gameState.lanes.get(z);
+  if (!lane) return true;
+  if (lane.decor.includes(x)) return false;
+  return true;
+}
+
+function tryMove(dx, dz) {
+  const p = gameState.player;
+  const targetX = p.gridX + dx;
+  const targetZ = p.gridZ + dz;
+  if (!isTileWalkable(targetX, targetZ)) {
+    playBumpAnimation(dx, dz);
+    return;
+  }
+  p.isMoving = true;
+  const from = { x: p.gridX * TILE, z: p.gridZ * TILE };
+  const to = { x: targetX * TILE, z: targetZ * TILE };
+  p.tween = { from, to, startTime: performance.now(), duration: HOP_DURATION_MS, dx, dz };
+  p.gridX = targetX;
+  p.gridZ = targetZ;
+  if (targetZ > gameState.distance) gameState.distance = targetZ;
+}
+
+function playBumpAnimation(dx, dz) {
+  const p = gameState.player;
+  if (!p.group || p.isMoving) return;
+  const nudge = { x: dx * 0.18, z: dz * 0.18 };
+  const baseX = p.group.position.x, baseZ = p.group.position.z;
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min(1, (now - start) / 160);
+    const k = Math.sin(t * Math.PI);
+    p.group.position.x = baseX + nudge.x * k;
+    p.group.position.z = baseZ + nudge.z * k;
+    if (t < 1) requestAnimationFrame(step);
+    else { p.group.position.x = baseX; p.group.position.z = baseZ; }
+  }
+  requestAnimationFrame(step);
+}
+
+function updatePlayerTween(now) {
+  const p = gameState.player;
+  if (!p.tween || !p.group) return;
+  const t = Math.min(1, (now - p.tween.startTime) / p.tween.duration);
+  const eased = 1 - Math.pow(1 - t, 3);
+  p.group.position.x = THREE.MathUtils.lerp(p.tween.from.x, p.tween.to.x, eased);
+  p.group.position.z = THREE.MathUtils.lerp(p.tween.from.z, p.tween.to.z, eased);
+  p.group.position.y = Math.sin(eased * Math.PI) * 0.4;
+  if (p.tween.dx || p.tween.dz) p.group.rotation.y = Math.atan2(p.tween.dx, p.tween.dz);
+  if (t >= 1) { p.group.position.y = 0; p.isMoving = false; p.tween = null; }
+}
+
+/* ============================== M: CAMERA FOLLOW ============================== */
+function updateCamera(dt) {
+  const targetZ = gameState.player.gridZ * TILE;
+  cameraFollowZ = THREE.MathUtils.damp(cameraFollowZ, targetZ, 6, dt);
+  camera.position.set(CAM_OFFSET.x, CAM_OFFSET.y, CAM_OFFSET.z + cameraFollowZ);
+  camera.lookAt(0, 0, cameraFollowZ);
+}
+
+/* ============================== N: COIN / HAZARD / SAFETY LOGIC ============================== */
+function resolveCoinValue() {
+  const p = gameState.player;
+  if (p.shinyUnlocked) {
+    if (p.tier === 'legendary') {
+      const r = Math.random();
+      if (r < 0.04) return 10;   // red coin, 1/25
+      if (r < 0.14) return 2;    // blue coin, 1/10
+      return 1;
+    }
+    return Math.random() < 0.20 ? 2 : 1; // 20% chance to double
+  }
+  return 1;
+}
+
+function checkCoinPickup(lane) {
+  const p = gameState.player;
+  for (const coin of lane.coins) {
+    if (!coin.taken && coin.x === p.gridX) {
+      coin.taken = true;
+      lane.root.remove(coin.group);
+      gameState.coinsThisRun += resolveCoinValue();
+      updateHUD();
+    }
+  }
+}
+
+function findPlatformUnderTile(lane, x) {
+  for (const ent of lane.entities) {
+    if (ent.kind !== 'platform') continue;
+    if (Math.abs(ent.x - x) <= ent.halfWidth) return ent;
+  }
+  return null;
+}
+
+function hazardOverlapsTile(lane, x) {
+  const playerHalf = 0.4;
+  for (const ent of lane.entities) {
+    if (ent.kind !== 'hazard') continue;
+    if (Math.abs(ent.x - x) < ent.halfWidth + playerHalf) return true;
+  }
+  return false;
+}
+
+function checkPlayerSafety(dt) {
+  const p = gameState.player;
+  const lane = gameState.lanes.get(p.gridZ);
+  if (!lane) return;
+  checkCoinPickup(lane);
+
+  if (lane.family === 'river' && !p.isMoving) {
+    const platform = findPlatformUnderTile(lane, p.gridX);
+    if (!platform) { triggerGameOver('drowned'); return; }
+    const deltaX = platform.vx * dt;
+    p.group.position.x += deltaX;
+    p.gridX = p.group.position.x / TILE;
+    if (p.group.position.x < (-GRID_HALF - 0.5) * TILE || p.group.position.x > (GRID_HALF + 0.5) * TILE) {
+      triggerGameOver('drowned'); return;
+    }
+  }
+  if ((lane.family === 'road' || lane.family === 'rail') && !p.isMoving) {
+    if (hazardOverlapsTile(lane, p.gridX)) { triggerGameOver('squashed'); return; }
+  }
+}
+
+function updateLanes(dt) {
+  for (const lane of gameState.lanes.values()) {
+    if (lane.family === 'rail') updateRailLane(lane, dt);
+    for (const ent of lane.entities) {
+      ent.x += ent.vx * dt;
+      ent.group.position.x = ent.x;
+      if (!ent.isSweep) {
+        const bound = HAZARD_SPAN + ent.halfWidth;
+        if (ent.x > bound) ent.x = -bound, ent.group.position.x = ent.x;
+        if (ent.x < -bound) ent.x = bound, ent.group.position.x = ent.x;
+      }
+    }
+    lane.entities = lane.entities.filter(e => lane.root.children.includes(e.group) || e.isSweep);
+    for (const coin of lane.coins) {
+      if (!coin.taken) coin.group.rotation.y += dt * 3;
+    }
+  }
+  // sparkle bob
+  const t = performance.now() / 500;
+  gameState.laneGroup.traverse(obj => {
+    if (obj.userData.isSparkle) obj.position.y = 0.5 + Math.sin(t + obj.userData.sparklePhase) * 0.15;
+  });
+}
+
+/* ============================== O: GACHA LOGIC + UI ============================== */
+function pullGacha() {
+  const save = gameState.save;
+  if (save.coins < GACHA_COST) return { error: 'not_enough_coins' };
+  save.coins -= GACHA_COST;
+  const totalWeight = BALL_TIERS.reduce((s, b) => s + b.weight, 0);
+  let r = Math.random() * totalWeight;
+  const picked = BALL_TIERS.find(b => (r -= b.weight) < 0) ?? BALL_TIERS[0];
+  const pool = ROSTER.filter(e => e.role === 'player' && e.tier === picked.tier);
+  persistSave();
+  if (pool.length === 0) return { ball: picked.ball, mon: null };
+  const mon = pool[Math.floor(Math.random() * pool.length)];
+  const alreadyOwned = save.unlockedIds.includes(mon.id);
+  if (!alreadyOwned) save.unlockedIds.push(mon.id);
+  persistSave();
+  return { ball: picked.ball, mon, alreadyOwned };
+}
+
+function hexColor(c) { return '#' + c.toString(16).padStart(6, '0'); }
+
+function wireGachaUI() {
+  document.getElementById('btn-gacha-pull').addEventListener('click', () => {
+    const resultEl = document.getElementById('gacha-result');
+    const result = pullGacha();
+    updateGachaCoinDisplays();
+    if (result.error === 'not_enough_coins') {
+      resultEl.classList.remove('hidden');
+      resultEl.innerHTML = `<p>Not enough coins! You need ${GACHA_COST} 🪙.</p>`;
+      return;
+    }
+    resultEl.classList.remove('hidden');
+    if (!result.mon) {
+      resultEl.innerHTML = `<p>You got a <strong>${result.ball}</strong>... but no Pokemon exists in that tier yet!</p>`;
+      return;
+    }
+    resultEl.innerHTML = `
+      <div class="thumb" style="background:${hexColor(result.mon.color)}"></div>
+      <p><strong>${result.ball}</strong></p>
+      <p>${result.mon.displayName}${result.alreadyOwned ? ' (already owned)' : ' — NEW!'}</p>
+    `;
+  });
+}
+
+function updateGachaCoinDisplays() {
+  document.getElementById('gacha-coins').textContent = gameState.save.coins;
+  document.getElementById('menu-coins').textContent = gameState.save.coins;
+}
+
+/* ============================== P: CHARACTER SELECT UI ============================== */
+function renderRosterGrid() {
+  const grid = document.getElementById('roster-grid');
+  grid.innerHTML = '';
+  for (const id of gameState.save.unlockedIds) {
+    const entry = rosterById[id];
+    if (!entry) continue;
+    const shiny = !!gameState.save.shinyUnlockedByCharacter[id];
+    const best = gameState.save.bestScoreByCharacter[id] ?? 0;
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'roster-card' + (id === gameState.selectedPokemonId ? ' selected' : '');
+    card.innerHTML = `
+      <div class="roster-thumb" style="background:${hexColor(entry.color)}"></div>
+      <span>${entry.displayName}${shiny ? ' ✨' : ''}</span>
+      <small>Best: ${best}</small>
+    `;
+    card.addEventListener('click', () => {
+      gameState.selectedPokemonId = id;
+      document.getElementById('btn-select-start').disabled = false;
+      renderRosterGrid();
+    });
+    grid.appendChild(card);
+  }
+}
+
+/* ============================== Q: HUD / UI HELPERS ============================== */
+function updateHUD() {
+  document.getElementById('coin-count').textContent = gameState.coinsThisRun;
+  document.getElementById('score-count').textContent = gameState.distance;
+}
+
+/* ============================== R: GAME STATE MACHINE ============================== */
+function setMode(next) {
+  document.querySelectorAll('.screen').forEach(el => el.classList.add('hidden'));
+  document.getElementById('hud').classList.toggle('hidden', next !== 'playing');
+  document.getElementById('touch-hint').classList.toggle('hidden', next !== 'playing' || !isTouchDevice());
+  gameState.mode = next;
+  if (next === 'select') renderRosterGrid();
+  if (next === 'gacha') updateGachaCoinDisplays();
+  if (next === 'menu') document.getElementById('menu-coins').textContent = gameState.save.coins;
+  if (next === 'playing') startRun(gameState.selectedPokemonId);
+  const screen = document.getElementById(`screen-${next}`);
+  if (screen) screen.classList.remove('hidden');
+  if (next === 'playing') {
+    setTimeout(() => document.getElementById('touch-hint').classList.add('hidden'), 3500);
+  }
+}
+
+function isTouchDevice() {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+}
+
+function startRun(pokemonId) {
+  const entry = rosterById[pokemonId];
+  const shinyUnlocked = !!gameState.save.shinyUnlockedByCharacter[pokemonId];
+
+  resetLanes();
+  if (gameState.player.group) scene.remove(gameState.player.group);
+
+  gameState.player.gridX = 0;
+  gameState.player.gridZ = 0;
+  gameState.player.isMoving = false;
+  gameState.player.tween = null;
+  gameState.player.tier = entry.tier;
+  gameState.player.shinyUnlocked = shinyUnlocked;
+  gameState.distance = 0;
+  gameState.coinsThisRun = 0;
+
+  const group = createEntityObject(pokemonId, { shiny: shinyUnlocked });
+  group.position.set(0, 0, 0);
+  scene.add(group);
+  gameState.player.group = group;
+
+  cameraFollowZ = 0;
+  maintainLaneWindow();
+  updateHUD();
+}
+
+function finalizeRun() {
+  const id = gameState.selectedPokemonId;
+  const save = gameState.save;
+  const prevBest = save.bestScoreByCharacter[id] ?? 0;
+  const newBest = gameState.distance > prevBest;
+  if (newBest) save.bestScoreByCharacter[id] = gameState.distance;
+
+  let shinyJustUnlocked = false;
+  if (gameState.distance >= 1000 && !save.shinyUnlockedByCharacter[id]) {
+    save.shinyUnlockedByCharacter[id] = true;
+    shinyJustUnlocked = true;
+  }
+  save.coins += gameState.coinsThisRun;
+  persistSave();
+  return { newBest, shinyJustUnlocked };
+}
+
+function triggerGameOver() {
+  if (gameState.mode !== 'playing') return;
+  const { newBest, shinyJustUnlocked } = finalizeRun();
+  document.getElementById('go-score').textContent = gameState.distance;
+  document.getElementById('go-coins').textContent = gameState.coinsThisRun;
+  document.getElementById('go-best').classList.toggle('hidden', !newBest);
+  document.getElementById('go-shiny').classList.toggle('hidden', !shinyJustUnlocked);
+  setMode('gameover');
+}
+
+function wireStateMachineUI() {
+  document.getElementById('btn-play').addEventListener('click', () => setMode('select'));
+  document.getElementById('btn-select-start').addEventListener('click', () => setMode('playing'));
+  document.getElementById('btn-select-back').addEventListener('click', () => setMode('menu'));
+  document.getElementById('btn-gacha').addEventListener('click', () => setMode('gacha'));
+  document.getElementById('btn-gacha-back').addEventListener('click', () => setMode('menu'));
+  document.getElementById('btn-retry').addEventListener('click', () => setMode('playing'));
+  document.getElementById('btn-go-select').addEventListener('click', () => setMode('select'));
+  document.getElementById('btn-go-menu').addEventListener('click', () => setMode('menu'));
+}
+
+/* ============================== S: MAIN LOOP ============================== */
+let lastTime = performance.now();
+function animate(now) {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+
+  if (gameState.mode === 'playing') {
+    updatePlayerTween(now);
+    updateLanes(dt);
+    checkPlayerSafety(dt);
+    maintainLaneWindow();
+    updateHUD();
+  }
+  updateCamera(dt);
+  renderer.render(scene, camera);
+}
+
+/* ============================== T: BOOTSTRAP ============================== */
+gameState.save = loadSave();
+onViewportChange();
+wireStateMachineUI();
+wireGachaUI();
+document.getElementById('menu-coins').textContent = gameState.save.coins;
+setMode('menu');
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
