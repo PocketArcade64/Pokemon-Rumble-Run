@@ -146,9 +146,23 @@
   .rarity-list li { display: flex; justify-content: space-between; padding: 0.3rem 0.5rem; border-radius: 8px; margin: 0.2rem 0; }
   .rarity-list li span:last-child { font-weight: bold; }
   .setting-row { display: flex; align-items: center; gap: 1rem; margin: 1.1rem 0; }
-  .setting-row label { flex: 0 0 8rem; text-align: right; font-weight: bold; }
-  .setting-row input[type=range] { flex: 1; }
+  .setting-row label { flex: 0 0 8rem; text-align: left; font-weight: bold; }
   .setting-row .val { flex: 0 0 3rem; text-align: left; opacity: 0.8; }
+  /* Pixel-art sliders: chunky dark track with a square gold block for the thumb */
+  .setting-row input[type=range] {
+    flex: 1; -webkit-appearance: none; appearance: none; height: 14px;
+    background: #2b2f3a; border: 3px solid #14161c; border-radius: 0; outline: none; cursor: pointer;
+  }
+  .setting-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 18px; height: 22px; border-radius: 0;
+    background: #ffca28; border: 3px solid #14161c;
+    box-shadow: inset -2px -2px 0 #b8860b, inset 2px 2px 0 #fff3c4;
+  }
+  .setting-row input[type=range]::-moz-range-track { background: #2b2f3a; border: 3px solid #14161c; height: 8px; border-radius: 0; }
+  .setting-row input[type=range]::-moz-range-thumb {
+    width: 12px; height: 16px; border-radius: 0; background: #ffca28; border: 3px solid #14161c;
+    box-shadow: inset -2px -2px 0 #b8860b, inset 2px 2px 0 #fff3c4;
+  }
 
   /* ---- Countdown ---- */
   #overlay-countdown { background: rgba(8,10,20,0.45); }
@@ -204,11 +218,31 @@
   .toggle-btn:disabled { opacity: 0.4; }
 
   /* ---- Character select: 5-column grid, 100 slots ---- */
+  /* Roster browser: scrolling column of collapsible region sections, each holding a 5-col grid */
   #roster-grid {
-    display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem;
-    width: min(94vw, 460px); max-height: 42vh; overflow-y: auto; overflow-x: hidden; padding: 0.5rem;
+    display: flex; flex-direction: column; gap: 0.4rem;
+    width: min(94vw, 460px); max-height: 40vh; overflow-y: auto; overflow-x: hidden; padding: 0.5rem;
     background: rgba(0,0,0,0.28); border-radius: 12px;
   }
+  .region-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; }
+  .region-head {
+    display: flex; align-items: center; gap: 0.6rem; width: 100%; min-width: 0; text-align: left;
+    font-size: 0.8rem; padding: 0.45rem 0.7rem; color: #ffd54f; background: #1c2130;
+    border-radius: 0; box-shadow: inset 0 0 0 2px #14161c, 0 3px 0 #0c0f18;
+  }
+  .region-head .region-count { margin-left: auto; color: #9aa1ad; font-size: 0.7rem; }
+  .region-none { color: #9aa1ad; font-size: 0.8rem; text-align: center; padding: 0.8rem; }
+  /* Filter panel: pixel chips */
+  #filter-panel { display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: center;
+    width: min(94vw, 460px); padding: 0.45rem; background: rgba(0,0,0,0.28); border-radius: 10px; }
+  .filter-chip {
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.5px; color: #fff; min-width: 0;
+    padding: 0.3rem 0.5rem; border-radius: 0; opacity: 0.55;
+    box-shadow: inset 0 0 0 2px #14161c, 0 2px 0 rgba(0,0,0,0.4); text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+  }
+  .filter-chip.on { opacity: 1; box-shadow: inset 0 0 0 2px #ffd54f, 0 2px 0 rgba(0,0,0,0.4); }
+  .filter-chip.clear { background: #37414f; opacity: 1; }
+  .toggle-btn.on { background: linear-gradient(180deg,#ffe082,#ffca28); box-shadow: 0 3px 0 #b8860b; }
   .slot {
     position: relative; min-width: 0; height: 86px; border: 2px solid transparent; border-radius: 6px; cursor: pointer;
     background: rgba(255,255,255,0.07); color: #fff; display: flex; flex-direction: column;
@@ -254,14 +288,23 @@
   /* Silkscreen's "%" glyph is cramped — render percent signs in a clean fallback font. */
   .pct { font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; letter-spacing: 0; }
 
-  /* ---- How to Play / gacha tabs: single scrollable row, pixel-art buttons ---- */
+  /* ---- How to Play / gacha tabs: pixel-art buttons pinned above scrolling content ---- */
   .howto-tabs { display: flex; flex-wrap: nowrap; gap: 0.35rem; justify-content: flex-start; margin-bottom: 0.6rem;
-    overflow-x: auto; overflow-y: hidden; max-width: min(94vw, 560px); padding-bottom: 6px; }
-  .howto-tab { flex: 0 0 auto; font-size: 0.7rem; padding: 0.4rem 0.7rem; min-width: 0; color: #1a1d24;
+    overflow-x: auto; overflow-y: hidden; max-width: min(94vw, 560px); padding-bottom: 6px; flex: 0 0 auto; }
+  .howto-tab { flex: 0 0 auto; font-size: 0.78rem; padding: 0.45rem 0.75rem; min-width: 0; color: #1a1d24;
     background: #cfd8dc; border-radius: 0; box-shadow: inset 0 0 0 2px #14161c, 0 3px 0 #546e7a; }
   .howto-tab.on { background: #ffd54f; box-shadow: inset 0 0 0 2px #14161c, 0 3px 0 #b8860b; }
   .howto-section { display: none; }
   .howto-section.on { display: block; }
+  /* The panel is a fixed-height column: tabs stay put, only this content area scrolls. */
+  #howto-panel { display: flex; flex-direction: column; height: 62vh; font-size: 1.05rem; line-height: 1.65; }
+  .howto-content { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding-right: 4px; }
+  #howto-panel .key { min-width: 2.5rem; height: 2.5rem; font-size: 1.2rem; }
+  #howto-panel .keys-grid { grid-template-columns: repeat(3, 2.7rem); grid-auto-rows: 2.7rem; gap: 0.3rem; }
+  #howto-panel .keys-grid .key { height: 2.6rem; }
+  #howto-panel .howto-coins .c { font-size: 0.85rem; }
+  #howto-panel .coin-spin { width: 42px; height: 42px; }
+  #howto-panel .rarity-list li { font-size: 0.95rem; }
 
   /* ---- Pixel-art styled scrollbars ---- */
   * { scrollbar-width: thin; scrollbar-color: #ffca28 #2b2f3a; }
@@ -344,11 +387,13 @@
     <div class="select-toggles">
       <button id="btn-shiny" class="toggle-btn">Shiny: Off</button>
       <button id="btn-gender" class="toggle-btn">Gender: M</button>
+      <button id="btn-filter" class="toggle-btn">Filter</button>
     </div>
+    <div id="filter-panel" class="hidden"></div>
     <div id="roster-grid"></div>
     <div class="screen-buttons">
       <button id="btn-select-back" class="secondary small">Back</button>
-      <button id="btn-select-start" class="small">Start</button>
+      <button id="btn-select-start" class="small">Select</button>
     </div>
   </div>
 
@@ -495,7 +540,15 @@ const TYPE_COLORS = {
 };
 const GIFT_TEX = MB + 'Gift Box/obj_frame_red.png';
 const GIFT_INTERVAL = 100;            // a gift box appears on lane 100, 200, 300, ...
-const ROSTER_SLOTS = 100;             // character-select grid reserves this many slots
+// Regional dex sections for the character-select grid (national dex number ranges).
+const REGIONS = [
+  { name: 'Kanto',  from: 1,   to: 151 },
+  { name: 'Johto',  from: 152, to: 251 },
+  { name: 'Hoenn',  from: 252, to: 386 },
+  { name: 'Sinnoh', from: 387, to: 493 },
+  { name: 'Unova',  from: 494, to: 649 },
+  { name: 'Kalos',  from: 650, to: 721 },
+];
 
 /* ============================== B: ROSTER DATA ============================== */
 // modelPath is plain/human-readable (spaces & '#' are fine — the loader URL-encodes it).
@@ -503,13 +556,13 @@ const ROSTER_SLOTS = 100;             // character-select grid reserves this man
 // Swap in a new model by editing only its modelPath. Gender/Mega variants live in subfolders.
 const ROSTER = [
   // -------- Playable Pokemon (Bulbasaur evolution line) --------
-  { id: 'bulbasaur', displayName: 'Bulbasaur', role: 'player', tier: 'basic', color: 0x63b866, types: ['grass', 'poison'],
+  { id: 'bulbasaur', displayName: 'Bulbasaur', role: 'player', tier: 'basic', dex: 1, color: 0x63b866, types: ['grass', 'poison'],
     modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0001 Bulbasaur/Bulbasaur.obj',
     modelTargetSize: 1.4, boxSize: [0.8, 0.8, 0.8], unlockedByDefault: true },
-  { id: 'ivysaur', displayName: 'Ivysaur', role: 'player', tier: 'stage1', color: 0x4fa06a, types: ['grass', 'poison'],
+  { id: 'ivysaur', displayName: 'Ivysaur', role: 'player', tier: 'stage1', dex: 2, color: 0x4fa06a, types: ['grass', 'poison'],
     modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0002 Ivysaur/Ivysaur.obj',
     modelTargetSize: 1.5, boxSize: [0.9, 0.9, 0.9], unlockedByDefault: false },
-  { id: 'venusaur', displayName: 'Venusaur', role: 'player', tier: 'stage3', color: 0x2e8f6e, types: ['grass', 'poison'],
+  { id: 'venusaur', displayName: 'Venusaur', role: 'player', tier: 'stage3', dex: 3, color: 0x2e8f6e, types: ['grass', 'poison'],
     modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0003 Venusaur/Normalm/Venusaur_Normalm.obj',
     genderPaths: {
       m: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0003 Venusaur/Normalm/Venusaur_Normalm.obj',
@@ -782,15 +835,22 @@ const coinGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.08, 24);
 const coinMatCache = {};
 function coinMaterials(key) {
   if (!coinMatCache[key]) {
-    const face = new THREE.MeshStandardMaterial({ map: coinTexture(key), metalness: 0.25, roughness: 0.45, transparent: true, alphaTest: 0.3 });
+    const texTop = coinTexture(key);
+    const texBot = texTop.clone();               // back face: rotate 180° so it isn't upside-down
+    texBot.center.set(0.5, 0.5); texBot.rotation = Math.PI; texBot.needsUpdate = true;
+    const matOpts = { metalness: 0.25, roughness: 0.45, transparent: true, alphaTest: 0.3 };
+    const faceTop = new THREE.MeshStandardMaterial({ map: texTop, ...matOpts });
+    const faceBot = new THREE.MeshStandardMaterial({ map: texBot, ...matOpts });
     const rim = new THREE.MeshStandardMaterial({ color: COIN_TYPES[key].color, metalness: 0.55, roughness: 0.35 });
-    coinMatCache[key] = [rim, face, face];   // CylinderGeometry groups: [side, top, bottom]
+    coinMatCache[key] = [rim, faceTop, faceBot];  // CylinderGeometry groups: [side, top, bottom]
   }
   return coinMatCache[key];
 }
 function makeCoinMesh(key) {
   const m = new THREE.Mesh(coinGeo, coinMaterials(key));
-  m.rotation.x = Math.PI / 2;   // stand the disc on edge so the faces show as it spins
+  // Tip the disc over about Z (not X): the cap UV's v-axis runs along local X, so this keeps the
+  // "P" upright in world space instead of sideways.
+  m.rotation.z = Math.PI / 2;
   const group = new THREE.Group();
   group.add(m);
   group.position.y = 0.55;
@@ -1461,17 +1521,16 @@ function getCoinIcon(key) {
     tex.colorSpace = THREE.SRGBColorSpace;
     if (!thumbRenderer) initThumb();
     while (thumbHolder.children.length) thumbHolder.remove(thumbHolder.children[0]);
-    const face = new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.3, metalness: 0.25, roughness: 0.45 });
-    const rim = new THREE.MeshStandardMaterial({ color: COIN_TYPES[key].color, metalness: 0.55, roughness: 0.35 });
-    const m = new THREE.Mesh(coinGeo, [rim, face, face]);
-    m.rotation.x = Math.PI / 2;             // face toward the camera
+    const m = new THREE.Mesh(coinGeo, coinMaterials(key));
+    m.rotation.z = Math.PI / 2;             // same upright-P orientation as the in-game coin
     const g = new THREE.Group();
     g.add(m);
+    g.rotation.y = Math.PI / 2 - 0.35;      // face mostly toward the camera with a gentle 3D tilt
     g.scale.setScalar(2.1);
     g.position.y = 0.7;
     thumbHolder.add(g);
     const prevRot = thumbHolder.rotation.y;
-    thumbHolder.rotation.y = 0.35;          // gentle 3D tilt instead of the roster's full 45°
+    thumbHolder.rotation.y = 0;
     thumbHolder.rotation.x = -0.12;
     thumbRenderer.render(thumbScene, thumbCam);
     thumbHolder.rotation.y = prevRot;
@@ -1519,35 +1578,99 @@ function setUnknownTypeBadges(container, count) {
   container.innerHTML = '';
   for (let i = 0; i < count; i++) container.appendChild(unknownIcon());
 }
-// 5-column grid with ROSTER_SLOTS (100) cells; each icon is a 45-degree 3D sprite render, with a
-// gold sparkle badge if that character's shiny is unlocked.
+// Roster browser: collapsible regional sections (Kanto..Kalos) of 5-column dex grids, plus an
+// optional filter (types / legendary / mythical) that switches to a flat grid of matches.
+const PLAYER_BY_DEX = Object.fromEntries(PLAYER_ENTRIES.filter(e => e.dex).map(e => [e.dex, e]));
+const regionOpen = { Kanto: true };                      // collapse state; Kanto starts open
+const rosterFilter = { types: new Set(), legendary: false, mythical: false };
+function filterActive() { return rosterFilter.types.size > 0 || rosterFilter.legendary || rosterFilter.mythical; }
+function entryMatchesFilter(e) {
+  if (rosterFilter.types.size && !(e.types || []).some(t => rosterFilter.types.has(t))) return false;
+  if (rosterFilter.legendary && !(e.tier === 'legendary' && !e.mythical)) return false;
+  if (rosterFilter.mythical && !e.mythical) return false;
+  return true;
+}
+function makeSlotCell(dexNo, entry) {
+  const pad = n => String(n).padStart(3, '0');
+  const cell = document.createElement('button');
+  cell.type = 'button';
+  const idx = document.createElement('span'); idx.className = 'idx'; idx.textContent = pad(dexNo);
+  if (!entry) {
+    cell.className = 'slot empty';
+    cell.appendChild(idx);
+    cell.disabled = true;
+    return cell;
+  }
+  const locked = !gameState.save.unlockedIds.includes(entry.id);
+  const shiny = !!gameState.save.shinyUnlockedByCharacter[entry.id];
+  cell.className = 'slot' + (entry.id === gameState.previewId ? ' selected' : '') + (locked ? ' locked' : '');
+  cell.appendChild(idx);
+  const img = document.createElement('img'); img.className = 'thumb'; img.alt = entry.displayName;
+  getThumb(entry.id, { locked }).then(src => { img.src = src; });
+  cell.appendChild(img);
+  if (shiny && !locked) { const b = document.createElement('span'); b.className = 'shiny-badge'; cell.appendChild(b); }
+  const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = locked ? '???' : entry.displayName; cell.appendChild(nm);
+  cell.addEventListener('click', () => { AudioSys.sfx.click(); selectPreview(entry.id, locked); });
+  return cell;
+}
 function renderRosterGrid() {
   const grid = document.getElementById('roster-grid');
   grid.innerHTML = '';
-  const dex = n => String(n).padStart(3, '0');   // 001, 002, ...
-  for (let i = 0; i < ROSTER_SLOTS; i++) {
-    const entry = PLAYER_ENTRIES[i];
-    const cell = document.createElement('button');
-    cell.type = 'button';
-    const idx = document.createElement('span'); idx.className = 'idx'; idx.textContent = dex(i + 1);
-    if (!entry) {
-      cell.className = 'slot empty';
-      cell.appendChild(idx);
-      cell.disabled = true;
-      grid.appendChild(cell); continue;
+  if (filterActive()) {
+    const matches = PLAYER_ENTRIES.filter(e => e.dex && entryMatchesFilter(e));
+    const wrap = document.createElement('div'); wrap.className = 'region-grid';
+    if (!matches.length) {
+      const none = document.createElement('div'); none.className = 'region-none'; none.textContent = 'No Pokemon match this filter.';
+      grid.appendChild(none); return;
     }
-    const locked = !gameState.save.unlockedIds.includes(entry.id);
-    const shiny = !!gameState.save.shinyUnlockedByCharacter[entry.id];
-    cell.className = 'slot' + (entry.id === gameState.previewId ? ' selected' : '') + (locked ? ' locked' : '');
-    cell.appendChild(idx);
-    const img = document.createElement('img'); img.className = 'thumb'; img.alt = entry.displayName;
-    getThumb(entry.id, { locked }).then(src => { img.src = src; });
-    cell.appendChild(img);
-    if (shiny && !locked) { const b = document.createElement('span'); b.className = 'shiny-badge'; cell.appendChild(b); }
-    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = locked ? '???' : entry.displayName; cell.appendChild(nm);
-    cell.addEventListener('click', () => { AudioSys.sfx.click(); selectPreview(entry.id, locked); });
-    grid.appendChild(cell);
+    for (const e of matches) wrap.appendChild(makeSlotCell(e.dex, e));
+    grid.appendChild(wrap);
+    return;
   }
+  for (const region of REGIONS) {
+    const owned = PLAYER_ENTRIES.filter(e => e.dex >= region.from && e.dex <= region.to && gameState.save.unlockedIds.includes(e.id)).length;
+    const total = region.to - region.from + 1;
+    const head = document.createElement('button');
+    head.type = 'button'; head.className = 'region-head';
+    head.innerHTML = `<span>${regionOpen[region.name] ? 'v' : '&gt;'}</span><span>${region.name}</span><span class="region-count">${owned}/${total}</span>`;
+    head.addEventListener('click', () => { AudioSys.sfx.click(); regionOpen[region.name] = !regionOpen[region.name]; renderRosterGrid(); });
+    grid.appendChild(head);
+    if (!regionOpen[region.name]) continue;
+    const wrap = document.createElement('div'); wrap.className = 'region-grid';
+    for (let d = region.from; d <= region.to; d++) wrap.appendChild(makeSlotCell(d, PLAYER_BY_DEX[d]));
+    grid.appendChild(wrap);
+  }
+}
+// Filter panel: 18 type chips + Legendary / Mythical, all toggleable; any active filter flips the
+// roster into a flat matches-only grid.
+function renderFilterPanel() {
+  const panel = document.getElementById('filter-panel');
+  panel.innerHTML = '';
+  const addChip = (label, bg, isOn, onToggle) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'filter-chip' + (isOn ? ' on' : '');
+    chip.style.background = bg;
+    chip.textContent = label;
+    chip.addEventListener('click', () => { AudioSys.sfx.click(); onToggle(); renderFilterPanel(); renderRosterGrid(); });
+    panel.appendChild(chip);
+  };
+  for (const t of Object.keys(TYPE_COLORS)) {
+    addChip(t, hexColor(TYPE_COLORS[t]), rosterFilter.types.has(t),
+      () => rosterFilter.types.has(t) ? rosterFilter.types.delete(t) : rosterFilter.types.add(t));
+  }
+  addChip('legendary', '#8e24aa', rosterFilter.legendary, () => { rosterFilter.legendary = !rosterFilter.legendary; });
+  addChip('mythical', '#d81b60', rosterFilter.mythical, () => { rosterFilter.mythical = !rosterFilter.mythical; });
+  const clear = document.createElement('button');
+  clear.type = 'button'; clear.className = 'filter-chip clear'; clear.textContent = 'clear';
+  clear.addEventListener('click', () => {
+    AudioSys.sfx.click();
+    rosterFilter.types.clear(); rosterFilter.legendary = false; rosterFilter.mythical = false;
+    renderFilterPanel(); renderRosterGrid();
+  });
+  panel.appendChild(clear);
+  document.getElementById('btn-filter').classList.toggle('on', filterActive());
+  document.getElementById('btn-filter').textContent = filterActive() ? 'Filter *' : 'Filter';
 }
 function updateSelectToggles(id, locked) {
   const entry = rosterById[id];
@@ -1863,12 +1986,12 @@ function buildHowTo() {
     return `<li style="background:rgba(255,255,255,0.05)"><span><span class="swatch" style="background:${hexColor(b.color)}"></span>${b.ball} - ${label}</span><span>${P(pct)}</span></li>`;
   }).join('');
   const coinImg = (k, cap) => `<div class="c"><img class="coin-spin" data-coin="${k}" src="${encodePath(COIN_TYPES[k].tex)}" alt="${cap}"/><span>${cap}</span></div>`;
-  // Tabbed topics
+  // Tabbed topics: tabs stay pinned at the top of the panel; only the section content scrolls.
   const tabs = [
     { id: 'controls', name: 'Controls', html: `
       <div class="row"><div class="keys-grid">
-        <span></span><span class="key">UP</span><span></span>
-        <span class="key">LT</span><span class="key">DN</span><span class="key">RT</span>
+        <span></span><span class="key">^</span><span></span>
+        <span class="key">&lt;</span><span class="key">v</span><span class="key">&gt;</span>
       </div>
       <div>Arrow keys hop one tile. <span class="key wide">Space</span> also hops forward.</div></div>
       <div class="row"><div>On mobile: <b>swipe</b> to move in a direction, <b>tap</b> to hop forward.</div></div>
@@ -1878,7 +2001,7 @@ function buildHowTo() {
       <div class="row"><div><b>Rivers:</b> ride the water Pokemon across - miss and you sink.</div></div>
       <div class="row"><div><b>Stampede:</b> the lane flashes red, then a Tauros herd charges through.</div></div>` },
     { id: 'coins', name: 'Coins', html: `
-      <div class="howto-coins">${coinImg('silver', 'Silver = 1')}${coinImg('gold', 'Gold = 2')}${coinImg('L', 'Poke L = 10')}</div>
+      <div class="howto-coins">${coinImg('silver', 'Silver = 1')}${coinImg('gold', 'Gold = 2')}${coinImg('L', 'Big Gold = 10')}</div>
       <div class="row"><div>Every 100 lanes a gift box appears - run into it to scatter 5 coins across the lanes just ahead.</div></div>` },
     { id: 'balls', name: 'Poke Balls', html: `
       <div class="row"><div>Spend <b>${GACHA_COST} coins</b> per pull at the Poke Ball Machine for a random ball with a new playable Pokemon:</div></div>
@@ -1886,15 +2009,16 @@ function buildHowTo() {
     { id: 'shiny', name: 'Shinies', html: `
       <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its shiny form.</div></div>
       <div class="row"><div>Shiny: <b>${P(20)}</b> chance for a gold coin (worth 2) instead of silver.</div></div>
-      <div class="row"><div>Shiny Legendary: <b>1/10</b> chance for gold (worth 2) and <b>1/25</b> chance for a Poke L (worth 10).</div></div>` },
+      <div class="row"><div>Shiny Legendary: <b>1/10</b> chance for gold (worth 2) and <b>1/25</b> chance for a Big Gold (worth 10).</div></div>` },
   ];
   el.innerHTML =
     `<div class="howto-tabs">${tabs.map((t, i) => `<button class="howto-tab${i === 0 ? ' on' : ''}" data-tab="${t.id}">${t.name}</button>`).join('')}</div>` +
-    tabs.map((t, i) => `<div class="howto-section${i === 0 ? ' on' : ''}" id="howto-${t.id}">${t.html}</div>`).join('');
+    `<div class="howto-content">${tabs.map((t, i) => `<div class="howto-section${i === 0 ? ' on' : ''}" id="howto-${t.id}">${t.html}</div>`).join('')}</div>`;
   el.querySelectorAll('.howto-tab').forEach(btn => btn.addEventListener('click', () => {
     AudioSys.sfx.click();
     el.querySelectorAll('.howto-tab').forEach(b => b.classList.toggle('on', b === btn));
     el.querySelectorAll('.howto-section').forEach(s => s.classList.toggle('on', s.id === 'howto-' + btn.dataset.tab));
+    el.querySelector('.howto-content').scrollTop = 0;
   }));
 }
 function refreshSettingsUI() {
@@ -1926,11 +2050,12 @@ function wireUI() {
   click('btn-gacha', () => setMode('gacha'));
   click('btn-howto', () => setMode('howto'));
   click('btn-settings', () => setMode('settings'));
-  click('btn-select-start', () => setMode('playing'));
+  click('btn-select-start', () => setMode('menu'));   // "Select" confirms the pick and returns to the main menu
   click('btn-select-back', () => setMode('menu'));
-  // Shiny / gender toggles
+  // Shiny / gender toggles + filter panel
   click('btn-shiny', () => { gameState.selectedShiny = !gameState.selectedShiny; selectPreview(gameState.previewId, !gameState.save.unlockedIds.includes(gameState.previewId)); });
   click('btn-gender', () => { gameState.selectedGender = gameState.selectedGender === 'm' ? 'f' : 'm'; selectPreview(gameState.previewId, !gameState.save.unlockedIds.includes(gameState.previewId)); });
+  click('btn-filter', () => { document.getElementById('filter-panel').classList.toggle('hidden'); renderFilterPanel(); });
   click('btn-gacha-back', () => setMode('menu'));
   click('btn-howto-back', () => setMode('menu'));
   click('btn-retry', () => setMode('playing'));
