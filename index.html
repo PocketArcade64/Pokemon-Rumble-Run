@@ -99,9 +99,11 @@
   .screen-buttons { display: flex; gap: 0.7rem; flex-wrap: wrap; justify-content: center; }
 
   /* ---- Character select ---- */
-  #preview-wrap { position: relative; width: min(80vw, 300px); height: 34vh; }
+  /* Condensed header: smaller preview + tighter text so more of the roster grid is visible. */
+  #preview-wrap { position: relative; width: min(60vw, 220px); height: 20vh; }
+  #screen-select { gap: 0.4rem; }
   #preview-canvas { width: 100%; height: 100%; display: block; }
-  #preview-name { font-size: 1.3rem; font-weight: bold; margin-top: -0.3rem; }
+  #preview-name { font-size: 1.05rem; font-weight: bold; margin-top: -0.4rem; }
   #preview-sub { opacity: 0.8; font-size: 0.85rem; }
   #roster-strip {
     display: flex; gap: 0.5rem; overflow-x: auto; max-width: 94vw; padding: 0.5rem;
@@ -171,16 +173,29 @@
   #screen-menu > * { pointer-events: auto; }
   #logo-img { width: min(78vw, 460px); max-height: 30vh; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.45)); margin-bottom: 0.3rem; }
   #logo-fallback { color: #ffd54f; font-size: clamp(1.6rem, 7vw, 2.8rem); text-shadow: 0 3px 0 #b8860b; }
-  #menu-coins-pill { background: rgba(0,0,0,0.4); border-radius: 999px; padding: 0.3rem 1rem; }
+  /* Bare gold counter — no pill/circle behind it, just the gold P coin + gold number. */
+  #menu-coins-pill { display: flex; align-items: center; gap: 0.45rem; color: #ffd54f;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.55), 0 3px 6px rgba(0,0,0,0.4); }
+  #menu-coins-pill img { width: 1.35em; height: 1.35em; }
   .menu-buttons { margin-top: auto; margin-bottom: 4vh; }
 
-  /* Play button: label on the left, embedded 3D Pokemon on the right */
-  #btn-play { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.7rem; overflow: hidden; min-height: 64px; }
-  #play-pokemon-canvas { width: 58px; height: 58px; display: block; order: 2; }
-  #btn-play .play-label { font-size: 1.4rem; order: 1; }
+  /* Play button: label on the left, embedded 3D Pokemon on the right, both vertically centered */
+  #btn-play { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.7rem; overflow: hidden; min-height: 64px; padding-top: 0.25rem; padding-bottom: 0.25rem; }
+  #play-pokemon-canvas { width: 58px; height: 58px; display: block; order: 2; align-self: center; flex: 0 0 auto; }
+  #btn-play .play-label { font-size: 1.4rem; order: 1; line-height: 1; align-self: center; }
   #btn-play.jump #play-pokemon-canvas { animation: mini-jump 0.6s ease-in-out infinite; }
   @keyframes mini-jump { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-  #menu-selected { min-height: 1.2rem; color: #ffd54f; font-size: 0.9rem; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+  /* Floating "X selected" tag that hovers above the clicked Pokemon on the ranch, then fades. */
+  #menu-selected {
+    position: fixed; left: 0; top: 0; transform: translate(-50%, -100%);
+    background: rgba(11,16,32,0.88); color: #ffd54f; font-size: 0.72rem; padding: 0.3rem 0.55rem;
+    box-shadow: inset 0 0 0 2px #14161c, 0 3px 0 rgba(0,0,0,0.35); border-radius: 4px;
+    pointer-events: none; z-index: 6; white-space: nowrap; display: none;
+  }
+  #menu-selected::after { /* pixel speech-tail */
+    content: ''; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%);
+    width: 8px; height: 8px; background: rgba(11,16,32,0.88); clip-path: polygon(0 0, 100% 0, 50% 100%);
+  }
 
   /* ---- Character select ---- */
   .select-toggles { display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
@@ -191,18 +206,20 @@
   /* ---- Character select: 5-column grid, 100 slots ---- */
   #roster-grid {
     display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem;
-    width: min(94vw, 460px); max-height: 30vh; overflow-y: auto; overflow-x: hidden; padding: 0.5rem;
+    width: min(94vw, 460px); max-height: 42vh; overflow-y: auto; overflow-x: hidden; padding: 0.5rem;
     background: rgba(0,0,0,0.28); border-radius: 12px;
   }
   .slot {
-    position: relative; min-width: 0; height: 72px; border: 2px solid transparent; border-radius: 9px; cursor: pointer;
+    position: relative; min-width: 0; height: 86px; border: 2px solid transparent; border-radius: 6px; cursor: pointer;
     background: rgba(255,255,255,0.07); color: #fff; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 2px; font-size: 0.5rem; padding: 2px; overflow: hidden;
+    align-items: center; justify-content: center; gap: 2px; font-size: 0.6rem; padding: 2px; overflow: hidden;
   }
+  /* Pokedex-style 3-digit index in the corner of every box */
+  .slot .idx { position: absolute; top: 2px; left: 4px; font-size: 0.5rem; opacity: 0.5; letter-spacing: 0; }
   .slot.selected { border-color: #ffd54f; background: rgba(255,213,79,0.22); }
   .slot.locked { color: #6b7280; background: transparent; }   /* no box behind the ??? / silhouette */
   .slot.empty { background: rgba(255,255,255,0.03); border-style: dashed; border-color: rgba(255,255,255,0.08); cursor: default; color: #4b5563; }
-  .slot .thumb { width: 46px; height: 46px; display: block; }             /* 3D sprite render at 45deg */
+  .slot .thumb { width: 55px; height: 55px; display: block; }             /* 3D sprite render at 45deg (+20%) */
   .slot .nm { line-height: 1.1; text-align: center; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; }
   /* gold sparkle badge for an unlocked shiny */
   .slot .shiny-badge { position: absolute; top: 3px; right: 3px; width: 11px; height: 11px; background: #ffe14d;
@@ -211,11 +228,14 @@
   /* ---- Pixel-art type badges (colors from the standard type palette) ---- */
   /* Fixed heights so the layout (and the roster boxes below) never shift when switching between a
      locked Pokemon (no type badges) and an unlocked one. */
-  #preview-types { display: flex; gap: 0.4rem; justify-content: center; align-items: center; height: 1.7rem; flex: 0 0 1.7rem; }
-  .type-img { height: 1.6rem; display: block; image-rendering: auto; }
+  #preview-types { display: flex; gap: 0.4rem; justify-content: center; align-items: center; height: 1.5rem; flex: 0 0 1.5rem; }
+  /* Pixel-art icons render crisp (no bilinear blur) at an integer-ish scale. */
+  .type-img { height: 22px; width: auto; display: block; image-rendering: pixelated; }
+  .hud-coin, .coin-spin, .slot .thumb, .pool-cell img { image-rendering: pixelated; }
   .type-badge { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.5px; color: #fff; padding: 0.18rem 0.5rem;
     border-radius: 3px; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.35), 0 2px 0 rgba(0,0,0,0.35); text-shadow: 1px 1px 0 rgba(0,0,0,0.5); }
-  #preview-stats { font-size: 0.78rem; opacity: 0.9; height: 1.2rem; flex: 0 0 1.2rem; white-space: nowrap; }
+  #preview-stats { font-size: 0.72rem; opacity: 0.9; height: 1.1rem; flex: 0 0 1.1rem; white-space: nowrap;
+    display: flex; gap: 1.4rem; justify-content: center; }   /* clear gap between Runs and Highscore */
 
   /* ---- Gacha tier pool (silhouettes of pullable Pokemon) ---- */
   #gacha-pool { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; max-width: min(94vw, 460px);
@@ -302,7 +322,7 @@
   <div id="screen-menu" class="screen">
     <img id="logo-img" alt="Pokemon Rumble Run" />
     <div id="logo-fallback" style="display:none;">Pokemon Rumble Run</div>
-    <div id="menu-coins-pill" class="coin-display"><img class="hud-coin" src="Pokemon%203D%20Models/Poke%20Coins/poke_silver.png" style="width:1.1em;height:1.1em;vertical-align:-2px;" /> <span id="menu-coins">0</span></div>
+    <div id="menu-coins-pill" class="coin-display"><img class="hud-coin" src="Pokemon%203D%20Models/Poke%20Coins/poke_gold.png" alt="P" /> <span id="menu-coins">0</span></div>
     <div id="menu-selected"></div>
     <div class="menu-buttons">
       <button id="btn-play" class="wide"><canvas id="play-pokemon-canvas"></canvas><span class="play-label">Play</span></button>
@@ -1225,8 +1245,14 @@ function findPlatformUnderTile(lane, x) {
   return best;
 }
 function hazardOverlapsTile(lane, x) {
-  const ph = 0.4;
-  for (const ent of lane.entities) if (ent.kind === 'hazard' && Math.abs(ent.x - x) < ent.halfWidth + ph) return true;
+  // Crossy-Road-style forgiving collision: the kill box is noticeably smaller than the visual model,
+  // so grazing a Rapidash's nose by a few pixels doesn't kill you — only a clear overlap does.
+  const ph = 0.3;                                        // player's collision half-width (visual ~0.4)
+  for (const ent of lane.entities) {
+    if (ent.kind !== 'hazard') continue;
+    const killHalf = ent.halfWidth * 0.78;               // shrink hazard box ~22% from the art
+    if (Math.abs(ent.x - x) < killHalf + ph) return true;
+  }
   return false;
 }
 function checkPlayerSafety(dt) {
@@ -1430,7 +1456,11 @@ function makeTypeImg(candidates, label, color) {
   img.src = candidates[0];
   return img;
 }
-function typeIcon(t) { return makeTypeImg([encodePath('Pokemon Types/' + t + '.png')], t, hexColor(TYPE_COLORS[t] || 0x777777)); }
+// Icon files are capitalized (Normal.png, Fairy.png) — try that first, lowercase as a fallback.
+function typeIcon(t) {
+  const cap = t.charAt(0).toUpperCase() + t.slice(1);
+  return makeTypeImg([encodePath('Pokemon Types/' + cap + '.png'), encodePath('Pokemon Types/' + t + '.png')], t, hexColor(TYPE_COLORS[t] || 0x777777));
+}
 // Unknown "???" icon: GitHub keeps it as ???.png, local Windows copy is question.png.
 function unknownIcon() { return makeTypeImg([encodePath('Pokemon Types/???.png'), encodePath('Pokemon Types/question.png')], '???', '#555b66'); }
 function setTypeBadges(container, entry) {
@@ -1448,19 +1478,22 @@ function setUnknownTypeBadges(container, count) {
 function renderRosterGrid() {
   const grid = document.getElementById('roster-grid');
   grid.innerHTML = '';
+  const dex = n => String(n).padStart(3, '0');   // 001, 002, ...
   for (let i = 0; i < ROSTER_SLOTS; i++) {
     const entry = PLAYER_ENTRIES[i];
     const cell = document.createElement('button');
     cell.type = 'button';
+    const idx = document.createElement('span'); idx.className = 'idx'; idx.textContent = dex(i + 1);
     if (!entry) {
       cell.className = 'slot empty';
-      cell.innerHTML = `<span class="nm">${i + 1}</span>`;
+      cell.appendChild(idx);
       cell.disabled = true;
       grid.appendChild(cell); continue;
     }
     const locked = !gameState.save.unlockedIds.includes(entry.id);
     const shiny = !!gameState.save.shinyUnlockedByCharacter[entry.id];
     cell.className = 'slot' + (entry.id === gameState.previewId ? ' selected' : '') + (locked ? ' locked' : '');
+    cell.appendChild(idx);
     const img = document.createElement('img'); img.className = 'thumb'; img.alt = entry.displayName;
     getThumb(entry.id, { locked }).then(src => { img.src = src; });
     cell.appendChild(img);
@@ -1490,9 +1523,9 @@ function selectPreview(id, locked) {
   document.getElementById('preview-name').textContent = locked ? '???' : entry.displayName;
   const typesEl = document.getElementById('preview-types');
   if (locked) setUnknownTypeBadges(typesEl, (entry.types || ['?']).length); else setTypeBadges(typesEl, entry);
-  document.getElementById('preview-stats').textContent = locked
-    ? 'Locked - win from the Poke Ball Machine'
-    : `Runs: ${runs}   Highscore: ${best}`;
+  document.getElementById('preview-stats').innerHTML = locked
+    ? '<span>Locked - win from the Poke Ball Machine</span>'
+    : `<span>Runs: ${runs}</span><span>Highscore: ${best}</span>`;   // flex gap separates them
   document.getElementById('btn-select-start').disabled = locked;
   updateSelectToggles(id, locked);
   loadPreviewModel(id);
@@ -1558,12 +1591,28 @@ function onMenuClick(e) {
   AudioSys.sfx.click();
   gameState.selectedPokemonId = o.userData.pokemonId;
   updatePlayButtonModel();
-  updateMenuSelected();
-  const a = menuAgents.find(x => x.group === o); if (a) a.hopPhase = t2Phase();
+  const a = menuAgents.find(x => x.group === o);
+  if (a) { a.hopPhase = t2Phase(); showMenuSelectedTag(a); }
 }
-function updateMenuSelected() {
+// "X selected" tag floats above the clicked Pokemon while it wanders, then disappears.
+let menuTag = null; // { agent, until }
+function showMenuSelectedTag(agent) {
   const el = document.getElementById('menu-selected');
-  if (el) el.textContent = (rosterById[gameState.selectedPokemonId]?.displayName || '') + ' selected';
+  el.textContent = (rosterById[agent.id]?.displayName || '') + ' selected';
+  el.style.display = 'block';
+  menuTag = { agent, until: performance.now() + 2000 };
+}
+function updateMenuSelectedTag(now) {
+  const el = document.getElementById('menu-selected');
+  if (!menuTag || gameState.mode !== 'menu' || now > menuTag.until || !menuAgents.includes(menuTag.agent)) {
+    if (menuTag) { el.style.display = 'none'; menuTag = null; }
+    return;
+  }
+  const g = menuTag.agent.group;
+  const v = new THREE.Vector3(g.position.x, g.position.y + 1.35, g.position.z);
+  v.project(camera);
+  el.style.left = ((v.x * 0.5 + 0.5) * window.innerWidth) + 'px';
+  el.style.top = ((-v.y * 0.5 + 0.5) * window.innerHeight) + 'px';
 }
 function t2Phase() { return performance.now() / 1000 * 4; }
 canvas.addEventListener('click', onMenuClick);
@@ -1696,7 +1745,8 @@ function setMode(next) {
   if (next === 'gacha') { updateGachaCoinDisplays(); document.getElementById('gacha-result').classList.add('hidden'); renderGachaTiers(); }
   if (next === 'menu') {
     document.getElementById('menu-coins').textContent = gameState.save.coins;
-    clearField(); buildMenuDiorama(); updatePlayButtonModel(); updateMenuSelected();
+    clearField(); buildMenuDiorama(); updatePlayButtonModel();
+    menuTag = null; document.getElementById('menu-selected').style.display = 'none';
   }
   if (next === 'settings') refreshSettingsUI();
   if (next === 'playing') startRun(gameState.selectedPokemonId);
@@ -1886,7 +1936,7 @@ function animate(now) {
       updateHUD();
     }
   }
-  if (gameState.mode === 'menu') updateMenuDiorama(dt);
+  if (gameState.mode === 'menu') { updateMenuDiorama(dt); updateMenuSelectedTag(now); }
   updateCamera(dt);
   renderer.render(scene, camera);
 
