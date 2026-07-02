@@ -52,6 +52,8 @@ This is a big change: completely redesigning the environment to match the aesthe
 
 - How can I make the 5 and 10 coins appear normally with even non shiny pokemon but also have shiny legendaries have a better bonus from shiny non legendaries?
 
+- in the poke ball machine menu, after you click the 50 coins button, the mschine stretches vertically a little please keep it the same size as when you first click into the menu.
+
 Obstacles
 
 1. Roads / Cars
