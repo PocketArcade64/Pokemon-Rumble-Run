@@ -339,11 +339,14 @@
   #preview-stats { font-size: 0.9rem; opacity: 0.95; height: 1.35rem; flex: 0 0 1.35rem; white-space: nowrap;
     display: flex; gap: 1.6rem; justify-content: center; }   /* clear gap between Runs and Highscore */
 
-  /* Gacha screen: machine grows to fill, Back rides the very bottom. */
+  /* Gacha screen: machine grows to fill, footer holds a constant slot for the buttons. */
   #screen-gacha { justify-content: flex-start; gap: 0.5rem;
     padding-top: max(2.5vh, calc(env(safe-area-inset-top) + 1vh));
     padding-bottom: max(1.5vh, calc(env(safe-area-inset-bottom) + 1vh)); }
-  #screen-gacha > .screen-buttons:last-child { margin-top: 0.3rem; }
+  /* Reserves room for the idle state (Insert/Rates row + Back row). Whichever rows are shown are
+     centered inside; hiding them leaves the slot — and thus the machine canvas — the same height. */
+  #gacha-footer { flex: 0 0 auto; min-height: 6.2rem; display: flex; flex-direction: column;
+    justify-content: center; gap: 0.5rem; }
   .pool-cell { width: 60px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 0.5rem; }
   .pool-cell img { width: 46px; height: 46px; }
   .pool-cell .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
@@ -476,15 +479,19 @@
       <div id="gacha-hint" class="hidden">Tap the knob!</div>
       <div id="gacha-reveal" class="hidden"><div id="gacha-reveal-name"></div><div id="gacha-reveal-sub"></div></div>
     </div>
-    <div class="screen-buttons" id="gacha-actions">
-      <button id="btn-gacha-pull">Insert 50 coins</button>
-      <button id="btn-rates" class="secondary small">Pull Rates</button>
-    </div>
-    <div class="screen-buttons hidden" id="gacha-continue-row">
-      <button id="btn-gacha-continue">Continue</button>
-    </div>
-    <div class="screen-buttons" id="gacha-back-row">
-      <button id="btn-gacha-back" class="secondary small">Back</button>
+    <!-- Fixed-height footer: swapping which button rows show inside it never changes the canvas
+         size above, so the machine stays exactly as tall as when you enter the screen. -->
+    <div id="gacha-footer">
+      <div class="screen-buttons" id="gacha-actions">
+        <button id="btn-gacha-pull">Insert 50 coins</button>
+        <button id="btn-rates" class="secondary small">Pull Rates</button>
+      </div>
+      <div class="screen-buttons hidden" id="gacha-continue-row">
+        <button id="btn-gacha-continue">Continue</button>
+      </div>
+      <div class="screen-buttons" id="gacha-back-row">
+        <button id="btn-gacha-back" class="secondary small">Back</button>
+      </div>
     </div>
   </div>
 
@@ -613,9 +620,10 @@ const MB = 'Pokemon 3D Models/';      // base folder (sibling of index.html)
 // Coin sprites (2D). silver = base, gold = 2x, "L" = 10x. Coin type is pre-rolled at spawn so the
 // visible sprite matches its value (this replaces the old invisible-multiplier scheme).
 const COIN_BASE = MB + 'Poké Coins/Poke/';   // note: accented folder + nested "Poke" subfolder
+const COIN_EVERY_TILES = 6.25;   // one loose coin, on average, every 6.25 tiles of progress
 const COIN_TYPES = {
   silver: { value: 1, tex: COIN_BASE + 'poke_silver.png', color: 0xc4ccd6 },
-  gold:   { value: 2, tex: COIN_BASE + 'poke_gold.png',   color: 0xffd54f },
+  gold:   { value: 5, tex: COIN_BASE + 'poke_gold.png',   color: 0xffd54f },
   L:      { value: 10, tex: COIN_BASE + 'poke_L.png',     color: 0xff5a5a },
 };
 // Standard Pokemon type colors (functional palette) for the pixel-art type badges.
@@ -818,7 +826,7 @@ const gameState = {
   previewBaseId: 'p1', selectedForm: 'normal',   // 'normal' or a form label like 'Alola'
   player: { gridX: 0, gridZ: 0, isMoving: false, tween: null, group: null, tier: 'basic', isShiny: false, ridingPlatform: null },
   distance: 0, coinsThisRun: 0,
-  lanes: new Map(), nextLaneZ: 0, familyHistory: [], laneGroup: null,
+  lanes: new Map(), nextLaneZ: 0, familyHistory: [], laneGroup: null, coinAccum: 0,
   blockedTiles: new Set(),
   scrollZ: 0, scrollActive: false,
   paused: false, countdownUntil: 0,
@@ -1242,7 +1250,6 @@ function newLane(z, typeKey, family) {
 }
 function spawnGrassLane(lane) {
   addBoundaryScenery(lane);
-  const usedX = [];
   if (lane.z > 0 && Math.random() < 0.4) {
     const options = freeXPositions();
     const count = 1 + (Math.random() < 0.3 ? 1 : 0);
@@ -1251,29 +1258,17 @@ function spawnGrassLane(lane) {
       const decor = Math.random() < 0.5 ? rosterById.rock : rosterById.tree;
       const obj = createEntityObject(decor.id);
       obj.position.set(x, 0, lane.z * TILE); lane.root.add(obj);
-      lane.decor.push(x); usedX.push(x);
+      lane.decor.push(x);
     }
   }
-  if (lane.z > 0 && Math.random() < 0.55) {
-    const options = freeXPositions(usedX);
-    const count = Math.min(options.length, 1 + Math.floor(Math.random() * 2));
-    for (let i = 0; i < count; i++) spawnCoin(lane, options.splice(Math.floor(Math.random() * options.length), 1)[0]);
-  }
+  // Coins are placed centrally by generateNextLane on a fixed cadence (COIN_EVERY_TILES), not here.
 }
-// Pre-roll a coin's type from the current character's shiny status (same expected value as before,
-// now expressed as a visible silver / gold / L sprite).
+// Coin denomination roll: flat appearance rates — 10-coin at 1/30, 5-coin at 1/15, else a 1-coin.
 function rollCoinType() {
-  const p = gameState.player;
-  if (p.isShiny) {
-    if (p.tier === 'legendary') {
-      const r = Math.random();
-      if (r < 0.04) return 'L';     // 1/25
-      if (r < 0.14) return 'gold';  // 1/10
-      return 'silver';
-    }
-    return Math.random() < 0.20 ? 'gold' : 'silver'; // 20% double
-  }
-  return 'silver';
+  const r = Math.random();
+  if (r < 1 / 30) return 'L';                 // 10-coin
+  if (r < 1 / 30 + 1 / 15) return 'gold';     // 5-coin
+  return 'silver';                            // 1-coin (default)
 }
 function spawnCoin(lane, x, forceType) {
   const type = forceType || rollCoinType();
@@ -1293,7 +1288,6 @@ function spawnRoadLane(lane, ctx, entry) {
     const use = (entry.substitute && Math.random() < entry.substitute.chance) ? rosterById[entry.substitute.id] : entry;
     spawnHazardEntity(lane, use, start + i * stride, speed * dir);
   }
-  if (Math.random() < 0.15) spawnCoin(lane, -GRID_HALF + Math.floor(Math.random() * GRID_WIDTH));
 }
 function spawnHazardEntity(lane, entry, x, vx) {
   const group = createEntityObject(entry.id);
@@ -1392,6 +1386,18 @@ function generateNextLane() {
     lane.root.add(g);
     lane.gift = { x: gx, group: g, taken: false };
   }
+  // Fixed coin cadence: accrue one "tile" per lane; whenever we've banked a full interval AND this
+  // lane can host a coin (grass or road, never water/rail/gift), drop one. If the lane can't host,
+  // the debt carries to the next eligible lane — so the average holds at 1 per COIN_EVERY_TILES.
+  if (z > 0) {
+    gameState.coinAccum += 1;
+    const canHost = (laneType.family === 'safe' || laneType.family === 'road') && !isGiftLane;
+    if (canHost && gameState.coinAccum >= COIN_EVERY_TILES) {
+      gameState.coinAccum -= COIN_EVERY_TILES;
+      const options = freeXPositions(lane.decor);
+      if (options.length) spawnCoin(lane, options[Math.floor(Math.random() * options.length)]);
+    }
+  }
   gameState.lanes.set(z, lane);
   gameState.laneGroup.add(lane.root);
   gameState.familyHistory.push(laneType.family);
@@ -1409,6 +1415,7 @@ function resetLanes() {
   gameState.lanes.clear();
   gameState.nextLaneZ = -(BEHIND_KEEP + 1);
   gameState.familyHistory = [];
+  gameState.coinAccum = 0;
 }
 // A dense forest just behind the start. Its tiles are recorded as blocked so you can't clip through them.
 function buildStartForest() {
@@ -1644,20 +1651,32 @@ function updateLanes(dt) {
 }
 
 /* ============================== P: GACHA ============================== */
+// Every un-owned pullable Pokemon, grouped by ball tier that still has something left.
+function tiersWithUnowned() {
+  return BALL_TIERS.map(b => ({ ball: b, pool: GACHA_POOL.filter(e => e.tier === b.tier && !isEntryUnlocked(e)) }))
+    .filter(t => t.pool.length > 0);
+}
+function anyUnownedLeft() { return GACHA_POOL.some(e => !isEntryUnlocked(e)); }
 function pullGacha() {
   const save = gameState.save;
   if (save.coins < GACHA_COST) return { error: 'not_enough_coins' };
+  // No duplicates: only ever pull an un-owned Pokemon, and only from tiers that still hold one.
+  const avail = tiersWithUnowned();
+  if (!avail.length) return { error: 'all_owned' };
   save.coins -= GACHA_COST;
-  const total = BALL_TIERS.reduce((s, b) => s + b.weight, 0);
+  const total = avail.reduce((s, t) => s + t.ball.weight, 0);
   let r = Math.random() * total;
-  const picked = BALL_TIERS.find(b => (r -= b.weight) < 0) ?? BALL_TIERS[0];
-  const pool = GACHA_POOL.filter(e => e.tier === picked.tier);
-  if (pool.length === 0) { persistSave(); return { ball: picked, mon: null }; }
-  const mon = pool[Math.floor(Math.random() * pool.length)];
-  const alreadyOwned = save.unlockedIds.includes(mon.id);
-  if (!alreadyOwned) save.unlockedIds.push(mon.id);
+  const picked = avail.find(t => (r -= t.ball.weight) < 0) ?? avail[0];
+  const mon = picked.pool[Math.floor(Math.random() * picked.pool.length)];
+  save.unlockedIds.push(mon.id);
   persistSave();
-  return { ball: picked, mon, alreadyOwned };
+  return { ball: picked.ball, mon, alreadyOwned: false };
+}
+// Enable/disable the pull button based on whether anything remains to be caught.
+function refreshGachaPullButton() {
+  const btn = document.getElementById('btn-gacha-pull');
+  if (anyUnownedLeft()) { btn.disabled = false; btn.textContent = 'Insert ' + GACHA_COST + ' coins'; }
+  else { btn.disabled = true; btn.textContent = 'All Pokemon Owned'; }
 }
 function hexColor(c) { return '#' + c.toString(16).padStart(6, '0'); }
 function updateGachaCoinDisplays() {
@@ -1861,10 +1880,11 @@ function gachaHint(text, autoHideMs) {
 }
 function startGachaSequence() {
   if (gachaSeq.phase !== 'idle') return;
+  if (!anyUnownedLeft()) { gachaHint('All Pokemon owned!', 1400); return; }
   if (gameState.save.coins < GACHA_COST) { gachaHint('Not enough coins!', 1400); return; }
   AudioSys.sfx.coin();
-  const res = pullGacha();                       // existing logic: deduct, roll tier + mon, unlock, persist
-  if (res.error) { gachaHint('Not enough coins!', 1400); return; }
+  const res = pullGacha();                       // existing logic: deduct, roll un-owned mon, unlock, persist
+  if (res.error) { gachaHint(res.error === 'all_owned' ? 'All Pokemon owned!' : 'Not enough coins!', 1400); return; }
   updateGachaCoinDisplays();
   gachaSeq.pending = res;
   gachaSeq.ballPromise = loadGachaBallHalves(res.ball.ball);
@@ -1940,6 +1960,7 @@ function resetGachaSequence() {
   document.getElementById('gacha-continue-row').classList.add('hidden');
   document.getElementById('gacha-actions').classList.remove('hidden');
   document.getElementById('gacha-back-row').classList.remove('hidden');
+  refreshGachaPullButton();   // may now read "All Pokemon Owned" if that pull was the last one
   setGachaPhase('idle');
 }
 // Per-frame driver for the machine stage (called from the main loop while on the gacha screen).
@@ -2884,15 +2905,15 @@ function buildHowTo() {
       <div class="row"><div><b>Rivers:</b> ride the water Pokemon across - miss and you sink.</div></div>
       <div class="row"><div><b>Stampede:</b> the lane flashes red, then a Tauros herd charges through.</div></div>` },
     { id: 'coins', name: 'Coins', html: `
-      <div class="howto-coins">${coinImg('silver', 'Silver = 1')}${coinImg('gold', 'Gold = 2')}${coinImg('L', 'Big Gold = 10')}</div>
+      <div class="howto-coins">${coinImg('silver', 'Silver = 1')}${coinImg('gold', 'Gold = 5')}${coinImg('L', 'Big Gold = 10')}</div>
+      <div class="row"><div>Coins appear as you run. A Gold (5) turns up about <b>1 in 15</b>, a Big Gold (10) about <b>1 in 30</b>.</div></div>
       <div class="row"><div>Every 100 lanes a gift box appears - run into it to scatter 5 coins across the lanes just ahead.</div></div>` },
     { id: 'balls', name: 'Poke Balls', html: `
       <div class="row"><div>Spend <b>${GACHA_COST} coins</b> per pull at the Poke Ball Machine for a random ball with a new playable Pokemon:</div></div>
       <ul class="rarity-list">${balls}</ul>` },
     { id: 'shiny', name: 'Shinies', html: `
       <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its shiny form.</div></div>
-      <div class="row"><div>Shiny: <b>${P(20)}</b> chance for a gold coin (worth 2) instead of silver.</div></div>
-      <div class="row"><div>Shiny Legendary: <b>1/10</b> chance for gold (worth 2) and <b>1/25</b> chance for a Big Gold (worth 10).</div></div>` },
+      <div class="row"><div>Shiny Pokemon are a gleaming alternate color — a bragging-rights collectible for your best runs.</div></div>` },
   ];
   el.innerHTML =
     `<div class="howto-tabs">${tabs.map((t, i) => `<button class="howto-tab${i === 0 ? ' on' : ''}" data-tab="${t.id}">${t.name}</button>`).join('')}</div>` +
