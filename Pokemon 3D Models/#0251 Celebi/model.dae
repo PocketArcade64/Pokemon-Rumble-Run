@@ -1,0 +1,336 @@
+<?xml version="1.0"?>
+<COLLADA xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" version="1.4.1" xmlns="http://www.collada.org/2005/11/COLLADASchema">
+  <asset>
+    <created>2022-10-17T10:48:46.8786496-05:00</created>
+    <modified>2022-10-17T10:48:46.8786496-05:00</modified>
+  </asset>
+  <library_images>
+    <image id="Pii_SEREBHI_body">
+      <init_from>./Pii_SEREBHI_body.png</init_from>
+    </image>
+    <image id="Pii_SEREBHI_body_C">
+      <init_from>./Pii_SEREBHI_body_C.png</init_from>
+    </image>
+    <image id="Pii_SEREBHI_eye">
+      <init_from>./Pii_SEREBHI_eye.png</init_from>
+    </image>
+    <image id="Pii_SEREBHI_eye_C">
+      <init_from>./Pii_SEREBHI_eye_C.png</init_from>
+    </image>
+  </library_images>
+  <library_materials>
+    <material id="TEX_ANIM_EYE_mat_id" name="TEX_ANIM_EYE_mat">
+      <instance_effect url="#TEX_ANIM_EYE_eff_id" />
+    </material>
+    <material id="mat_body1_mat_id" name="mat_body1_mat">
+      <instance_effect url="#mat_body1_eff_id" />
+    </material>
+  </library_materials>
+  <library_effects>
+    <effect id="TEX_ANIM_EYE_eff_id" name="TEX_ANIM_EYE_eff">
+      <profile_COMMON>
+        <newparam sid="TEX_ANIM_EYE_surf">
+          <surface type="2D">
+            <init_from>Pii_SEREBHI_eye</init_from>
+            <format>PNG</format>
+          </surface>
+        </newparam>
+        <newparam sid="TEX_ANIM_EYE_samp">
+          <sampler2D>
+            <source>TEX_ANIM_EYE_surf</source>
+            <wrap_s>CLAMP</wrap_s>
+            <wrap_t>CLAMP</wrap_t>
+            <minfilter>LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+            <mipfilter>LINEAR</mipfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="TEX_ANIM_EYE_tech">
+          <phong>
+            <diffuse>
+              <texture texture="TEX_ANIM_EYE_samp" texcoord="uv" />
+            </diffuse>
+          </phong>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="mat_body1_eff_id" name="mat_body1_eff">
+      <profile_COMMON>
+        <newparam sid="mat_body1_surf">
+          <surface type="2D">
+            <init_from>Pii_SEREBHI_body</init_from>
+            <format>PNG</format>
+          </surface>
+        </newparam>
+        <newparam sid="mat_body1_samp">
+          <sampler2D>
+            <source>mat_body1_surf</source>
+            <wrap_s>MIRROR</wrap_s>
+            <wrap_t>CLAMP</wrap_t>
+            <minfilter>LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+            <mipfilter>LINEAR</mipfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="mat_body1_tech">
+          <phong>
+            <diffuse>
+              <texture texture="mat_body1_samp" texcoord="uv" />
+            </diffuse>
+          </phong>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_geometries>
+    <geometry id="merged_0_0_geo_id" name="merged_0_0">
+      <mesh>
+        <source id="merged_0_0_Position_id" name="merged_0_0_Position">
+          <float_array id="merged_0_0_Position_array_id" count="438">0.159776 0.496734 -0.086087 0.170209 0.386534 -0.0811479 0.0720742 0.407191 -0.178574 0.178959 0.317567 0.100737 0.186018 0.32551 0.018167 0.174973 0.416517 0.102152 0 0.219383 -0.0472327 0.126657 0.234076 0.0248853 0 0.219383 0.095326 0.0507299 0.239134 0.136768 0 0.272864 0.187194 -0.0507299 0.239134 0.136768 -0.115332 0.283229 -0.0912857 -0.126657 0.234076 0.0248853 -0.186018 0.32551 0.018167 -0.0720742 0.407191 -0.178574 0 0.29231 -0.146162 0 0.712133 -0.11965 -0.067278 0.643241 -0.117808 0 0.635466 -0.0425514 -0.0617827 0.584589 0.0144955 -0.136524 0.576773 -0.0514958 -0.133067 0.538993 0.0342979 -0.186612 0.450381 0.0240467 0.133067 0.538993 0.0342979 0.0617827 0.584589 0.0144955 0 0.553685 0.0953261 -0.0617827 0.584589 0.0144955 -0.11615 0.440538 0.177968 -0.0581654 0.364887 0.204565 0 0.480759 0.194255 0 0.363552 0.210659 -0.115332 0.48984 0.139379 -0.115332 0.48984 0.139379 -0.174973 0.416517 0.102152 -0.11615 0.440538 0.177968 -0.170209 0.386534 -0.0811479 0.115332 0.283229 -0.0912857 0.170209 0.386534 -0.0811479 0.0720742 0.407191 -0.178574 0.186612 0.450381 0.0240467 0.186612 0.450381 0.0240467 0.115332 0.48984 0.139379 0.11615 0.440538 0.177968 0.122908 0.261562 0.122344 0.122908 0.261562 0.122344 0 0.363552 0.210659 -0.0581654 0.364887 0.204565 0 0.272864 0.187194 -0.0534843 0.271846 0.179083 0.0534843 0.271846 0.179083 0.0581654 0.364887 0.204565 0.0534843 0.271846 0.179083 -0.178959 0.317567 0.100737 -0.122908 0.261562 0.122344 0 0.219383 -0.0472327 0 0.219383 0.095326 0.115332 0.283229 -0.0912857 0.0720742 0.407191 -0.178574 0 0.60697 -0.165311 -0.103421 0.545721 -0.151275 0 0.506455 -0.183554 -0.0720742 0.407191 -0.178574 -0.159776 0.496734 -0.086087 0.136524 0.576773 -0.0514958 0.067278 0.643241 -0.117808 0.103421 0.545721 -0.151275 0.115332 0.48984 0.139379 0 0.553685 0.0953261 0.0581654 0.364887 0.204565 -0.186612 0.450381 0.0240467 -0.115332 0.48984 0.139379 -0.170209 0.386534 -0.0811479 -0.0534843 0.271846 0.179083 0.0591831 0.43726 0.192386 0.0561632 0.585378 0.198528 0.108283 0.577035 0.198528 0.101375 0.700861 0.117255 0.083408 0.58861 0.22517 -0.0591831 0.43726 0.192386 -0.108283 0.577035 0.198528 -0.0561632 0.585378 0.198528 -0.101375 0.700861 0.117255 -0.083408 0.58861 0.22517 -0.0282253 0.19197 -0.0918071 -0.0768188 0.207273 -0.163244 -0.0618155 0.147915 -0.161596 -0.10977 0.168414 -0.230077 -0.10977 0.168414 -0.230077 -0.0768188 0.207273 -0.163244 -0.0618155 0.147915 -0.161596 -0.0282253 0.19197 -0.0918071 0.0282253 0.19197 -0.0918071 0.0618155 0.147915 -0.161596 0.0768188 0.207273 -0.163244 0.10977 0.168414 -0.230077 0.0282253 0.19197 -0.0918071 0.0768188 0.207273 -0.163244 0.0618155 0.147915 -0.161596 0.10977 0.168414 -0.230077 0.0573374 0.0660323 -0.115593 -0.0573374 0.0660323 -0.115593 0.0608004 0.121786 -0.105816 -0.0608004 0.121786 -0.105816 -0.114675 0.0511583 -0.00936868 -0.121601 0.107183 -0.00152392 -0.0573374 0.0390477 0.0771214 -0.0608004 0.0925795 0.102768 0.0573374 0.0390477 0.0771214 0.0608004 0.0925795 0.102768 0.114675 0.0511583 -0.00936868 0.121601 0.107183 -0.0015239 0.0608004 0.121786 -0.105816 -0.0608004 0.121786 -0.105816 0.0469363 0.225769 -0.0626797 -0.0469362 0.225769 -0.0626797 -0.0608004 0.121786 -0.105816 -0.121601 0.107183 -0.00152392 -0.0469362 0.225769 -0.0626797 -0.0938725 0.21509 0.0135856 -0.0608004 0.0925795 0.102768 0.0608004 0.0925795 0.102768 -0.0469363 0.204411 0.089851 0.0469362 0.204411 0.089851 0.121601 0.107183 -0.0015239 0.0938725 0.21509 0.0135856 0 0.0339771 -0.0117745 -0.0573382 0 -0.0165321 0.0573382 0 -0.0165321 0.0469363 0.225769 -0.0626797 -0.0469362 0.225769 -0.0626797 0 0.226951 0.0152466 -0.0938725 0.21509 0.0135856 -0.0469363 0.204411 0.089851 0.0469362 0.204411 0.089851 0.0938725 0.21509 0.0135856 -0.186417 0.141855 0.127924 0.186417 0.141855 0.127924 -0.0608004 0.0925795 0.102768 -0.186417 0.141855 0.127924 -0.186417 0.141855 0.127924 0.0608004 0.0925795 0.102768 0.186417 0.141855 0.127924 0.0608004 0.0925795 0.102768 0.186417 0.141855 0.127924 0.0469362 0.204411 0.089851</float_array>
+          <technique_common>
+            <accessor source="#merged_0_0_Position_array_id" count="146" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="merged_0_0_Normal_id" name="merged_0_0_Normal">
+          <float_array id="merged_0_0_Normal_array_id" count="438">0.885481 0.158619 -0.436764 0.854893 -0.131284 -0.501919 0.371389 -0.16603 -0.913512 0.896903 -0.292154 0.331981 0.943664 -0.297752 -0.14437 0.912075 0.187523 0.36463 0 -0.949106 -0.314956 0.489489 -0.86336 -0.122516 0 -0.993684 0.112214 0.20434 -0.9047 0.373848 0 -0.532385 0.846502 -0.20434 -0.9047 0.373848 -0.537579 -0.603 -0.589406 -0.489489 -0.86336 -0.122516 -0.943664 -0.297752 -0.14437 -0.371389 -0.16603 -0.913512 0 -0.575794 -0.817594 0 0.994672 -0.103093 -0.644407 0.731971 -0.221267 0 0.83565 0.549262 -0.263105 0.846402 0.463011 -0.764706 0.643639 0.0308888 -0.621641 0.677287 0.393505 -0.971634 0.225532 0.0711577 0.621641 0.677287 0.393505 0.263105 0.846402 0.463011 0 0.857895 0.513825 -0.263105 0.846402 0.463011 -0.505105 0.280892 0.816069 -0.240778 -0.0261281 0.970229 0 0.583337 0.81223 0 -0.0360345 0.999351 -0.486841 0.694232 0.530121 -0.486841 0.694232 0.530121 -0.912075 0.187523 0.36463 -0.505105 0.280892 0.816069 -0.854893 -0.131284 -0.501919 0.537579 -0.603 -0.589406 0.854893 -0.131284 -0.501919 0.371389 -0.16603 -0.913512 0.971634 0.225532 0.0711577 0.971634 0.225532 0.0711577 0.486841 0.694232 0.530121 0.505105 0.280892 0.816069 0.570865 -0.677216 0.464211 0.570865 -0.677216 0.464211 0 -0.0360345 0.999351 -0.240778 -0.0261281 0.970229 0 -0.532385 0.846502 -0.325417 -0.480886 0.814158 0.325417 -0.480886 0.814158 0.240778 -0.0261281 0.970229 0.325417 -0.480886 0.814158 -0.896903 -0.292154 0.331981 -0.570865 -0.677216 0.46421 0 -0.949106 -0.314956 0 -0.993684 0.112214 0.537579 -0.603 -0.589406 0.371389 -0.16603 -0.913512 0 0.329167 -0.944272 -0.601207 0.225564 -0.766597 0 0.10728 -0.994229 -0.371389 -0.16603 -0.913512 -0.885481 0.158619 -0.436764 0.764706 0.643639 0.0308888 0.644407 0.731971 -0.221267 0.601207 0.225564 -0.766597 0.486841 0.694232 0.530121 0 0.857895 0.513825 0.240778 -0.0261281 0.970229 -0.971634 0.225532 0.0711577 -0.486841 0.694232 0.530121 -0.854893 -0.131284 -0.501919 -0.325417 -0.480886 0.814158 -0.0587755 -0.367207 -0.92828 -0.856117 -0.0102362 -0.516681 0.810152 -0.276936 -0.516681 -0.026371 -0.16477 -0.985979 0.0428171 0.267509 0.962604 0.0587727 -0.367206 -0.928281 -0.810153 -0.276936 -0.516681 0.856117 -0.0102365 -0.516681 0.0263728 -0.164768 -0.98598 -0.0428175 0.267509 0.962604 -0.829871 -0.195242 0.52268 -0.829871 -0.195242 0.52268 -0.829871 -0.195242 0.52268 -0.829871 -0.195242 0.52268 0.829872 0.195242 -0.522679 0.829872 0.195242 -0.522679 0.829872 0.195242 -0.522679 0.829872 0.195242 -0.522679 0.829871 -0.195243 0.522679 0.829871 -0.195243 0.522679 0.829871 -0.195243 0.522679 0.829871 -0.195243 0.522679 -0.829871 0.195243 -0.522679 -0.829871 0.195243 -0.522679 -0.829871 0.195243 -0.522679 -0.829871 0.195243 -0.522679 0.414069 -0.337986 -0.84517 -0.414069 -0.337986 -0.84517 0.497864 0.277645 -0.821611 -0.497864 0.277645 -0.821611 -0.938137 -0.342591 -0.0502961 -0.95795 -0.0418566 -0.283866 -0.397062 -0.622898 0.674047 -0.186742 -0.283402 0.940644 0.397062 -0.622898 0.674047 0.186742 -0.283403 0.940644 0.938137 -0.342591 -0.0502958 0.95795 -0.0418567 -0.283866 0.497864 0.277645 -0.821611 -0.497864 0.277645 -0.821611 0.444707 0.54429 -0.711326 -0.444706 0.54429 -0.711326 -0.497864 0.277645 -0.821611 -0.95795 -0.0418566 -0.283866 -0.444706 0.54429 -0.711326 -0.739746 0.619786 -0.261997 -0.186742 -0.283402 0.940644 0.186742 -0.283403 0.940644 -0.0453997 0.499239 0.865274 0.0453994 0.499239 0.865274 0.95795 -0.0418567 -0.283866 0.739746 0.619786 -0.261996 0 -0.990371 -0.13844 -0.128154 -0.980814 -0.146902 0.128154 -0.980814 -0.146902 0.444707 0.54429 -0.711326 -0.444706 0.54429 -0.711326 0 0.990338 0.138671 -0.739746 0.619786 -0.261997 -0.0453997 0.499239 0.865274 0.0453994 0.499239 0.865274 0.739746 0.619786 -0.261996 -0.839609 -0.0838266 0.536684 0.839609 -0.0838265 0.536685 -0.186742 -0.283402 0.940644 -0.839609 -0.0838266 0.536684 -0.839609 -0.0838266 0.536684 0.186742 -0.283403 0.940644 0.839609 -0.0838265 0.536685 0.186742 -0.283403 0.940644 0.839609 -0.0838265 0.536685 0.0453994 0.499239 0.865274</float_array>
+          <technique_common>
+            <accessor source="#merged_0_0_Normal_array_id" count="146" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="merged_0_0_TexCoord0_id" name="merged_0_0_TexCoord0">
+          <float_array id="merged_0_0_TexCoord0_array_id" count="292">0.499065 0.555299 0.724676 0.52292 0.740113 0.803224 0 0.25 0 0.25 0 0.25 0 0.25 0 0.25 0 0.25 0.0511442 0.0702862 0.0511442 0.0702862 0.0511442 0.0702862 0.0511442 0.0702862 0.0511442 0.0702862 0.0511442 0.0702862 0.0511442 0.0702862 0.0511442 0.0702862 -0.000174752 0.929592 0.150576 0.797781 -0.000174752 0.641432 0.136168 0.47546 0.283804 0.572876 0.294363 0.387196 0.456383 0.303845 0.294363 0.387196 0.136168 0.47546 -0.000174756 0.284393 -0.136518 0.47546 0 0.25 0 0.25 0 0.25 0 0.25 0 0.25 0.0511442 0.0702862 0.0511442 0.0702862 0.0511442 0.0702862 0.0511442 0.0702862 0 0.25 0 0.25 0 0.25 0.456383 0.303845 0 0.25 0 0.25 0 0.25 0 0.25 0.0511442 0.0702862 0.251681 0.347667 0.0365162 0.352604 0.251681 0.0121929 0.0538325 0.00842886 0.0511442 0.0702862 0.466845 0.352604 0.449529 0.00842886 0.0511442 0.0702862 0.0511442 0.0702862 0.0511442 0.0702862 0.0511442 0.0702862 0.0511442 0.0702862 0.0511442 0.0702862 0.258525 0.981153 0.40909 0.752085 0.502315 0.989871 0.740113 0.803224 0.499065 0.555299 0.283804 0.572876 0.150576 0.797781 0.40909 0.752085 0.25568 0.170664 0 0.25 0 0.25 0.0511442 0.0702862 0.25568 0.170664 0.724676 0.52292 0.0511442 0.0702862 0.968318 0.801884 0.968318 0.907792 0.968318 0.901827 0.968318 0.990364 0.968318 0.897343 0.968318 0.801884 0.968318 0.901827 0.968318 0.907792 0.968318 0.990364 0.968318 0.897343 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.904437 0.966308 0.0261598 0.970925 0.0261598 0.970925 0.0261598 0.970925 0.0261598 0.970925 0.0261598 0.970925 0.0261598 0.970925 0.0261598 0.970925 0.0261598 0.970925 0.0261598 0.970925 0.0261598 0.970925 0.0261598 0.970925 0.0261598 0.970925 0.857141 0.000675559 1.143 0.000675499 0.890054 0.267925 1.11 0.267925 0.857141 0.000675559 0.578608 0.0792547 0.890054 0.267925 0.682775 0.324998 0.855871 0.368972 1.14455 0.368972 0.888784 0.634456 1.11163 0.634456 0.578608 0.0792547 0.682775 0.324998 0.0261598 0.970925 0.0261598 0.970925 0.0261598 0.970925 0.417515 0.105199 0.417515 0.105199 0.417515 0.105199 0.417515 0.105199 0.417515 0.105199 0.417515 0.105199 0.417515 0.105199 0.417515 0.105199 0.417515 0.105199 0.578608 0.0792547 0.296662 0.291216 0.548262 0.483272 0.578608 0.0792547 0.296662 0.291216 0.855871 0.368972 0.548262 0.483272 0.888784 0.634456</float_array>
+          <technique_common>
+            <accessor source="#merged_0_0_TexCoord0_array_id" count="146" stride="2">
+              <param name="S" type="float" />
+              <param name="T" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="merged_0_0_vtx_id">
+          <input semantic="POSITION" source="#merged_0_0_Position_id" />
+          <input semantic="NORMAL" source="#merged_0_0_Normal_id" />
+        </vertices>
+        <triangles material="Mdl_0_Mtl_mat_body1" count="154">
+          <input semantic="VERTEX" source="#merged_0_0_vtx_id" offset="0" />
+          <input semantic="TEXCOORD" source="#merged_0_0_TexCoord0_id" offset="0" set="0" />
+          <p>30 28 29 30 32 28 30 29 31 30 68 32 30 31 69 30 42 68 30 69 43 30 43 42 43 5 42 5 41 42 5 4 41 5 3 4 41 4 38 3 7 4 3 44 7 38 4 37 38 37 39 4 7 37 7 6 37 7 8 6 7 9 8 7 45 9 45 50 9 50 10 9 10 11 9 10 73 11 9 11 56 73 54 11 56 11 13 56 13 55 11 54 13 55 13 12 55 12 16 55 16 57 54 53 13 12 15 16 12 13 14 12 36 15 12 14 36 13 53 14 57 16 58 58 16 15 36 14 70 53 34 14 14 34 70 34 33 70 34 35 33 21 20 19 21 22 20 21 19 18 21 23 22 21 18 60 21 63 23 21 60 63 20 22 26 19 17 18 19 65 17 19 64 65 19 25 64 19 27 25 27 26 25 23 63 72 23 71 22 22 71 26 60 18 59 60 62 63 60 59 61 60 61 62 17 65 59 17 59 18 63 62 72 64 25 24 64 66 65 64 24 40 64 0 66 64 40 0 59 66 61 59 65 66 25 26 24 62 61 2 66 0 2 66 2 61 40 24 67 40 1 0 0 1 2 67 24 26 108 107 106 108 109 107 108 106 126 108 111 109 108 126 128 108 110 111 108 128 110 107 105 106 126 100 128 126 106 127 126 101 100 126 127 101 128 100 110 111 110 102 100 101 102 100 102 110 105 104 106 105 103 104 104 127 106 104 103 101 104 101 127 101 103 102 131 129 130 131 135 129 131 130 132 131 134 135 131 132 133 131 133 134 135 134 137 132 136 133 75 76 74 75 77 76 75 74 78 75 78 77 78 76 77 78 74 76 80 81 79 80 82 81 80 79 83 80 83 82 83 81 82 83 79 81 48 46 47 48 51 46 48 47 49 48 52 51 114 112 113 114 124 112 114 113 115 114 125 124 125 142 124 142 141 124 117 118 116 117 119 118 117 139 119 117 138 139 122 120 121 122 140 120 122 121 123 85 86 84 85 87 86 89 90 88 89 91 90 93 94 92 93 95 94 97 98 96 97 99 98 143 144 145</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="merged_1_0_geo_id" name="merged_1_0">
+      <mesh>
+        <source id="merged_1_0_Position_id" name="merged_1_0_Position">
+          <float_array id="merged_1_0_Position_array_id" count="42">-0.11615 0.440538 0.177968 -0.174973 0.416517 0.102152 -0.126631 0.35144 0.173046 0.174973 0.416517 0.102152 0.11615 0.440538 0.177968 0.126631 0.35144 0.173046 0.178959 0.317567 0.100737 0.122908 0.261562 0.122344 -0.122908 0.261562 0.122344 -0.0534843 0.271846 0.179083 -0.0581654 0.364887 0.204565 0.0581654 0.364887 0.204565 0.0534843 0.271846 0.179083 -0.178959 0.317567 0.100737</float_array>
+          <technique_common>
+            <accessor source="#merged_1_0_Position_array_id" count="14" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="merged_1_0_Normal_id" name="merged_1_0_Normal">
+          <float_array id="merged_1_0_Normal_array_id" count="42">-0.505105 0.280892 0.816069 -0.912075 0.187523 0.36463 -0.630361 -0.156176 0.76043 0.912075 0.187523 0.36463 0.505105 0.280892 0.816069 0.630361 -0.156176 0.76043 0.896903 -0.292154 0.331981 0.570865 -0.677216 0.464211 -0.570865 -0.677216 0.46421 -0.325417 -0.480886 0.814158 -0.240778 -0.0261281 0.970229 0.240778 -0.0261281 0.970229 0.325417 -0.480886 0.814158 -0.896903 -0.292154 0.331981</float_array>
+          <technique_common>
+            <accessor source="#merged_1_0_Normal_array_id" count="14" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="merged_1_0_TexCoord0_id" name="merged_1_0_TexCoord0">
+          <float_array id="merged_1_0_TexCoord0_array_id" count="28">0.462708 1.00876 0.988713 0.953657 0.471312 0.8802 0.988713 0.953657 0.462708 1.00876 0.471312 0.8802 0.948701 0.811816 0.578846 0.736136 0.578846 0.736136 0.0640649 0.765421 0.0535141 0.906414 0.0535141 0.906414 0.0640649 0.765421 0.948701 0.811816</float_array>
+          <technique_common>
+            <accessor source="#merged_1_0_TexCoord0_array_id" count="14" stride="2">
+              <param name="S" type="float" />
+              <param name="T" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="merged_1_0_vtx_id">
+          <input semantic="POSITION" source="#merged_1_0_Position_id" />
+          <input semantic="NORMAL" source="#merged_1_0_Normal_id" />
+        </vertices>
+        <triangles material="Mdl_0_Mtl_TEX_ANIM_EYE" count="12">
+          <input semantic="VERTEX" source="#merged_1_0_vtx_id" offset="0" />
+          <input semantic="TEXCOORD" source="#merged_1_0_TexCoord0_id" offset="0" set="0" />
+          <p>0 1 2 3 4 5 3 5 6 6 5 7 8 9 2 9 10 2 11 12 5 12 7 5 0 2 10 4 11 5 1 13 2 2 13 8</p>
+        </triangles>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_controllers>
+    <controller id="merged_0_0_ctrl_id" name="merged_0_0_ctrl">
+      <skin source="#merged_0_0_geo_id">
+        <bind_shape_matrix>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</bind_shape_matrix>
+        <source id="merged_0_0_ctrl_names_id" name="merged_0_0_ctrl_names">
+          <Name_array id="merged_0_0_ctrl_names_array_id" count="8">ROOT BODY ARM HEAD EAR LEFT_WING LEG RIGHT_WING</Name_array>
+          <technique_common>
+            <accessor source="#merged_0_0_ctrl_names_array_id" count="8" stride="1">
+              <param name="JOINT" type="Name" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="merged_0_0_ctrl_poses_id" name="merged_0_0_ctrl_poses">
+          <float_array id="merged_0_0_ctrl_poses_array_id" count="128">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 0 1 0 -0.0894518 0 0 1 0 0 0 0 1 1 0 0 0 0 1 0 -0.1513663 0 0 1 -0.00901751 0 0 0 1 1 0 0 0 0 1 0 -0.2294338 0 0 1 -0.0120233 0 0 0 1 1 0 0 0 0 1 0 -0.4484198 0 0 1 -0.1968823 0 0 0 1 0.8660833 0 0.5000335 0.02145034 0 1 0 -0.1911938 -0.5000335 0 0.8660833 0.09278599 0 0 0 1 1 0 0 0 0 1 0 -0.0742038 0 0 1 0.00751459 0 0 0 1 0.8660833 0 -0.5000335 -0.02146299 0 1 0 -0.1911938 0.5000335 0 0.8660833 0.09277869 0 0 0 1</float_array>
+          <technique_common>
+            <accessor source="#merged_0_0_ctrl_poses_array_id" count="8" stride="16">
+              <param name="TRANSFORM" type="float4x4" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="merged_0_0_ctrl_weights_id" name="merged_0_0_ctrl_weights">
+          <float_array id="merged_0_0_ctrl_weights_array_id" count="3">1 0.8 0.2</float_array>
+          <technique_common>
+            <accessor source="#merged_0_0_ctrl_weights_array_id" count="3" stride="1">
+              <param name="WEIGHT" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <joints>
+          <input semantic="JOINT" source="#merged_0_0_ctrl_names_id" />
+          <input semantic="INV_BIND_MATRIX" source="#merged_0_0_ctrl_poses_id" />
+        </joints>
+        <vertex_weights count="146">
+          <input semantic="JOINT" source="#merged_0_0_ctrl_names_id" offset="0" />
+          <input semantic="WEIGHT" source="#merged_0_0_ctrl_weights_id" offset="1" />
+          <vcount>1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 2 1 1 2 1 2 1 2 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1</vcount>
+          <v>3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 4 0 4 0 4 0 4 0 4 0 4 0 4 0 4 0 4 0 4 0 7 0 7 0 7 0 7 0 7 0 7 0 7 0 7 0 5 0 5 0 5 0 5 0 5 0 5 0 5 0 5 0 1 1 6 2 1 1 6 2 1 0 1 0 1 1 6 2 1 0 1 1 6 2 1 0 1 1 6 2 1 0 1 1 6 2 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1 1 6 2 6 0 6 0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 2 0 2 0 1 0 2 0 2 0 1 0 2 0 1 0 2 0 1 0</v>
+        </vertex_weights>
+      </skin>
+    </controller>
+    <controller id="merged_1_0_ctrl_id" name="merged_1_0_ctrl">
+      <skin source="#merged_1_0_geo_id">
+        <bind_shape_matrix>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</bind_shape_matrix>
+        <source id="merged_1_0_ctrl_names_id" name="merged_1_0_ctrl_names">
+          <Name_array id="merged_1_0_ctrl_names_array_id" count="8">ROOT BODY ARM HEAD EAR LEFT_WING LEG RIGHT_WING</Name_array>
+          <technique_common>
+            <accessor source="#merged_1_0_ctrl_names_array_id" count="8" stride="1">
+              <param name="JOINT" type="Name" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="merged_1_0_ctrl_poses_id" name="merged_1_0_ctrl_poses">
+          <float_array id="merged_1_0_ctrl_poses_array_id" count="128">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 0 1 0 -0.0894518 0 0 1 0 0 0 0 1 1 0 0 0 0 1 0 -0.1513663 0 0 1 -0.00901751 0 0 0 1 1 0 0 0 0 1 0 -0.2294338 0 0 1 -0.0120233 0 0 0 1 1 0 0 0 0 1 0 -0.4484198 0 0 1 -0.1968823 0 0 0 1 0.8660833 0 0.5000335 0.02145034 0 1 0 -0.1911938 -0.5000335 0 0.8660833 0.09278599 0 0 0 1 1 0 0 0 0 1 0 -0.0742038 0 0 1 0.00751459 0 0 0 1 0.8660833 0 -0.5000335 -0.02146299 0 1 0 -0.1911938 0.5000335 0 0.8660833 0.09277869 0 0 0 1</float_array>
+          <technique_common>
+            <accessor source="#merged_1_0_ctrl_poses_array_id" count="8" stride="16">
+              <param name="TRANSFORM" type="float4x4" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="merged_1_0_ctrl_weights_id" name="merged_1_0_ctrl_weights">
+          <float_array id="merged_1_0_ctrl_weights_array_id" count="1">1</float_array>
+          <technique_common>
+            <accessor source="#merged_1_0_ctrl_weights_array_id" count="1" stride="1">
+              <param name="WEIGHT" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <joints>
+          <input semantic="JOINT" source="#merged_1_0_ctrl_names_id" />
+          <input semantic="INV_BIND_MATRIX" source="#merged_1_0_ctrl_poses_id" />
+        </joints>
+        <vertex_weights count="14">
+          <input semantic="JOINT" source="#merged_1_0_ctrl_names_id" offset="0" />
+          <input semantic="WEIGHT" source="#merged_1_0_ctrl_weights_id" offset="1" />
+          <vcount>1 1 1 1 1 1 1 1 1 1 1 1 1 1</vcount>
+          <v>3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0</v>
+        </vertex_weights>
+      </skin>
+    </controller>
+  </library_controllers>
+  <library_visual_scenes>
+    <visual_scene id="SEREBHI_butterfly_00_id" name="SEREBHI_butterfly_00">
+      <node id="ROOT_bone_id" name="ROOT" sid="ROOT" type="JOINT">
+        <translate sid="translate">0 0 0</translate>
+        <rotate sid="rotateZ">0 0 1 0</rotate>
+        <rotate sid="rotateY">0 1 0 0</rotate>
+        <rotate sid="rotateX">1 0 0 0</rotate>
+        <scale sid="scale">1 1 1</scale>
+        <node id="BODY_bone_id" name="BODY" sid="BODY" type="JOINT">
+          <translate sid="translate">0 0.0894518 0</translate>
+          <rotate sid="rotateZ">0 0 1 0</rotate>
+          <rotate sid="rotateY">0 1 0 0</rotate>
+          <rotate sid="rotateX">1 0 0 0</rotate>
+          <scale sid="scale">1 1 1</scale>
+          <node id="ARM_bone_id" name="ARM" sid="ARM" type="JOINT">
+            <translate sid="translate">0 0.0619145 0.00901751</translate>
+            <rotate sid="rotateZ">0 0 1 0</rotate>
+            <rotate sid="rotateY">0 1 0 0</rotate>
+            <rotate sid="rotateX">1 0 0 0</rotate>
+            <scale sid="scale">1 1 1</scale>
+          </node>
+          <node id="HEAD_bone_id" name="HEAD" sid="HEAD" type="JOINT">
+            <translate sid="translate">0 0.139982 0.0120233</translate>
+            <rotate sid="rotateZ">0 0 1 0</rotate>
+            <rotate sid="rotateY">0 1 0 0</rotate>
+            <rotate sid="rotateX">1 0 0 0</rotate>
+            <scale sid="scale">1 1 1</scale>
+            <node id="EAR_bone_id" name="EAR" sid="EAR" type="JOINT">
+              <translate sid="translate">0 0.218986 0.184859</translate>
+              <rotate sid="rotateZ">0 0 1 0</rotate>
+              <rotate sid="rotateY">0 1 0 0</rotate>
+              <rotate sid="rotateX">1 0 0 0</rotate>
+              <scale sid="scale">1 1 1</scale>
+            </node>
+          </node>
+          <node id="LEFT_WING_bone_id" name="LEFT_WING" sid="LEFT_WING" type="JOINT">
+            <translate sid="translate">0.0278146 0.101742 -0.0910741</translate>
+            <rotate sid="rotateZ">0 0 1 0</rotate>
+            <rotate sid="rotateY">0 1 0 -30.00002</rotate>
+            <rotate sid="rotateX">1 0 0 0</rotate>
+            <scale sid="scale">1 1 1</scale>
+          </node>
+          <node id="LEG_bone_id" name="LEG" sid="LEG" type="JOINT">
+            <translate sid="translate">0 -0.015248 -0.00751459</translate>
+            <rotate sid="rotateZ">0 0 1 0</rotate>
+            <rotate sid="rotateY">0 1 0 0</rotate>
+            <rotate sid="rotateX">1 0 0 0</rotate>
+            <scale sid="scale">1 1 1</scale>
+          </node>
+          <node id="RIGHT_WING_bone_id" name="RIGHT_WING" sid="RIGHT_WING" type="JOINT">
+            <translate sid="translate">-0.0278 0.101742 -0.0910741</translate>
+            <rotate sid="rotateZ">0 0 1 0</rotate>
+            <rotate sid="rotateY">0 1 0 30.00002</rotate>
+            <rotate sid="rotateX">1 0 0 0</rotate>
+            <scale sid="scale">1 1 1</scale>
+          </node>
+        </node>
+      </node>
+      <node id="merged_0_0_node_id" name="merged_0_0_node" type="NODE">
+        <matrix>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        <instance_controller url="#merged_0_0_ctrl_id">
+          <skeleton>#ROOT_bone_id</skeleton>
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="Mdl_0_Mtl_mat_body1" target="#mat_body1_mat_id" />
+            </technique_common>
+          </bind_material>
+        </instance_controller>
+      </node>
+      <node id="merged_1_0_node_id" name="merged_1_0_node" type="NODE">
+        <matrix>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        <instance_controller url="#merged_1_0_ctrl_id">
+          <skeleton>#ROOT_bone_id</skeleton>
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="Mdl_0_Mtl_TEX_ANIM_EYE" target="#TEX_ANIM_EYE_mat_id" />
+            </technique_common>
+          </bind_material>
+        </instance_controller>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#SEREBHI_butterfly_00_id" />
+  </scene>
+</COLLADA>

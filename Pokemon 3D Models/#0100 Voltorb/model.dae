@@ -1,0 +1,308 @@
+<?xml version="1.0"?>
+<COLLADA xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" version="1.4.1" xmlns="http://www.collada.org/2005/11/COLLADASchema">
+  <asset>
+    <created>2022-10-17T10:48:41.4484189-05:00</created>
+    <modified>2022-10-17T10:48:41.4484189-05:00</modified>
+  </asset>
+  <library_images>
+    <image id="Pii_BIRIRIDAMA_body">
+      <init_from>./Pii_BIRIRIDAMA_body.png</init_from>
+    </image>
+    <image id="Pii_BIRIRIDAMA_body_C">
+      <init_from>./Pii_BIRIRIDAMA_body_C.png</init_from>
+    </image>
+    <image id="Pii_BIRIRIDAMA_eye">
+      <init_from>./Pii_BIRIRIDAMA_eye.png</init_from>
+    </image>
+    <image id="Pii_BIRIRIDAMA_eye_C">
+      <init_from>./Pii_BIRIRIDAMA_eye_C.png</init_from>
+    </image>
+  </library_images>
+  <library_materials>
+    <material id="TEX_ANIM_EYE_mat_id" name="TEX_ANIM_EYE_mat">
+      <instance_effect url="#TEX_ANIM_EYE_eff_id" />
+    </material>
+    <material id="mat_body_mat_id" name="mat_body_mat">
+      <instance_effect url="#mat_body_eff_id" />
+    </material>
+  </library_materials>
+  <library_effects>
+    <effect id="TEX_ANIM_EYE_eff_id" name="TEX_ANIM_EYE_eff">
+      <profile_COMMON>
+        <newparam sid="TEX_ANIM_EYE_surf">
+          <surface type="2D">
+            <init_from>Pii_BIRIRIDAMA_eye</init_from>
+            <format>PNG</format>
+          </surface>
+        </newparam>
+        <newparam sid="TEX_ANIM_EYE_samp">
+          <sampler2D>
+            <source>TEX_ANIM_EYE_surf</source>
+            <wrap_s>CLAMP</wrap_s>
+            <wrap_t>CLAMP</wrap_t>
+            <minfilter>LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+            <mipfilter>LINEAR</mipfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="TEX_ANIM_EYE_tech">
+          <phong>
+            <diffuse>
+              <texture texture="TEX_ANIM_EYE_samp" texcoord="uv" />
+            </diffuse>
+          </phong>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="mat_body_eff_id" name="mat_body_eff">
+      <profile_COMMON>
+        <newparam sid="mat_body_surf">
+          <surface type="2D">
+            <init_from>Pii_BIRIRIDAMA_body</init_from>
+            <format>PNG</format>
+          </surface>
+        </newparam>
+        <newparam sid="mat_body_samp">
+          <sampler2D>
+            <source>mat_body_surf</source>
+            <wrap_s>WRAP</wrap_s>
+            <wrap_t>CLAMP</wrap_t>
+            <minfilter>LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+            <mipfilter>LINEAR</mipfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="mat_body_tech">
+          <phong>
+            <diffuse>
+              <texture texture="mat_body_samp" texcoord="uv" />
+            </diffuse>
+          </phong>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_geometries>
+    <geometry id="head_0_0_geo_id" name="head_0_0">
+      <mesh>
+        <source id="head_0_0_Position_id" name="head_0_0_Position">
+          <float_array id="head_0_0_Position_array_id" count="126">0.135408 0.341742 -0.135408 0.199836 0.18808 -0.123505 0.0836866 0.18808 -0.209927 0.206923 0.135653 0 0.200425 0.18808 0.123074 0.135408 0.0839319 0.135408 0 0.0137495 -0.0903875 0.123505 0.0195037 0 0 0.00024524 0 0 0.0137495 0.0903875 0 0.0958343 0.199836 -0.135408 0.0839319 0.135408 -0.135408 0.0839319 -0.135408 -0.123505 0.0195037 0 -0.206923 0.135653 0 -0.0836866 0.18808 -0.209927 0 0.0958343 -0.199836 0 0.407352 -0.133806 0 0.311586 -0.210348 -0.135408 0.341742 -0.135408 0 0.407352 0.133806 0.148657 0.394296 0 0 0.451064 0 -0.135408 0.341742 0.135408 -0.139132 0.279452 0.179399 0 0.311586 0.201345 -0.200425 0.18808 0.123074 -0.161208 0.18808 0.163765 -0.148657 0.394296 0 -0.199836 0.18808 -0.123505 0.135408 0.0839319 -0.135408 0.213703 0.289864 0 0.219094 0.18808 0 0.135408 0.341742 0.135408 0.139132 0.279452 0.179399 0.161208 0.18808 0.163765 0.0836866 0.18808 0.209927 0 0.18808 0.219094 -0.0836866 0.18808 0.209927 0 0.18808 -0.219094 -0.213703 0.289864 0 -0.219094 0.18808 0</float_array>
+          <technique_common>
+            <accessor source="#head_0_0_Position_array_id" count="42" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="head_0_0_Normal_id" name="head_0_0_Normal">
+          <float_array id="head_0_0_Normal_array_id" count="126">0.609301 0.496518 -0.618241 0.885439 -0.0749281 -0.458676 0.380317 -0.062539 -0.922739 0.896168 -0.443715 -0.00101029 0.910766 -0.0439199 0.410579 0.568301 -0.588958 0.574598 0 -0.920262 -0.391303 0.465245 -0.885182 0 0 -1 0 0 -0.920262 0.391303 0 -0.505694 0.862713 -0.568301 -0.588958 0.574598 -0.562641 -0.616173 -0.551149 -0.465245 -0.885182 0 -0.896168 -0.443715 -0.00101027 -0.380317 -0.062539 -0.922739 0 -0.505694 -0.862713 0 0.85629 -0.516495 0 0.342033 -0.939688 -0.609301 0.496518 -0.618241 0 0.845463 0.534034 0.57114 0.820853 0 0 1 0 -0.623797 0.566729 0.538234 -0.542621 0.24211 0.804329 0 0.437485 0.899226 -0.910766 -0.0439199 0.410579 -0.6125 -0.167346 0.772554 -0.57114 0.820853 0 -0.885439 -0.0749281 -0.458676 0.562641 -0.616173 -0.551149 0.948027 0.318189 -0.000916412 0.99616 -0.0875287 -0.00206559 0.623797 0.566729 0.538234 0.542621 0.24211 0.804329 0.612499 -0.167347 0.772554 0.34831 -0.188643 0.918202 0 -0.065449 0.997856 -0.34831 -0.188643 0.918202 0 -0.067522 -0.997718 -0.948027 0.318189 -0.000916401 -0.99616 -0.0875288 -0.00206558</float_array>
+          <technique_common>
+            <accessor source="#head_0_0_Normal_array_id" count="42" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="head_0_0_TexCoord0_id" name="head_0_0_TexCoord0">
+          <float_array id="head_0_0_TexCoord0_array_id" count="84">0.940212 1.12262 0.940212 0.5 0.940212 0.5 0.940212 0.309017 0.940212 0.5 0.940212 0.190983 0.940212 0 0.940212 0.0439502 0.940212 0 0.940212 0 0.940212 0.218146 0.940212 0.190983 0.940212 0.190983 0.940212 0.0439502 0.940212 0.309017 0.940212 0.5 0.940212 0.218146 0.940212 0.93919 0.940212 0.955597 0.940212 1.12262 0.940212 0.93919 0.940212 0.89524 0.940212 0.93919 0.940212 1.12262 0.940212 0.882263 0.940212 0.955597 0.940212 0.5 0.940212 0.5 0.940212 0.89524 0.940212 0.5 0.940212 0.190983 0.940212 0.864725 0.940212 0.5 0.940212 1.12262 0.940212 0.882263 0.940212 0.5 0.940212 0.5 0.940212 0.5 0.940212 0.5 0.940212 0.5 0.940212 0.864725 0.940212 0.5</float_array>
+          <technique_common>
+            <accessor source="#head_0_0_TexCoord0_array_id" count="42" stride="2">
+              <param name="S" type="float" />
+              <param name="T" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="head_0_0_vtx_id">
+          <input semantic="POSITION" source="#head_0_0_Position_id" />
+          <input semantic="NORMAL" source="#head_0_0_Normal_id" />
+        </vertices>
+        <triangles material="Mdl_0_Mtl_mat_body" count="74">
+          <input semantic="VERTEX" source="#head_0_0_vtx_id" offset="0" />
+          <input semantic="TEXCOORD" source="#head_0_0_TexCoord0_id" offset="0" set="0" />
+          <p>4 5 3 4 35 5 4 3 32 4 34 35 4 32 31 4 33 34 4 31 33 5 7 3 5 35 36 5 9 7 5 36 10 5 10 9 32 1 31 32 3 1 34 33 25 7 9 8 7 30 3 7 8 6 7 6 30 3 30 1 36 37 10 31 21 33 31 1 0 31 0 21 25 33 20 25 20 23 25 23 24 33 21 20 9 13 8 9 10 11 9 11 13 8 13 6 30 2 1 30 6 16 30 16 2 1 2 0 37 38 10 10 38 11 23 26 24 23 20 28 23 40 26 23 28 40 21 0 17 21 22 20 21 17 22 22 17 28 22 28 20 13 12 6 13 11 14 13 14 12 6 12 16 2 18 0 2 16 39 2 39 18 0 18 17 38 27 11 11 26 14 11 27 26 27 24 26 40 28 19 40 41 26 40 19 29 40 29 41 14 29 12 14 26 41 14 41 29 17 18 19 17 19 28 16 15 39 16 12 15 15 12 29 15 18 39 15 19 18 15 29 19</p>
+        </triangles>
+      </mesh>
+    </geometry>
+    <geometry id="head_1_0_geo_id" name="head_1_0">
+      <mesh>
+        <source id="head_1_0_Position_id" name="head_1_0_Position">
+          <float_array id="head_1_0_Position_array_id" count="30">-0.0836866 0.18808 0.209927 -0.065511 0.237013 0.218447 -0.139132 0.279452 0.179399 0 0.311586 0.201345 -0.161208 0.18808 0.163765 0.161208 0.18808 0.163765 0.139132 0.279452 0.179399 0.0836866 0.18808 0.209927 0.065511 0.237013 0.218447 0 0.18808 0.219094</float_array>
+          <technique_common>
+            <accessor source="#head_1_0_Position_array_id" count="10" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="head_1_0_Normal_id" name="head_1_0_Normal">
+          <float_array id="head_1_0_Normal_array_id" count="30">-0.34831 -0.188643 0.918202 -0.184321 0.113355 0.976307 -0.542621 0.24211 0.804329 0 0.437485 0.899226 -0.6125 -0.167346 0.772554 0.612499 -0.167347 0.772554 0.542621 0.24211 0.804329 0.34831 -0.188643 0.918202 0.184321 0.113355 0.976307 0 -0.065449 0.997856</float_array>
+          <technique_common>
+            <accessor source="#head_1_0_Normal_array_id" count="10" stride="3">
+              <param name="X" type="float" />
+              <param name="Y" type="float" />
+              <param name="Z" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="head_1_0_TexCoord0_id" name="head_1_0_TexCoord0">
+          <float_array id="head_1_0_TexCoord0_array_id" count="20">0.499961 0.796868 0.404411 0.857788 0.802489 0.917788 0.0858091 0.951996 0.934848 0.796868 0.934848 0.796868 0.802489 0.917788 0.499961 0.796868 0.404411 0.857788 0.0848573 0.796868</float_array>
+          <technique_common>
+            <accessor source="#head_1_0_TexCoord0_array_id" count="10" stride="2">
+              <param name="S" type="float" />
+              <param name="T" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="head_1_0_vtx_id">
+          <input semantic="POSITION" source="#head_1_0_Position_id" />
+          <input semantic="NORMAL" source="#head_1_0_Normal_id" />
+        </vertices>
+        <triangles material="Mdl_0_Mtl_TEX_ANIM_EYE" count="10">
+          <input semantic="VERTEX" source="#head_1_0_vtx_id" offset="0" />
+          <input semantic="TEXCOORD" source="#head_1_0_TexCoord0_id" offset="0" set="0" />
+          <p>0 1 2 1 3 2 2 4 0 5 6 7 7 8 9 9 8 3 3 1 9 9 1 0 7 6 8 3 8 6</p>
+        </triangles>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_controllers>
+    <controller id="head_0_0_ctrl_id" name="head_0_0_ctrl">
+      <skin source="#head_0_0_geo_id">
+        <bind_shape_matrix>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</bind_shape_matrix>
+        <source id="head_0_0_ctrl_names_id" name="head_0_0_ctrl_names">
+          <Name_array id="head_0_0_ctrl_names_array_id" count="4">ROOT BODY ROLL HEAD</Name_array>
+          <technique_common>
+            <accessor source="#head_0_0_ctrl_names_array_id" count="4" stride="1">
+              <param name="JOINT" type="Name" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="head_0_0_ctrl_poses_id" name="head_0_0_ctrl_poses">
+          <float_array id="head_0_0_ctrl_poses_array_id" count="64">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 0 1 0 -0.2198 0 0 1 0 0 0 0 1 1 0 0 0 0 1 0 -0.2197585 0 0 1 0 0 0 0 1 1 0 0 0 0 1 0 -0.2197585 0 0 1 0 0 0 0 1</float_array>
+          <technique_common>
+            <accessor source="#head_0_0_ctrl_poses_array_id" count="4" stride="16">
+              <param name="TRANSFORM" type="float4x4" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="head_0_0_ctrl_weights_id" name="head_0_0_ctrl_weights">
+          <float_array id="head_0_0_ctrl_weights_array_id" count="1">1</float_array>
+          <technique_common>
+            <accessor source="#head_0_0_ctrl_weights_array_id" count="1" stride="1">
+              <param name="WEIGHT" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <joints>
+          <input semantic="JOINT" source="#head_0_0_ctrl_names_id" />
+          <input semantic="INV_BIND_MATRIX" source="#head_0_0_ctrl_poses_id" />
+        </joints>
+        <vertex_weights count="42">
+          <input semantic="JOINT" source="#head_0_0_ctrl_names_id" offset="0" />
+          <input semantic="WEIGHT" source="#head_0_0_ctrl_weights_id" offset="1" />
+          <vcount>1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1</vcount>
+          <v>3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0</v>
+        </vertex_weights>
+      </skin>
+    </controller>
+    <controller id="head_1_0_ctrl_id" name="head_1_0_ctrl">
+      <skin source="#head_1_0_geo_id">
+        <bind_shape_matrix>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</bind_shape_matrix>
+        <source id="head_1_0_ctrl_names_id" name="head_1_0_ctrl_names">
+          <Name_array id="head_1_0_ctrl_names_array_id" count="4">ROOT BODY ROLL HEAD</Name_array>
+          <technique_common>
+            <accessor source="#head_1_0_ctrl_names_array_id" count="4" stride="1">
+              <param name="JOINT" type="Name" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="head_1_0_ctrl_poses_id" name="head_1_0_ctrl_poses">
+          <float_array id="head_1_0_ctrl_poses_array_id" count="64">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 0 1 0 -0.2198 0 0 1 0 0 0 0 1 1 0 0 0 0 1 0 -0.2197585 0 0 1 0 0 0 0 1 1 0 0 0 0 1 0 -0.2197585 0 0 1 0 0 0 0 1</float_array>
+          <technique_common>
+            <accessor source="#head_1_0_ctrl_poses_array_id" count="4" stride="16">
+              <param name="TRANSFORM" type="float4x4" />
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="head_1_0_ctrl_weights_id" name="head_1_0_ctrl_weights">
+          <float_array id="head_1_0_ctrl_weights_array_id" count="1">1</float_array>
+          <technique_common>
+            <accessor source="#head_1_0_ctrl_weights_array_id" count="1" stride="1">
+              <param name="WEIGHT" type="float" />
+            </accessor>
+          </technique_common>
+        </source>
+        <joints>
+          <input semantic="JOINT" source="#head_1_0_ctrl_names_id" />
+          <input semantic="INV_BIND_MATRIX" source="#head_1_0_ctrl_poses_id" />
+        </joints>
+        <vertex_weights count="10">
+          <input semantic="JOINT" source="#head_1_0_ctrl_names_id" offset="0" />
+          <input semantic="WEIGHT" source="#head_1_0_ctrl_weights_id" offset="1" />
+          <vcount>1 1 1 1 1 1 1 1 1 1</vcount>
+          <v>3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0 3 0</v>
+        </vertex_weights>
+      </skin>
+    </controller>
+  </library_controllers>
+  <library_visual_scenes>
+    <visual_scene id="BIRIRIDAMA_rolling_00_id" name="BIRIRIDAMA_rolling_00">
+      <node id="ROOT_bone_id" name="ROOT" sid="ROOT" type="JOINT">
+        <translate sid="translate">0 0 0</translate>
+        <rotate sid="rotateZ">0 0 1 0</rotate>
+        <rotate sid="rotateY">0 1 0 0</rotate>
+        <rotate sid="rotateX">1 0 0 0</rotate>
+        <scale sid="scale">1 1 1</scale>
+        <node id="BODY_bone_id" name="BODY" sid="BODY" type="JOINT">
+          <translate sid="translate">0 0.2198 0</translate>
+          <rotate sid="rotateZ">0 0 1 0</rotate>
+          <rotate sid="rotateY">0 1 0 0</rotate>
+          <rotate sid="rotateX">1 0 0 0</rotate>
+          <scale sid="scale">1 1 1</scale>
+          <node id="ROLL_bone_id" name="ROLL" sid="ROLL" type="JOINT">
+            <translate sid="translate">0 -4.1478E-05 0</translate>
+            <rotate sid="rotateZ">0 0 1 0</rotate>
+            <rotate sid="rotateY">0 1 0 0</rotate>
+            <rotate sid="rotateX">1 0 0 0</rotate>
+            <scale sid="scale">1 1 1</scale>
+            <node id="HEAD_bone_id" name="HEAD" sid="HEAD" type="JOINT">
+              <translate sid="translate">0 0 0</translate>
+              <rotate sid="rotateZ">0 0 1 0</rotate>
+              <rotate sid="rotateY">0 1 0 0</rotate>
+              <rotate sid="rotateX">1 0 0 0</rotate>
+              <scale sid="scale">1 1 1</scale>
+            </node>
+          </node>
+        </node>
+      </node>
+      <node id="head_0_0_node_id" name="head_0_0_node" type="NODE">
+        <matrix>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        <instance_controller url="#head_0_0_ctrl_id">
+          <skeleton>#ROOT_bone_id</skeleton>
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="Mdl_0_Mtl_mat_body" target="#mat_body_mat_id" />
+            </technique_common>
+          </bind_material>
+        </instance_controller>
+      </node>
+      <node id="head_1_0_node_id" name="head_1_0_node" type="NODE">
+        <matrix>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        <instance_controller url="#head_1_0_ctrl_id">
+          <skeleton>#ROOT_bone_id</skeleton>
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="Mdl_0_Mtl_TEX_ANIM_EYE" target="#TEX_ANIM_EYE_mat_id" />
+            </technique_common>
+          </bind_material>
+        </instance_controller>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#BIRIRIDAMA_rolling_00_id" />
+  </scene>
+</COLLADA>
