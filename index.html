@@ -316,6 +316,10 @@
   .slot .idx { position: absolute; top: 2px; left: 4px; font-size: 0.5rem; opacity: 0.5; letter-spacing: 0; }
   .slot.empty .idx { position: static; font-size: 1rem; color: #9aa1ad; opacity: 1; letter-spacing: 1px; }
   .slot.selected { border-color: #ffd54f; background: rgba(255,213,79,0.22); }
+  /* The bar under each box (from the global button shadow) reads as an "owned" cue:
+     gold when unlocked, light gray when locked or empty. */
+  .slot { box-shadow: 0 4px 0 #b8860b; }
+  .slot.locked, .slot.empty { box-shadow: 0 4px 0 #9aa1ad; }
   .slot.locked { color: #6b7280; background: transparent; }   /* no box behind the ??? / silhouette */
   .slot.empty { background: rgba(255,255,255,0.03); border-style: dashed; border-color: rgba(255,255,255,0.08); cursor: default; color: #4b5563; }
   .slot .thumb { width: 55px; height: 55px; display: block; }             /* 3D sprite render at 45deg (+20%) */
@@ -594,6 +598,7 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 import { POKEDEX, FORMS } from './pokedex.js';   // auto-generated: every model folder (dex, name, model path, gender variants) + alternate forms
 
 /* ============================== A: CONSTANTS & CONFIG ============================== */
@@ -620,7 +625,7 @@ const MB = 'Pokemon 3D Models/';      // base folder (sibling of index.html)
 // Coin sprites (2D). silver = base, gold = 2x, "L" = 10x. Coin type is pre-rolled at spawn so the
 // visible sprite matches its value (this replaces the old invisible-multiplier scheme).
 const COIN_BASE = MB + 'Poké Coins/Poke/';   // note: accented folder + nested "Poke" subfolder
-const COIN_EVERY_TILES = 6.25;   // one loose coin, on average, every 6.25 tiles of progress
+const COIN_EVERY_TILES = 5;      // one loose coin, on average, every 5 tiles of progress
 const COIN_TYPES = {
   silver: { value: 1, tex: COIN_BASE + 'poke_silver.png', color: 0xc4ccd6 },
   gold:   { value: 5, tex: COIN_BASE + 'poke_gold.png',   color: 0xffd54f },
@@ -977,6 +982,12 @@ function loadModelOrNull(path) {
   return p;
 }
 
+// Deep-clone a loaded model. ALWAYS use this instead of model.clone(true): a plain clone of a
+// skinned mesh (the gen-7 .fbx models) keeps bone references into the ORIGINAL skeleton, which
+// renders invisible or frozen at the origin. SkeletonUtils.clone rebinds bones correctly and is a
+// plain deep clone for non-skinned models, so it's safe for everything.
+function cloneModel(model) { return skeletonClone(model); }
+
 function getBoxGeometry(boxSize) {
   const key = boxSize.join(',');
   if (!boxGeoCache.has(key)) boxGeoCache.set(key, new THREE.BoxGeometry(boxSize[0], boxSize[1], boxSize[2]));
@@ -1152,7 +1163,7 @@ function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
   if (path) {
     loadModelOrNull(path).then(model => {
       if (!model || group.userData.destroyed) return;
-      const inst = model.clone(true);
+      const inst = cloneModel(model);
       inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
       normalizeModel(inst, entry.modelTargetSize ?? Math.max(...entry.boxSize));
       if (shiny) applyShiny(inst);
@@ -1848,7 +1859,10 @@ function loadGachaBallHalves(ballName) {
 // Resolve once every texture map on a model has its image decoded and ready to sample. A one-shot
 // bake (the rates ball icons) that renders before this fires captures black frames — the map exists
 // but samples as black until the image arrives.
-function waitForModelTextures(root, timeoutMs = 4000) {
+// The generous timeout matters: under heavy load (hundreds of roster models fetching at once)
+// individual textures can queue for many seconds; a short timeout here baked black sprites. The
+// wait runs BEFORE the serialized bake queue, so one slow model never stalls the others.
+function waitForModelTextures(root, timeoutMs = 30000) {
   const maps = [];
   root.traverse(o => {
     if (!o.isMesh) return;
@@ -2051,7 +2065,7 @@ function updateGachaSeq(now, dt) {
         if (!seq.pending.mon) { finishGachaReveal(); return; }
         const wrapG = new THREE.Group();
         let inst;
-        if (model) { inst = model.clone(true); normalizeModel(inst, 1.3); }
+        if (model) { inst = cloneModel(model); normalizeModel(inst, 1.3); }
         else inst = makeCubeMesh(seq.pending.mon);
         wrapG.add(inst);
         wrapG.position.set(0, 0.1, seq.ballZ);
@@ -2194,7 +2208,7 @@ function loadPreviewModel(id) {
   if (path) {
     loadModelOrNull(path).then(model => {
       if (!model || !previewHolder.children.includes(holder)) return;
-      const inst = model.clone(true); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
+      const inst = cloneModel(model); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
       normalizeModel(inst, 1.7);
       if (locked) blacken(inst); else if (shiny) applyShiny(inst);
       holder.remove(cube); holder.add(inst);
@@ -2232,10 +2246,15 @@ function getThumb(id, { locked = false } = {}) {
   const key = id + (locked ? '|L' : '');
   if (thumbCache[key]) return thumbCache[key];
   const entry = rosterById[id];
-  const p = (entry.modelPath ? loadModelOrNull(entry.modelPath) : Promise.resolve(null)).then(model => withThumbRenderer(() => {
+  const p = (entry.modelPath ? loadModelOrNull(entry.modelPath) : Promise.resolve(null))
+    // Unlocked thumbs bake in one shot, so their textures must be fully decoded first — baking early
+    // captured corrupted sprites (white/black patches) for whichever models' textures were still in
+    // flight. Locked thumbs get blackened materials, so they can skip the wait.
+    .then(model => (model && !locked) ? waitForModelTextures(model).then(() => model) : model)
+    .then(model => withThumbRenderer(() => {
     while (thumbHolder.children.length) thumbHolder.remove(thumbHolder.children[0]);
     let obj;
-    if (model) { obj = model.clone(true); obj.traverse(o => { if (o.isMesh) o.castShadow = false; }); normalizeModel(obj, 1.6); if (locked) blacken(obj); }
+    if (model) { obj = cloneModel(model); obj.traverse(o => { if (o.isMesh) o.castShadow = false; }); normalizeModel(obj, 1.6); if (locked) blacken(obj); }
     else { obj = makeCubeMesh(entry, locked ? 0x0e1014 : undefined); }
     thumbHolder.add(obj);
     thumbRenderer.render(thumbScene, thumbCam);
@@ -2364,11 +2383,12 @@ function setUnknownTypeBadges(container, count) {
 // Roster browser: collapsible regional sections (Kanto..Kalos) of 5-column dex grids, plus an
 // optional filter (types / legendary / mythical) that switches to a flat grid of matches.
 const PLAYER_BY_DEX = Object.fromEntries(PLAYER_ENTRIES.filter(e => e.dex).map(e => [e.dex, e]));
-const regionOpen = { Kanto: true };                      // collapse state; Kanto starts open
-const rosterFilter = { types: new Set(), legendary: false, mythical: false };
-function filterActive() { return rosterFilter.types.size > 0 || rosterFilter.legendary || rosterFilter.mythical; }
+const regionOpen = Object.fromEntries(REGIONS.map(r => [r.name, true]));   // all regions start open
+const rosterFilter = { types: new Set(), legendary: false, mythical: false, unlocked: false };
+function filterActive() { return rosterFilter.types.size > 0 || rosterFilter.legendary || rosterFilter.mythical || rosterFilter.unlocked; }
 function entryMatchesFilter(e) {
-  // Filtering only surfaces Pokemon you've actually unlocked (locked ones hide their type anyway).
+  // Filtering only surfaces Pokemon you've actually unlocked (locked ones hide their type anyway) —
+  // which also makes the dedicated "unlocked" chip a pure show-all-my-Pokemon toggle.
   if (!gameState.save.unlockedIds.includes(e.id)) return false;
   if (rosterFilter.types.size && !(e.types || []).some(t => rosterFilter.types.has(t))) return false;
   if (rosterFilter.legendary && !(e.tier === 'legendary' && !e.mythical)) return false;
@@ -2406,29 +2426,42 @@ function makeSlotCell(dexNo, entry) {
 function renderRosterGrid() {
   const grid = document.getElementById('roster-grid');
   grid.innerHTML = '';
-  if (filterActive()) {
-    const matches = PLAYER_ENTRIES.filter(e => e.dex && entryMatchesFilter(e));
-    const wrap = document.createElement('div'); wrap.className = 'region-grid';
-    if (!matches.length) {
-      const none = document.createElement('div'); none.className = 'region-none'; none.textContent = 'No Pokemon match this filter.';
-      grid.appendChild(none); return;
-    }
-    for (const e of matches) wrap.appendChild(makeSlotCell(e.dex, e));
-    grid.appendChild(wrap);
-    return;
-  }
+  const filtering = filterActive();
+  let anyMatch = false;
   for (const region of REGIONS) {
-    const owned = PLAYER_ENTRIES.filter(e => e.dex >= region.from && e.dex <= region.to && gameState.save.unlockedIds.includes(e.id)).length;
-    const total = region.to - region.from + 1;
+    const regionEntries = PLAYER_ENTRIES.filter(e => e.dex >= region.from && e.dex <= region.to);
+    const matches = filtering ? regionEntries.filter(entryMatchesFilter) : null;
+    const owned = regionEntries.filter(e => gameState.save.unlockedIds.includes(e.id)).length;
+    // Alola's dex has holes where no model exists — count and show only real slots there.
+    const total = region.name === 'Alola' ? regionEntries.length : region.to - region.from + 1;
+    // While filtering: a region with matches is force-expanded so nothing hides in a collapsed
+    // section; regions without matches render as a collapsed header only.
+    const open = filtering ? (matches.length > 0) : regionOpen[region.name];
     const head = document.createElement('button');
     head.type = 'button'; head.className = 'region-head';
-    head.innerHTML = `<span>${regionOpen[region.name] ? 'v' : '&gt;'}</span><span>${region.name}</span><span class="region-count">${owned}/${total}</span>`;
-    head.addEventListener('click', () => { AudioSys.sfx.click(); regionOpen[region.name] = !regionOpen[region.name]; renderRosterGrid(); });
+    head.innerHTML = `<span>${open ? 'v' : '&gt;'}</span><span>${region.name}</span>` +
+      `<span class="region-count">${filtering ? matches.length + ' match' + (matches.length === 1 ? '' : 'es') : owned + '/' + total}</span>`;
+    head.addEventListener('click', () => {
+      if (filtering) return;   // layout is filter-driven while a filter is on
+      AudioSys.sfx.click(); regionOpen[region.name] = !regionOpen[region.name]; renderRosterGrid();
+    });
     grid.appendChild(head);
-    if (!regionOpen[region.name]) continue;
+    if (!open) continue;
+    anyMatch = true;
     const wrap = document.createElement('div'); wrap.className = 'region-grid';
-    for (let d = region.from; d <= region.to; d++) wrap.appendChild(makeSlotCell(d, PLAYER_BY_DEX[d]));
+    if (filtering) {
+      for (const e of matches) wrap.appendChild(makeSlotCell(e.dex, e));
+    } else {
+      for (let d = region.from; d <= region.to; d++) {
+        if (region.name === 'Alola' && !PLAYER_BY_DEX[d]) continue;   // no empty ghost slots in gen 7
+        wrap.appendChild(makeSlotCell(d, PLAYER_BY_DEX[d]));
+      }
+    }
     grid.appendChild(wrap);
+  }
+  if (filtering && !anyMatch) {
+    const none = document.createElement('div'); none.className = 'region-none'; none.textContent = 'No Pokemon match this filter.';
+    grid.appendChild(none);
   }
 }
 // Filter panel: 18 type chips + Legendary / Mythical, all toggleable; any active filter flips the
@@ -2451,11 +2484,12 @@ function renderFilterPanel() {
   }
   addChip('legendary', '#8e24aa', rosterFilter.legendary, () => { rosterFilter.legendary = !rosterFilter.legendary; });
   addChip('mythical', '#d81b60', rosterFilter.mythical, () => { rosterFilter.mythical = !rosterFilter.mythical; });
+  addChip('unlocked', '#2e7d32', rosterFilter.unlocked, () => { rosterFilter.unlocked = !rosterFilter.unlocked; });
   const clear = document.createElement('button');
   clear.type = 'button'; clear.className = 'filter-chip clear'; clear.textContent = 'clear';
   clear.addEventListener('click', () => {
     AudioSys.sfx.click();
-    rosterFilter.types.clear(); rosterFilter.legendary = false; rosterFilter.mythical = false;
+    rosterFilter.types.clear(); rosterFilter.legendary = false; rosterFilter.mythical = false; rosterFilter.unlocked = false;
     renderFilterPanel(); renderRosterGrid();
   });
   panel.appendChild(clear);
@@ -2697,7 +2731,7 @@ function updatePlayButtonModel() {
   const cube = makeCubeMesh(entry); holder.add(cube);
   if (path) loadModelOrNull(path).then(m => {
     if (!m || !playHolder.children.includes(holder)) return;
-    const inst = m.clone(true); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
+    const inst = cloneModel(m); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
     normalizeModel(inst, 1.5);
     // Vertically center the model on the camera's look-at point (0.7) — wide models normalize
     // shorter than tall ones and otherwise sit low in the little canvas.
@@ -2743,8 +2777,9 @@ function devSubmit() {
     if (devBuffer === 'pokemonrumblerush') {
       gameState.save.coins += 999;
       gameState.save.unlockedIds = ALL_PLAYABLE.map(e => e.id);
+      for (const e of ALL_PLAYABLE) gameState.save.shinyUnlockedByCharacter[e.id] = true;
       persistSave();
-      msg.style.color = '#8CFF9E'; msg.textContent = 'Unlocked all Pokemon + 999 coins!';
+      msg.style.color = '#8CFF9E'; msg.textContent = 'Unlocked all Pokemon + shinies + 999 coins!';
       AudioSys.sfx.gacha();
     } else if (devBuffer === 'coins') {
       gameState.save.coins += 900;
