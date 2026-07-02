@@ -4,7 +4,7 @@ Use models from Pokemon Rumble/ Pokemon Quest
 
 Upcoming changes
 - CHECK chat with previous changes I made!!!  
-- Coins are still not rending textures on their model
+- Coins are still not rending textures on their model (partially fixed, have to verify if they are upright)
 - On the title screen
     - only show “Bulbasaur selected” for example above the Pokemon itself walking on the ranch after you click on it then the text disappears. 
     - center the Pokemon icon to the right of the play button vertically in the center
