@@ -103,7 +103,7 @@
   #preview-wrap { position: relative; width: min(60vw, 220px); height: 20vh; }
   #screen-select { gap: 0.4rem; }
   #preview-canvas { width: 100%; height: 100%; display: block; }
-  #preview-name { font-size: 1.05rem; font-weight: bold; margin-top: -0.4rem; }
+  #preview-name { font-size: 1.3rem; font-weight: bold; margin-top: -0.4rem; }
   #preview-sub { opacity: 0.8; font-size: 0.85rem; }
   #roster-strip {
     display: flex; gap: 0.5rem; overflow-x: auto; max-width: 94vw; padding: 0.5rem;
@@ -182,7 +182,7 @@
   /* Play button: label on the left, embedded 3D Pokemon on the right, both vertically centered */
   #btn-play { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.7rem; overflow: hidden; min-height: 64px; padding-top: 0.25rem; padding-bottom: 0.25rem; }
   #play-pokemon-canvas { width: 58px; height: 58px; display: block; order: 2; align-self: center; flex: 0 0 auto; }
-  #btn-play .play-label { font-size: 1.4rem; order: 1; line-height: 1; align-self: center; }
+  #btn-play .play-label { font-size: 1.8rem; order: 1; line-height: 1; align-self: center; }
   #btn-play.jump #play-pokemon-canvas { animation: mini-jump 0.6s ease-in-out infinite; }
   @keyframes mini-jump { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
   /* Floating "X selected" tag that hovers above the clicked Pokemon on the ranch, then fades. */
@@ -214,8 +214,9 @@
     background: rgba(255,255,255,0.07); color: #fff; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 2px; font-size: 0.6rem; padding: 2px; overflow: hidden;
   }
-  /* Pokedex-style 3-digit index in the corner of every box */
+  /* Pokedex-style 3-digit index: small corner tag on filled boxes, big centered number on empty ones */
   .slot .idx { position: absolute; top: 2px; left: 4px; font-size: 0.5rem; opacity: 0.5; letter-spacing: 0; }
+  .slot.empty .idx { position: static; font-size: 1rem; color: #9aa1ad; opacity: 1; letter-spacing: 1px; }
   .slot.selected { border-color: #ffd54f; background: rgba(255,213,79,0.22); }
   .slot.locked { color: #6b7280; background: transparent; }   /* no box behind the ??? / silhouette */
   .slot.empty { background: rgba(255,255,255,0.03); border-style: dashed; border-color: rgba(255,255,255,0.08); cursor: default; color: #4b5563; }
@@ -234,8 +235,8 @@
   .hud-coin, .coin-spin, .slot .thumb, .pool-cell img { image-rendering: pixelated; }
   .type-badge { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.5px; color: #fff; padding: 0.18rem 0.5rem;
     border-radius: 3px; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.35), 0 2px 0 rgba(0,0,0,0.35); text-shadow: 1px 1px 0 rgba(0,0,0,0.5); }
-  #preview-stats { font-size: 0.72rem; opacity: 0.9; height: 1.1rem; flex: 0 0 1.1rem; white-space: nowrap;
-    display: flex; gap: 1.4rem; justify-content: center; }   /* clear gap between Runs and Highscore */
+  #preview-stats { font-size: 0.9rem; opacity: 0.95; height: 1.35rem; flex: 0 0 1.35rem; white-space: nowrap;
+    display: flex; gap: 1.6rem; justify-content: center; }   /* clear gap between Runs and Highscore */
 
   /* ---- Gacha tier pool (silhouettes of pullable Pokemon) ---- */
   #gacha-pool { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; max-width: min(94vw, 460px);
@@ -311,7 +312,7 @@
       <div id="score-count" class="hud-score">0</div>
     </div>
     <div class="hud-right">
-      <div class="hud-pill"><img class="hud-coin" src="Pokemon%203D%20Models/Poke%20Coins/poke_silver.png" alt="coins" style="width:1.3em;height:1.3em;object-fit:contain;" /> <span id="coin-total">0</span></div>
+      <div class="hud-pill"><img class="hud-coin" data-coin="gold" src="Pokemon%203D%20Models/Poke%20Coins/poke_gold.png" alt="coins" style="width:1.3em;height:1.3em;object-fit:contain;" /> <span id="coin-total">0</span></div>
       <button id="btn-pause" title="Pause">| |</button>
     </div>
   </div>
@@ -322,7 +323,7 @@
   <div id="screen-menu" class="screen">
     <img id="logo-img" alt="Pokemon Rumble Run" />
     <div id="logo-fallback" style="display:none;">Pokemon Rumble Run</div>
-    <div id="menu-coins-pill" class="coin-display"><img class="hud-coin" src="Pokemon%203D%20Models/Poke%20Coins/poke_gold.png" alt="P" /> <span id="menu-coins">0</span></div>
+    <div id="menu-coins-pill" class="coin-display"><img class="hud-coin" data-coin="gold" src="Pokemon%203D%20Models/Poke%20Coins/poke_gold.png" alt="P" /> <span id="menu-coins">0</span></div>
     <div id="menu-selected"></div>
     <div class="menu-buttons">
       <button id="btn-play" class="wide"><canvas id="play-pokemon-canvas"></canvas><span class="play-label">Play</span></button>
@@ -354,7 +355,7 @@
   <!-- POKE BALL MACHINE -->
   <div id="screen-gacha" class="screen hidden">
     <h2>Poke Ball Machine</h2>
-    <div class="coin-display"><img class="hud-coin" src="Pokemon%203D%20Models/Poke%20Coins/poke_silver.png" style="width:1.1em;height:1.1em;vertical-align:-2px;" /> <span id="gacha-coins">0</span></div>
+    <div class="coin-display"><img class="hud-coin" data-coin="gold" src="Pokemon%203D%20Models/Poke%20Coins/poke_gold.png" style="width:1.1em;height:1.1em;vertical-align:-2px;" /> <span id="gacha-coins">0</span></div>
     <button id="btn-gacha-pull">Pull for 50 coins</button>
     <div id="gacha-result" class="hidden"></div>
     <div class="howto-tabs" id="gacha-tabs"></div>
@@ -764,24 +765,34 @@ function makeCubeMesh(entry, colorOverride) {
   mesh.castShadow = true; mesh.receiveShadow = true;
   return mesh;
 }
-// Coins are the real 3D .dae models (Poke_1 = silver, Poke_3 = gold, Poke_4 = L). They spin about Y
-// so you see actual 3D geometry. A coin-shaped cylinder stands in until the model loads.
+// Coins: a real 3D coin built in-engine — a cylinder standing on edge with the coin PNG mapped on
+// both faces and a metallic rim. (The ripped .dae coins are rigged for SMD animation; cloning a
+// skinned mesh breaks its skeleton binding in three.js and renders invisible — that's what made
+// coins vanish. This procedural coin is deterministic and always textured.)
+const coinTexCache = {};
+function coinTexture(key) {
+  if (!coinTexCache[key]) {
+    const t = texLoader.load(encodePath(COIN_TYPES[key].tex));
+    t.colorSpace = THREE.SRGBColorSpace;
+    coinTexCache[key] = t;
+  }
+  return coinTexCache[key];
+}
+const coinGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.08, 24);
+const coinMatCache = {};
+function coinMaterials(key) {
+  if (!coinMatCache[key]) {
+    const face = new THREE.MeshStandardMaterial({ map: coinTexture(key), metalness: 0.25, roughness: 0.45, transparent: true, alphaTest: 0.3 });
+    const rim = new THREE.MeshStandardMaterial({ color: COIN_TYPES[key].color, metalness: 0.55, roughness: 0.35 });
+    coinMatCache[key] = [rim, face, face];   // CylinderGeometry groups: [side, top, bottom]
+  }
+  return coinMatCache[key];
+}
 function makeCoinMesh(key) {
-  const t = COIN_TYPES[key];
+  const m = new THREE.Mesh(coinGeo, coinMaterials(key));
+  m.rotation.x = Math.PI / 2;   // stand the disc on edge so the faces show as it spins
   const group = new THREE.Group();
-  const fb = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.3, 0.3, 0.08, 20),
-    new THREE.MeshStandardMaterial({ color: t.color, metalness: 0.35, roughness: 0.4 })
-  );
-  fb.rotation.x = Math.PI / 2;   // stand the disc on edge
-  group.add(fb);
-  loadModelOrNull(t.model).then(model => {
-    if (!model || group.userData.destroyed) return;
-    const inst = model.clone(true);
-    inst.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
-    normalizeModel(inst, 0.6);
-    group.remove(fb); group.add(inst);
-  });
+  group.add(m);
   group.position.y = 0.55;
   return group;
 }
@@ -1441,6 +1452,41 @@ function getThumb(id, { locked = false } = {}) {
   thumbCache[key] = p;
   return p;
 }
+// Snapshot the 3D coin (slightly tilted) to a data URL, and swap it into every <img data-coin>
+// (HUD, menu counter, gacha screen, How-to-Play) so no coin icon is a flat PNG.
+const coinIconCache = {};
+function getCoinIcon(key) {
+  if (coinIconCache[key]) return coinIconCache[key];
+  const p = texLoader.loadAsync(encodePath(COIN_TYPES[key].tex)).then(tex => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    if (!thumbRenderer) initThumb();
+    while (thumbHolder.children.length) thumbHolder.remove(thumbHolder.children[0]);
+    const face = new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.3, metalness: 0.25, roughness: 0.45 });
+    const rim = new THREE.MeshStandardMaterial({ color: COIN_TYPES[key].color, metalness: 0.55, roughness: 0.35 });
+    const m = new THREE.Mesh(coinGeo, [rim, face, face]);
+    m.rotation.x = Math.PI / 2;             // face toward the camera
+    const g = new THREE.Group();
+    g.add(m);
+    g.scale.setScalar(2.1);
+    g.position.y = 0.7;
+    thumbHolder.add(g);
+    const prevRot = thumbHolder.rotation.y;
+    thumbHolder.rotation.y = 0.35;          // gentle 3D tilt instead of the roster's full 45°
+    thumbHolder.rotation.x = -0.12;
+    thumbRenderer.render(thumbScene, thumbCam);
+    thumbHolder.rotation.y = prevRot;
+    thumbHolder.rotation.x = 0;
+    while (thumbHolder.children.length) thumbHolder.remove(thumbHolder.children[0]);
+    return thumbRenderer.domElement.toDataURL('image/png');
+  });
+  coinIconCache[key] = p;
+  return p;
+}
+function refreshCoinIcons() {
+  document.querySelectorAll('img[data-coin]').forEach(img => {
+    getCoinIcon(img.dataset.coin).then(src => { img.src = src; }).catch(() => {});
+  });
+}
 // Type icons live in the "Pokemon Types" folder. Tries the given candidate URLs in order, then
 // falls back to a CSS-styled pixel badge if none load.
 function makeTypeImg(candidates, label, color) {
@@ -1644,6 +1690,10 @@ function updatePlayButtonModel() {
     if (!m || !playHolder.children.includes(holder)) return;
     const inst = m.clone(true); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
     normalizeModel(inst, 1.5);
+    // Vertically center the model on the camera's look-at point (0.7) — wide models normalize
+    // shorter than tall ones and otherwise sit low in the little canvas.
+    const b = new THREE.Box3().setFromObject(inst);
+    inst.position.y += 0.7 - (b.min.y + b.max.y) / 2;
     if (shiny) applyShiny(inst);
     holder.remove(cube); holder.add(inst);
   });
@@ -1812,7 +1862,7 @@ function buildHowTo() {
     const label = { basic: 'Basic Pokemon', stage1: 'Stage-1 Pokemon', stage3: 'Stage-3 Pokemon', legendary: 'Legendary / Mythical' }[b.tier];
     return `<li style="background:rgba(255,255,255,0.05)"><span><span class="swatch" style="background:${hexColor(b.color)}"></span>${b.ball} - ${label}</span><span>${P(pct)}</span></li>`;
   }).join('');
-  const coinImg = (k, cap) => `<div class="c"><img class="coin-spin" src="${encodePath(COIN_TYPES[k].tex)}" alt="${cap}"/><span>${cap}</span></div>`;
+  const coinImg = (k, cap) => `<div class="c"><img class="coin-spin" data-coin="${k}" src="${encodePath(COIN_TYPES[k].tex)}" alt="${cap}"/><span>${cap}</span></div>`;
   // Tabbed topics
   const tabs = [
     { id: 'controls', name: 'Controls', html: `
@@ -1969,6 +2019,7 @@ wireSettings();
 buildHowTo();
 buildDevKeyboard();
 initPlayButton();
+refreshCoinIcons();
 refreshSettingsUI();
 document.getElementById('menu-coins').textContent = gameState.save.coins;
 setMode('menu');
