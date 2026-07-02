@@ -101,7 +101,8 @@
   /* ---- Character select ---- */
   /* Condensed header: smaller preview + tighter text so more of the roster grid is visible. */
   #preview-wrap { position: relative; width: min(60vw, 220px); height: 20vh; }
-  #screen-select { gap: 0.4rem; }
+  /* Top-align so opening the filter panel / empty results don't recenter and nudge the header. */
+  #screen-select { gap: 0.4rem; justify-content: flex-start; padding-top: 2.5vh; }
   #preview-canvas { width: 100%; height: 100%; display: block; }
   #preview-name { font-size: 1.3rem; font-weight: bold; margin-top: -0.4rem; }
   #preview-sub { opacity: 0.8; font-size: 0.85rem; }
@@ -221,8 +222,8 @@
   /* Roster browser: scrolling column of collapsible region sections, each holding a 5-col grid */
   #roster-grid {
     display: flex; flex-direction: column; gap: 0.4rem;
-    width: min(94vw, 460px); max-height: 40vh; overflow-y: auto; overflow-x: hidden; padding: 0.5rem;
-    background: rgba(0,0,0,0.28); border-radius: 12px;
+    width: min(94vw, 460px); height: 40vh; overflow-y: auto; overflow-x: hidden; padding: 0.5rem;
+    background: rgba(0,0,0,0.28); border-radius: 12px; box-sizing: border-box;
   }
   .region-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; }
   .region-head {
@@ -259,6 +260,9 @@
   /* gold sparkle badge for an unlocked shiny */
   .slot .shiny-badge { position: absolute; top: 3px; right: 3px; width: 11px; height: 11px; background: #ffe14d;
     clip-path: polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%); filter: drop-shadow(0 0 2px #fff6b0); }
+  /* small "F" tag marking a dex slot that has an alternate (Alolan/other) form */
+  .slot .form-badge { position: absolute; bottom: 2px; right: 3px; font-size: 0.5rem; font-weight: bold;
+    color: #14161c; background: #7fd0ff; border-radius: 2px; padding: 0 2px; line-height: 1.1; }
 
   /* ---- Pixel-art type badges (colors from the standard type palette) ---- */
   /* Fixed heights so the layout (and the roster boxes below) never shift when switching between a
@@ -386,6 +390,7 @@
     <div id="preview-stats"></div>
     <div class="select-toggles">
       <button id="btn-shiny" class="toggle-btn">Shiny: Off</button>
+      <button id="btn-form" class="toggle-btn">Form: Normal</button>
       <button id="btn-gender" class="toggle-btn">Gender: M</button>
       <button id="btn-filter" class="toggle-btn">Filter</button>
     </div>
@@ -401,13 +406,23 @@
   <div id="screen-gacha" class="screen hidden">
     <h2>Poke Ball Machine</h2>
     <div class="coin-display"><img class="hud-coin" data-coin="gold" src="Pokemon%203D%20Models/Poke%20Coins/poke_gold.png" style="width:1.1em;height:1.1em;vertical-align:-2px;" /> <span id="gacha-coins">0</span></div>
-    <button id="btn-gacha-pull">Pull for 50 coins</button>
+    <div class="screen-buttons">
+      <button id="btn-gacha-pull">Pull for 50 coins</button>
+      <button id="btn-rates" class="secondary small">Pull Rates</button>
+    </div>
     <div id="gacha-result" class="hidden"></div>
     <div class="howto-tabs" id="gacha-tabs"></div>
     <div id="gacha-pool"></div>
     <div class="screen-buttons">
       <button id="btn-gacha-back" class="secondary small">Back</button>
     </div>
+  </div>
+
+  <!-- PULL RATES -->
+  <div id="screen-rates" class="screen hidden">
+    <h2>Pull Rates</h2>
+    <div class="panel" id="rates-panel"></div>
+    <div class="screen-buttons"><button id="btn-rates-back" class="secondary small">Back</button></div>
   </div>
 
   <!-- HOW TO PLAY -->
@@ -502,6 +517,7 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { POKEDEX, FORMS } from './pokedex.js';   // auto-generated: every model folder (dex, name, model path, gender variants) + alternate forms
 
 /* ============================== A: CONSTANTS & CONFIG ============================== */
 const TILE = 1;
@@ -526,10 +542,11 @@ const MB = 'Pokemon 3D Models/';      // base folder (sibling of index.html)
 
 // Coin sprites (2D). silver = base, gold = 2x, "L" = 10x. Coin type is pre-rolled at spawn so the
 // visible sprite matches its value (this replaces the old invisible-multiplier scheme).
+const COIN_BASE = MB + 'Poké Coins/Poke/';   // note: accented folder + nested "Poke" subfolder
 const COIN_TYPES = {
-  silver: { value: 1, tex: MB + 'Poke Coins/poke_silver.png', model: MB + 'Poke Coins/Poke_1.dae', color: 0xc4ccd6 },
-  gold:   { value: 2, tex: MB + 'Poke Coins/poke_gold.png',   model: MB + 'Poke Coins/Poke_3.dae', color: 0xffd54f },
-  L:      { value: 10, tex: MB + 'Poke Coins/poke_L.png',     model: MB + 'Poke Coins/Poke_4.dae', color: 0xff5a5a },
+  silver: { value: 1, tex: COIN_BASE + 'poke_silver.png', color: 0xc4ccd6 },
+  gold:   { value: 2, tex: COIN_BASE + 'poke_gold.png',   color: 0xffd54f },
+  L:      { value: 10, tex: COIN_BASE + 'poke_L.png',     color: 0xff5a5a },
 };
 // Standard Pokemon type colors (functional palette) for the pixel-art type badges.
 const TYPE_COLORS = {
@@ -548,74 +565,131 @@ const REGIONS = [
   { name: 'Sinnoh', from: 387, to: 493 },
   { name: 'Unova',  from: 494, to: 649 },
   { name: 'Kalos',  from: 650, to: 721 },
+  { name: 'Alola',  from: 722, to: 809 },
 ];
 
 /* ============================== B: ROSTER DATA ============================== */
-// modelPath is plain/human-readable (spaces & '#' are fine — the loader URL-encodes it).
-// Shiny is rendered by swapping each texture to its "_C" variant (Rumble World convention).
-// Swap in a new model by editing only its modelPath. Gender/Mega variants live in subfolders.
+// Model paths point into the "Pokemon 3D Models" folder (short "#NNNN Name" folders). Paths are
+// plain/human-readable (spaces, '#', accents, gender symbols) — the loader URL-encodes them.
+// Shiny is rendered by swapping each texture to its "_C" variant.
+const dexPath = (dex, file) => MB + `#${String(dex).padStart(4, '0')} ` + file;
+
+// Gameplay entities (hazards / platforms / decor / coin). These are separate from the playable roster.
 const ROSTER = [
-  // -------- Playable Pokemon (Bulbasaur evolution line) --------
-  { id: 'bulbasaur', displayName: 'Bulbasaur', role: 'player', tier: 'basic', dex: 1, color: 0x63b866, types: ['grass', 'poison'],
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0001 Bulbasaur/Bulbasaur.obj',
-    modelTargetSize: 1.4, boxSize: [0.8, 0.8, 0.8], unlockedByDefault: true },
-  { id: 'ivysaur', displayName: 'Ivysaur', role: 'player', tier: 'stage1', dex: 2, color: 0x4fa06a, types: ['grass', 'poison'],
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0002 Ivysaur/Ivysaur.obj',
-    modelTargetSize: 1.5, boxSize: [0.9, 0.9, 0.9], unlockedByDefault: false },
-  { id: 'venusaur', displayName: 'Venusaur', role: 'player', tier: 'stage3', dex: 3, color: 0x2e8f6e, types: ['grass', 'poison'],
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0003 Venusaur/Normalm/Venusaur_Normalm.obj',
-    genderPaths: {
-      m: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0003 Venusaur/Normalm/Venusaur_Normalm.obj',
-      f: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0003 Venusaur/Normalf/Venusaur_Normalf.obj',
-    },
-    modelTargetSize: 1.7, boxSize: [1.1, 1.0, 1.1], unlockedByDefault: false },
-
-  // -------- Road-family car hazards --------
+  // Road-family car hazards
   { id: 'rapidash', displayName: 'Rapidash', role: 'hazard', laneFamily: 'road', color: 0xffa726,
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0078 Rapidash/Rapidash.obj',
-    modelTargetSize: 1.7, boxSize: [1.7, 1.0, 0.9], speedRange: [4.2, 5.6], gapMin: 4.4, gapMax: 6.8,
-    substitute: { id: 'ponyta', chance: 0.05 } },
+    modelPath: dexPath(78, 'Rapidash/Rapidash.obj'),
+    modelTargetSize: 1.7, boxSize: [1.7, 1.0, 0.9], speedRange: [4.2, 5.6], gapMin: 4.4, gapMax: 6.8, substitute: { id: 'ponyta', chance: 0.05 } },
   { id: 'ponyta', displayName: 'Ponyta', role: 'hazard', laneFamily: 'road', color: 0xffcc80,
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0077 Ponyta/Ponyta.obj',
-    modelTargetSize: 1.5, boxSize: [1.5, 0.9, 0.9], speedRange: [3.0, 4.0] },
+    modelPath: dexPath(77, 'Ponyta/Ponyta.obj'), modelTargetSize: 1.5, boxSize: [1.5, 0.9, 0.9], speedRange: [3.0, 4.0] },
   { id: 'dodrio', displayName: 'Dodrio', role: 'hazard', laneFamily: 'road', color: 0x8d6e63,
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0085 Dodrio/M/Dodrio_M.obj',
-    modelTargetSize: 1.5, boxSize: [1.2, 1.3, 0.9], speedRange: [2.6, 3.6], gapMin: 3.2, gapMax: 5.0,
-    substitute: { id: 'doduo', chance: 0.05 } },
+    modelPath: dexPath(85, 'Dodrio/M/Dodrio_M.obj'),
+    modelTargetSize: 1.5, boxSize: [1.2, 1.3, 0.9], speedRange: [2.6, 3.6], gapMin: 3.2, gapMax: 5.0, substitute: { id: 'doduo', chance: 0.05 } },
   { id: 'doduo', displayName: 'Doduo', role: 'hazard', laneFamily: 'road', color: 0xa1887f,
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0084 Doduo/M/Doduo_M.obj',
-    modelTargetSize: 1.2, boxSize: [1.0, 1.1, 0.9], speedRange: [1.6, 2.4] },
+    modelPath: dexPath(84, 'Doduo/M/Doduo_M.obj'), modelTargetSize: 1.2, boxSize: [1.0, 1.1, 0.9], speedRange: [1.6, 2.4] },
 
-  // -------- Rail-family: Tauros stampede (a herd sweeps the lane) --------
+  // Rail-family: Tauros stampede (a herd sweeps the lane)
   { id: 'tauros', displayName: 'Tauros', role: 'hazard', laneFamily: 'rail', color: 0x6d4c41,
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0128 Tauros/Tauros.obj',
-    modelTargetSize: 1.5, boxSize: [1.4, 1.1, 1.0], warningMs: 1300, sweepSpeed: 15,
-    herdMin: 4, herdMax: 7 },
+    modelPath: dexPath(128, 'Tauros/Tauros.obj'), modelTargetSize: 1.5, boxSize: [1.4, 1.1, 1.0], warningMs: 1300, sweepSpeed: 15, herdMin: 4, herdMax: 7 },
 
-  // -------- River-family: single-block water crossers (Wailord spans 3) --------
+  // River-family: single-block water crossers (Wailord spans 3)
   { id: 'lotad', displayName: 'Lotad', role: 'platform', laneFamily: 'river', color: 0x66bb6a,
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (3rd Generation) - #0270 Lotad/Lotad.obj',
-    modelTargetSize: 1.0, boxSize: [0.95, 0.3, 0.95], speedRange: [1.7, 2.5], platformLength: 1, gapMin: 1.1, gapMax: 1.9 },
+    modelPath: dexPath(270, 'Lotad/Lotad.obj'), modelTargetSize: 1.0, boxSize: [0.95, 0.3, 0.95], speedRange: [1.7, 2.5], platformLength: 1, gapMin: 1.1, gapMax: 1.9 },
   { id: 'mantine', displayName: 'Mantine', role: 'platform', laneFamily: 'river', color: 0x26c6da,
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (2nd Generation) - #0226 Mantine/Mantine.obj',
-    modelTargetSize: 1.4, boxSize: [1.2, 0.4, 1.1], speedRange: [1.4, 2.2], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
+    modelPath: dexPath(226, 'Mantine/Mantine.obj'), modelTargetSize: 1.4, boxSize: [1.2, 0.4, 1.1], speedRange: [1.4, 2.2], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
   { id: 'lapras', displayName: 'Lapras', role: 'platform', laneFamily: 'river', color: 0x4fc3f7,
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (1st Generation) - #0131 Lapras/Lapras.obj',
-    modelTargetSize: 1.3, boxSize: [1.1, 0.6, 1.1], speedRange: [1.05, 1.6], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
+    modelPath: dexPath(131, 'Lapras/Lapras.obj'), modelTargetSize: 1.3, boxSize: [1.1, 0.6, 1.1], speedRange: [1.05, 1.6], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
   { id: 'wailmer', displayName: 'Wailmer', role: 'platform', laneFamily: 'river', color: 0x1e88e5,
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (3rd Generation) - #0320 Wailmer/Wailmer.obj',
-    modelTargetSize: 1.3, boxSize: [1.1, 0.5, 1.1], speedRange: [0.85, 1.35], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
+    modelPath: dexPath(320, 'Wailmer/Wailmer.obj'), modelTargetSize: 1.3, boxSize: [1.1, 0.5, 1.1], speedRange: [0.85, 1.35], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
   { id: 'wailord', displayName: 'Wailord', role: 'platform', laneFamily: 'river', color: 0x1565c0,
-    modelPath: MB + '3DS - Pokemon Rumble World - Pokemon (3rd Generation) - #0321 Wailord/Wailord.obj',
-    modelTargetSize: 3.0, boxSize: [2.8, 0.6, 1.2], speedRange: [0.6, 1.0], platformLength: 3, gapMin: 2.0, gapMax: 3.0 },
+    modelPath: dexPath(321, 'Wailord/Wailord.obj'), modelTargetSize: 3.0, boxSize: [2.8, 0.6, 1.2], speedRange: [0.6, 1.0], platformLength: 3, gapMin: 2.0, gapMax: 3.0 },
 
-  // -------- Decor & coin (simple cubes) --------
+  // Decor & coin
   { id: 'rock', displayName: 'Rock', role: 'decor', color: 0x9e9e9e, modelPath: null, boxSize: [0.85, 0.7, 0.85] },
   { id: 'tree', displayName: 'Tree', role: 'decor', color: 0x2e7d32, modelPath: null, boxSize: [0.7, 1.9, 0.7] },
   { id: 'coin', displayName: 'Coin', role: 'coin', color: 0xffd54f, modelPath: null, boxSize: [0.4, 0.4, 0.4] },
 ];
-const rosterById = Object.fromEntries(ROSTER.map(e => [e.id, e]));
-const PLAYER_ENTRIES = ROSTER.filter(e => e.role === 'player');
+
+/* ---- Playable roster: every model folder becomes a selectable Pokemon (built from POKEDEX). ---- */
+// Known types for the handful the game already references (used for badges + the type filter).
+// Others load & play fine but have no type tag yet — add them here as desired (dex: [types]).
+const KNOWN_TYPES = {
+  1:['grass','poison'], 2:['grass','poison'], 3:['grass','poison'],
+  4:['fire'], 5:['fire'], 6:['fire','flying'],
+  7:['water'], 8:['water'], 9:['water'],
+  77:['fire'], 78:['fire'], 84:['normal','flying'], 85:['normal','flying'],
+  128:['normal'], 131:['water','ice'], 226:['water','flying'],
+  270:['water','grass'], 320:['water'], 321:['water'],
+};
+// Legendary / Mythical dex numbers (used for the Master Ball tier + shiny coin bonus + filters).
+const LEGENDARY_DEX = new Set([144,145,146,150, 243,244,245,249,250, 377,378,379,380,381,382,383,384,
+  480,481,482,483,484,485,486,487,488, 638,639,640,641,642,643,644,645,646, 716,717,718,
+  785,786,787,788,789,790,791,792,793,794,795,796,797,798,799,800,803,804,805,806]);
+const MYTHICAL_DEX = new Set([151, 251, 385,386, 489,490,491,492,493, 494, 647,648,649,
+  719,720,721, 801,802,807]);
+// Evolution stage -> gacha tier. STAGE2 = fully-evolved (Ultra Ball), STAGE1 = once-evolved (Great Ball),
+// everything else = basic (Poke Ball). Best-effort classification (baby pre-evolutions ignored); it is
+// just data, so any entry can be moved between sets. Legendary/Mythical override to Master Ball.
+const STAGE2_DEX = new Set([
+  3,6,9,12,15,18,31,34,45,62,65,68,71,76,94,149,
+  154,157,160,169,181,230,248,
+  254,257,260,267,269,272,275,282,289,295,306,330,365,373,376,
+  389,392,395,398,405,445,462,464,468,473,474,477,
+  497,500,503,508,534,537,542,545,553,579,584,601,604,609,612,635,
+  652,655,658,666,671,706,
+  724,727,730,733,738,763,784,
+]);
+const STAGE1_DEX = new Set([
+  2,5,8,11,14,17,20,22,24,26,28,30,33,36,38,40,42,44,47,49,51,53,55,57,59,61,64,67,70,73,75,78,80,82,85,87,89,91,93,97,99,101,103,105,110,112,117,119,121,130,134,135,136,139,141,148,
+  153,156,159,162,164,168,171,176,178,180,184,196,197,205,208,210,212,217,219,221,224,229,232,247,
+  253,256,259,262,264,268,271,274,277,279,281,284,286,288,291,294,297,301,305,308,310,317,319,323,326,329,332,334,340,342,344,346,348,350,354,356,362,364,367,368,372,375,
+  388,391,394,397,400,402,404,407,411,414,416,419,421,423,424,426,428,429,432,435,437,444,448,450,452,454,457,460,461,463,465,466,467,469,470,471,472,475,476,478,
+  496,499,502,507,530,533,536,541,544,552,563,565,569,578,583,589,591,593,596,600,603,606,608,611,614,617,620,623,625,628,630,636,637,
+  651,654,657,660,662,665,668,670,673,675,683,685,687,689,691,693,697,699,700,709,711,713,715,
+  723,726,729,732,735,737,743,745,748,760,762,768,773,783,
+]);
+function tierForDex(d) {
+  if (LEGENDARY_DEX.has(d) || MYTHICAL_DEX.has(d)) return 'legendary';
+  if (STAGE2_DEX.has(d)) return 'stage2';
+  if (STAGE1_DEX.has(d)) return 'stage1';
+  return 'basic';
+}
+const regionOfDex = (d) => (REGIONS.find(r => d >= r.from && d <= r.to) || {}).name;
+
+const PLAYER_ENTRIES = POKEDEX.map(p => {
+  const entry = {
+    id: 'p' + p.d, dex: p.d, displayName: p.n, role: 'player',
+    tier: tierForDex(p.d), mythical: MYTHICAL_DEX.has(p.d),
+    region: regionOfDex(p.d),
+    color: 0x88a0b8, types: KNOWN_TYPES[p.d] || null,
+    modelPath: MB + p.o, modelTargetSize: 1.5, boxSize: [0.9, 0.9, 0.9],
+    unlockedByDefault: p.d === 1,   // start with Bulbasaur
+  };
+  if (p.m && p.f) entry.genderPaths = { m: MB + p.m, f: MB + p.f };
+  return entry;
+}).sort((a, b) => a.dex - b.dex);
+
+// Alternate forms (Alolan, Ash-Greninja): playable, but unlocked SEPARATELY from the normal form and
+// reached via a "Form" toggle on the base Pokemon's page (they don't take their own dex slot).
+const FORM_ENTRIES = FORMS.map(f => ({
+  id: 'p' + f.base + '_' + f.label.toLowerCase(), dex: f.base, baseId: 'p' + f.base,
+  displayName: f.n, form: f.label, role: 'player',
+  tier: tierForDex(f.base), mythical: MYTHICAL_DEX.has(f.base), region: regionOfDex(f.base),
+  color: 0x9aa7c0, types: null,
+  // Costume forms (Santa hats) come free with the base form and can't be pulled from the machine.
+  costume: !!f.costume, autoWithBase: !!f.costume,
+  modelPath: MB + f.o, modelTargetSize: 1.5, boxSize: [0.9, 0.9, 0.9], unlockedByDefault: false,
+}));
+const formsByBaseId = {};
+for (const fe of FORM_ENTRIES) (formsByBaseId[fe.baseId] = formsByBaseId[fe.baseId] || []).push(fe);
+const ALL_PLAYABLE = PLAYER_ENTRIES.concat(FORM_ENTRIES);
+const GACHA_POOL = ALL_PLAYABLE.filter(e => !e.costume);     // costume forms are not pullable
+
+const rosterById = Object.fromEntries(ROSTER.concat(ALL_PLAYABLE).map(e => [e.id, e]));
+// A form entry counts as unlocked if its own id is unlocked, OR (for costume forms) its base is unlocked.
+function isEntryUnlocked(e) {
+  return gameState.save.unlockedIds.includes(e.id) || (e.autoWithBase && gameState.save.unlockedIds.includes(e.baseId));
+}
 
 /* ============================== C: LANE TYPE DEFINITIONS ============================== */
 const LANE_TYPES = [
@@ -633,11 +707,12 @@ const laneTypesByKey = Object.fromEntries(LANE_TYPES.map(t => [t.key, t]));
 
 /* ============================== D: GACHA CONFIG ============================== */
 const GACHA_COST = 50;
+// Four tiers by evolution stage: basic -> Poke, stage-1 -> Great, stage-2 -> Ultra, legendary/mythical -> Master.
 const BALL_TIERS = [
-  { ball: 'Poke Ball', tier: 'basic', weight: 55, color: 0xef5350 },
-  { ball: 'Great Ball', tier: 'stage1', weight: 27, color: 0x42a5f5 },
-  { ball: 'Ultra Ball', tier: 'stage3', weight: 14, color: 0xfbc02d },
-  { ball: 'Master Ball', tier: 'legendary', weight: 4, color: 0x8e24aa },
+  { ball: 'Poke Ball', tier: 'basic', weight: 58, color: 0xef5350, label: 'Basic Pokemon' },
+  { ball: 'Great Ball', tier: 'stage1', weight: 26, color: 0x42a5f5, label: 'Stage 1' },
+  { ball: 'Ultra Ball', tier: 'stage2', weight: 12, color: 0xfbc02d, label: 'Stage 2' },
+  { ball: 'Master Ball', tier: 'legendary', weight: 4, color: 0x8e24aa, label: 'Legendary / Mythical' },
 ];
 
 /* ============================== E: PERSISTENCE ============================== */
@@ -646,7 +721,7 @@ const SAVE_VERSION = 1;
 function defaultSave() {
   return {
     version: SAVE_VERSION, coins: 0,
-    unlockedIds: ROSTER.filter(e => e.role === 'player' && e.unlockedByDefault).map(e => e.id),
+    unlockedIds: PLAYER_ENTRIES.filter(e => e.unlockedByDefault).map(e => e.id),
     bestScoreByCharacter: {}, shinyUnlockedByCharacter: {}, runsByCharacter: {},
     musicVol: 0.5, sfxVol: 0.7,
   };
@@ -666,9 +741,10 @@ function persistSave() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameState
 /* ============================== F: GAME STATE ============================== */
 const gameState = {
   mode: 'menu',
-  selectedPokemonId: 'bulbasaur',
-  previewId: 'bulbasaur',
+  selectedPokemonId: 'p1',
+  previewId: 'p1',
   selectedShiny: false, selectedGender: 'm',
+  previewBaseId: 'p1', selectedForm: 'normal',   // 'normal' or a form label like 'Alola'
   player: { gridX: 0, gridZ: 0, isMoving: false, tween: null, group: null, tier: 'basic', isShiny: false, ridingPlatform: null },
   distance: 0, coinsThisRun: 0,
   lanes: new Map(), nextLaneZ: 0, familyHistory: [], laneGroup: null,
@@ -1392,7 +1468,7 @@ function pullGacha() {
   const total = BALL_TIERS.reduce((s, b) => s + b.weight, 0);
   let r = Math.random() * total;
   const picked = BALL_TIERS.find(b => (r -= b.weight) < 0) ?? BALL_TIERS[0];
-  const pool = ROSTER.filter(e => e.role === 'player' && e.tier === picked.tier);
+  const pool = GACHA_POOL.filter(e => e.tier === picked.tier);
   if (pool.length === 0) { persistSave(); return { ball: picked, mon: null }; }
   const mon = pool[Math.floor(Math.random() * pool.length)];
   const alreadyOwned = save.unlockedIds.includes(mon.id);
@@ -1431,15 +1507,29 @@ function renderGachaTiers() {
     tabs.appendChild(btn);
   });
   const pool = document.getElementById('gacha-pool'); pool.innerHTML = '';
-  const mons = ROSTER.filter(e => e.role === 'player' && e.tier === gachaTier);
+  const mons = GACHA_POOL.filter(e => e.tier === gachaTier);
   if (!mons.length) { pool.innerHTML = '<div style="opacity:.6;font-size:.7rem;padding:.5rem;">No Pokemon in this tier yet.</div>'; return; }
   for (const mon of mons) {
-    const owned = gameState.save.unlockedIds.includes(mon.id);
+    const owned = isEntryUnlocked(mon);
     const cell = document.createElement('div'); cell.className = 'pool-cell';
+    // Only owned Pokemon reveal their model; everything else you could pull shows as a silhouette.
     const img = document.createElement('img'); getThumb(mon.id, { locked: !owned }).then(s => { img.src = s; }); cell.appendChild(img);
     const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = owned ? mon.displayName : '???'; cell.appendChild(nm);
     pool.appendChild(cell);
   }
+}
+// Pull Rates screen: chance per ball tier + how many Pokemon live in each.
+function renderRates() {
+  const el = document.getElementById('rates-panel');
+  const total = BALL_TIERS.reduce((s, b) => s + b.weight, 0);
+  el.innerHTML =
+    `<div class="row"><div>Each ${GACHA_COST}-coin pull rolls a ball, then a random Pokemon from that ball's pool:</div></div>` +
+    '<ul class="rarity-list">' + BALL_TIERS.map(b => {
+      const pct = Math.round(b.weight / total * 100);
+      const count = GACHA_POOL.filter(e => e.tier === b.tier).length;
+      return `<li style="background:rgba(255,255,255,0.05)"><span><span class="swatch" style="background:${hexColor(b.color)}"></span>${b.ball} - ${b.label} (${count})</span><span>${pct}<span class="pct">%</span></span></li>`;
+    }).join('') + '</ul>' +
+    `<div class="row"><div>Duplicate pulls are safe - you keep the coins' worth of nothing, but never lose a Pokemon you own.</div></div>`;
 }
 
 /* ============================== Q: CHARACTER SELECT (3D preview + silhouettes) ============================== */
@@ -1585,6 +1675,8 @@ const regionOpen = { Kanto: true };                      // collapse state; Kant
 const rosterFilter = { types: new Set(), legendary: false, mythical: false };
 function filterActive() { return rosterFilter.types.size > 0 || rosterFilter.legendary || rosterFilter.mythical; }
 function entryMatchesFilter(e) {
+  // Filtering only surfaces Pokemon you've actually unlocked (locked ones hide their type anyway).
+  if (!gameState.save.unlockedIds.includes(e.id)) return false;
   if (rosterFilter.types.size && !(e.types || []).some(t => rosterFilter.types.has(t))) return false;
   if (rosterFilter.legendary && !(e.tier === 'legendary' && !e.mythical)) return false;
   if (rosterFilter.mythical && !e.mythical) return false;
@@ -1601,16 +1693,21 @@ function makeSlotCell(dexNo, entry) {
     cell.disabled = true;
     return cell;
   }
-  const locked = !gameState.save.unlockedIds.includes(entry.id);
+  // A dex slot is "owned" if the base OR any of its alternate forms is unlocked.
+  const forms = formsByBaseId[entry.id] || [];
+  const baseUnlocked = gameState.save.unlockedIds.includes(entry.id);
+  const anyUnlocked = baseUnlocked || forms.some(f => isEntryUnlocked(f));
+  const locked = !anyUnlocked;
   const shiny = !!gameState.save.shinyUnlockedByCharacter[entry.id];
-  cell.className = 'slot' + (entry.id === gameState.previewId ? ' selected' : '') + (locked ? ' locked' : '');
+  cell.className = 'slot' + (entry.id === gameState.previewBaseId ? ' selected' : '') + (locked ? ' locked' : '');
   cell.appendChild(idx);
   const img = document.createElement('img'); img.className = 'thumb'; img.alt = entry.displayName;
   getThumb(entry.id, { locked }).then(src => { img.src = src; });
   cell.appendChild(img);
   if (shiny && !locked) { const b = document.createElement('span'); b.className = 'shiny-badge'; cell.appendChild(b); }
+  if (forms.length) { const fb = document.createElement('span'); fb.className = 'form-badge'; fb.textContent = 'F'; cell.appendChild(fb); }
   const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = locked ? '???' : entry.displayName; cell.appendChild(nm);
-  cell.addEventListener('click', () => { AudioSys.sfx.click(); selectPreview(entry.id, locked); });
+  cell.addEventListener('click', () => { AudioSys.sfx.click(); selectPreview(entry.id); });
   return cell;
 }
 function renderRosterGrid() {
@@ -1672,40 +1769,72 @@ function renderFilterPanel() {
   document.getElementById('btn-filter').classList.toggle('on', filterActive());
   document.getElementById('btn-filter').textContent = filterActive() ? 'Filter *' : 'Filter';
 }
-function updateSelectToggles(id, locked) {
-  const entry = rosterById[id];
-  const shinyBtn = document.getElementById('btn-shiny'), genderBtn = document.getElementById('btn-gender');
-  const shinyUnlocked = !locked && !!gameState.save.shinyUnlockedByCharacter[id];
+function updateSelectToggles(entry, locked, forms) {
+  const shinyBtn = document.getElementById('btn-shiny'), genderBtn = document.getElementById('btn-gender'), formBtn = document.getElementById('btn-form');
+  const shinyUnlocked = !locked && !!gameState.save.shinyUnlockedByCharacter[entry.id];
   shinyBtn.disabled = !shinyUnlocked;
   shinyBtn.classList.toggle('on', gameState.selectedShiny && shinyUnlocked);
   shinyBtn.textContent = 'Shiny: ' + (gameState.selectedShiny && shinyUnlocked ? 'On' : 'Off');
   const hasGender = !locked && !!entry.genderPaths;
   genderBtn.style.display = hasGender ? '' : 'none';
   genderBtn.textContent = 'Gender: ' + (gameState.selectedGender === 'f' ? 'F' : 'M');
+  // Form toggle appears only when the base Pokemon has alternate forms.
+  formBtn.style.display = forms.length ? '' : 'none';
+  formBtn.classList.toggle('on', gameState.selectedForm !== 'normal');
+  formBtn.textContent = 'Form: ' + (gameState.selectedForm === 'normal' ? 'Normal' : gameState.selectedForm);
 }
-function selectPreview(id, locked) {
-  gameState.previewId = id;
-  if (!locked) { gameState.selectedPokemonId = id; updatePlayButtonModel(); }
-  const entry = rosterById[id];
-  const runs = gameState.save.runsByCharacter[id] ?? 0;
-  const best = gameState.save.bestScoreByCharacter[id] ?? 0;
+// The active entry is the base, or its alternate form if one is toggled on.
+function activePreviewEntry() {
+  const base = rosterById[gameState.previewBaseId];
+  const forms = formsByBaseId[gameState.previewBaseId] || [];
+  if (gameState.selectedForm !== 'normal') {
+    const fe = forms.find(f => f.form === gameState.selectedForm);
+    if (fe) return fe;
+  }
+  return base;
+}
+// Click a grid slot -> preview that dex's base form (reset any form toggle).
+function selectPreview(baseId) {
+  gameState.previewBaseId = baseId;
+  gameState.selectedForm = 'normal';
+  applyPreview();
+}
+function applyPreview() {
+  const entry = activePreviewEntry();
+  const forms = formsByBaseId[gameState.previewBaseId] || [];
+  const locked = !isEntryUnlocked(entry);
+  gameState.previewId = entry.id;
+  if (!locked) { gameState.selectedPokemonId = entry.id; updatePlayButtonModel(); }
+  const runs = gameState.save.runsByCharacter[entry.id] ?? 0;
+  const best = gameState.save.bestScoreByCharacter[entry.id] ?? 0;
   document.getElementById('preview-name').textContent = locked ? '???' : entry.displayName;
   const typesEl = document.getElementById('preview-types');
   if (locked) setUnknownTypeBadges(typesEl, (entry.types || ['?']).length); else setTypeBadges(typesEl, entry);
+  const lockMsg = entry.form ? 'Form locked - win it from the Poke Ball Machine' : 'Locked - win from the Poke Ball Machine';
   document.getElementById('preview-stats').innerHTML = locked
-    ? '<span>Locked - win from the Poke Ball Machine</span>'
-    : `<span>Runs: ${runs}</span><span>Highscore: ${best}</span>`;   // flex gap separates them
+    ? `<span>${lockMsg}</span>`
+    : `<span>Runs: ${runs}</span><span>Highscore: ${best}</span>`;
   document.getElementById('btn-select-start').disabled = locked;
-  updateSelectToggles(id, locked);
-  loadPreviewModel(id);
+  updateSelectToggles(entry, locked, forms);
+  loadPreviewModel(entry.id);
   renderRosterGrid();
+}
+function cycleForm() {
+  const forms = formsByBaseId[gameState.previewBaseId] || [];
+  if (!forms.length) return;
+  const order = ['normal', ...forms.map(f => f.form)];
+  const i = order.indexOf(gameState.selectedForm);
+  gameState.selectedForm = order[(i + 1) % order.length];
+  applyPreview();
 }
 function openSelect() {
   if (!previewRenderer) initPreview();
   resizePreview();
-  // default the preview to the currently-selected (unlocked) mon
-  const startId = gameState.save.unlockedIds.includes(gameState.selectedPokemonId) ? gameState.selectedPokemonId : gameState.save.unlockedIds[0];
-  selectPreview(startId, !gameState.save.unlockedIds.includes(startId));
+  // default the preview to the currently-selected (unlocked) mon's base dex
+  const cur = rosterById[gameState.selectedPokemonId];
+  const baseId = (cur && cur.baseId) ? cur.baseId : gameState.selectedPokemonId;
+  const startBase = rosterById[baseId] ? baseId : PLAYER_ENTRIES[0].id;
+  selectPreview(startBase);
 }
 
 /* ============================== Q2: MENU DIORAMA + PLAY BUTTON ============================== */
@@ -1726,7 +1855,7 @@ function buildMenuDiorama() {
   for (const a of menuAgents) menuGroup.remove(a.group);
   menuAgents.length = 0;
   const ids = gameState.save.unlockedIds.slice(0, 14);
-  if (!ids.length) ids.push('bulbasaur');
+  if (!ids.length) ids.push('p1');
   for (const id of ids) {
     const group = createEntityObject(id, { shiny: !!gameState.save.shinyUnlockedByCharacter[id] });
     group.userData.pokemonId = id;
@@ -1856,7 +1985,7 @@ function devSubmit() {
   if (devMode === 'dev') {
     if (devBuffer === 'pokemonrumblerush') {
       gameState.save.coins += 999;
-      gameState.save.unlockedIds = PLAYER_ENTRIES.map(e => e.id);
+      gameState.save.unlockedIds = ALL_PLAYABLE.map(e => e.id);
       persistSave();
       msg.style.color = '#8CFF9E'; msg.textContent = 'Unlocked all Pokemon + 999 coins!';
       AudioSys.sfx.gacha();
@@ -1916,6 +2045,7 @@ function setMode(next) {
   if (screen) screen.classList.remove('hidden');
   if (next === 'select') openSelect();
   if (next === 'gacha') { updateGachaCoinDisplays(); document.getElementById('gacha-result').classList.add('hidden'); renderGachaTiers(); }
+  if (next === 'rates') renderRates();
   if (next === 'menu') {
     document.getElementById('menu-coins').textContent = gameState.save.coins;
     clearField(); buildMenuDiorama(); updatePlayButtonModel();
@@ -2052,11 +2182,14 @@ function wireUI() {
   click('btn-settings', () => setMode('settings'));
   click('btn-select-start', () => setMode('menu'));   // "Select" confirms the pick and returns to the main menu
   click('btn-select-back', () => setMode('menu'));
-  // Shiny / gender toggles + filter panel
-  click('btn-shiny', () => { gameState.selectedShiny = !gameState.selectedShiny; selectPreview(gameState.previewId, !gameState.save.unlockedIds.includes(gameState.previewId)); });
-  click('btn-gender', () => { gameState.selectedGender = gameState.selectedGender === 'm' ? 'f' : 'm'; selectPreview(gameState.previewId, !gameState.save.unlockedIds.includes(gameState.previewId)); });
+  // Shiny / gender / form toggles + filter panel
+  click('btn-shiny', () => { gameState.selectedShiny = !gameState.selectedShiny; applyPreview(); });
+  click('btn-gender', () => { gameState.selectedGender = gameState.selectedGender === 'm' ? 'f' : 'm'; applyPreview(); });
+  click('btn-form', () => cycleForm());
   click('btn-filter', () => { document.getElementById('filter-panel').classList.toggle('hidden'); renderFilterPanel(); });
   click('btn-gacha-back', () => setMode('menu'));
+  click('btn-rates', () => setMode('rates'));
+  click('btn-rates-back', () => setMode('gacha'));
   click('btn-howto-back', () => setMode('menu'));
   click('btn-retry', () => setMode('playing'));
   click('btn-go-select', () => setMode('select'));
