@@ -461,9 +461,9 @@ const MB = 'Pokemon 3D Models/';      // base folder (sibling of index.html)
 // Coin sprites (2D). silver = base, gold = 2x, "L" = 10x. Coin type is pre-rolled at spawn so the
 // visible sprite matches its value (this replaces the old invisible-multiplier scheme).
 const COIN_TYPES = {
-  silver: { value: 1, tex: MB + 'Poke Coins/poke_silver.png' },
-  gold:   { value: 2, tex: MB + 'Poke Coins/poke_gold.png' },
-  L:      { value: 10, tex: MB + 'Poke Coins/poke_L.png' },
+  silver: { value: 1, tex: MB + 'Poke Coins/poke_silver.png', model: MB + 'Poke Coins/Poke_1.dae', color: 0xc4ccd6 },
+  gold:   { value: 2, tex: MB + 'Poke Coins/poke_gold.png',   model: MB + 'Poke Coins/Poke_3.dae', color: 0xffd54f },
+  L:      { value: 10, tex: MB + 'Poke Coins/poke_L.png',     model: MB + 'Poke Coins/Poke_4.dae', color: 0xff5a5a },
 };
 // Standard Pokemon type colors (functional palette) for the pixel-art type badges.
 const TYPE_COLORS = {
@@ -744,17 +744,26 @@ function makeCubeMesh(entry, colorOverride) {
   mesh.castShadow = true; mesh.receiveShadow = true;
   return mesh;
 }
-// Coins are camera-facing Sprites so the PNG always shows (a spinning quad went edge-on / looked blank).
-const coinTexCache = {};
-function coinTexture(key) {
-  if (!coinTexCache[key]) { const t = texLoader.load(encodePath(COIN_TYPES[key].tex)); t.colorSpace = THREE.SRGBColorSpace; coinTexCache[key] = t; }
-  return coinTexCache[key];
-}
+// Coins are the real 3D .dae models (Poke_1 = silver, Poke_3 = gold, Poke_4 = L). They spin about Y
+// so you see actual 3D geometry. A coin-shaped cylinder stands in until the model loads.
 function makeCoinMesh(key) {
-  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: coinTexture(key), transparent: true, depthWrite: false }));
-  spr.scale.set(0.8, 0.8, 0.8);
-  spr.position.y = 0.55;
-  return spr;
+  const t = COIN_TYPES[key];
+  const group = new THREE.Group();
+  const fb = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.3, 0.3, 0.08, 20),
+    new THREE.MeshStandardMaterial({ color: t.color, metalness: 0.35, roughness: 0.4 })
+  );
+  fb.rotation.x = Math.PI / 2;   // stand the disc on edge
+  group.add(fb);
+  loadModelOrNull(t.model).then(model => {
+    if (!model || group.userData.destroyed) return;
+    const inst = model.clone(true);
+    inst.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+    normalizeModel(inst, 0.6);
+    group.remove(fb); group.add(inst);
+  });
+  group.position.y = 0.55;
+  return group;
 }
 // Gift box: no geometry was supplied, so build a small textured present from the frame texture.
 let giftTex = null;
@@ -1267,7 +1276,10 @@ function updateLanes(dt) {
     }
     lane.entities = lane.entities.filter(e => lane.root.children.includes(e.group) || e.isSweep);
     const cb = performance.now() / 400;
-    for (const coin of lane.coins) if (!coin.taken) coin.group.position.y = 0.55 + Math.sin(cb + coin.x) * 0.1; // gentle bob (Sprite auto-faces camera)
+    for (const coin of lane.coins) if (!coin.taken) {
+      coin.group.rotation.y += dt * 2.6;                              // spin the 3D coin
+      coin.group.position.y = 0.55 + Math.sin(cb + coin.x) * 0.1;     // gentle bob
+    }
     if (lane.gift && !lane.gift.taken) lane.gift.group.rotation.y += dt * 1.1;
   }
   const t = performance.now() / 500;
