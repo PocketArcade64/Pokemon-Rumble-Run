@@ -474,7 +474,7 @@
     <div class="screen-buttons hidden" id="gacha-continue-row">
       <button id="btn-gacha-continue">Continue</button>
     </div>
-    <div class="screen-buttons">
+    <div class="screen-buttons" id="gacha-back-row">
       <button id="btn-gacha-back" class="secondary small">Back</button>
     </div>
   </div>
@@ -1707,12 +1707,35 @@ function loadGachaBallHalves(ballName) {
     const wrap = mesh => {
       const inst = mesh.clone();
       inst.position.set(-src.center.x, -src.center.y, -src.center.z);
-      const sizer = new THREE.Group(); sizer.scale.setScalar(src.scale); sizer.add(inst);
+      // Yaw 180° about the ball's center so the pokeball's button-face points at the camera when it
+      // rolls out (the model's default facing is away). Rolling (group.rotation.x) and the open
+      // animation (on the wrap, outside this node) are unaffected.
+      const sizer = new THREE.Group(); sizer.scale.setScalar(src.scale); sizer.rotation.y = Math.PI; sizer.add(inst);
       const w = new THREE.Group(); w.add(sizer); return w;
     };
     const topWrap = wrap(src.top), bottomWrap = wrap(src.bottom);
     const group = new THREE.Group(); group.add(topWrap, bottomWrap);
     return { group, topWrap, bottomWrap };
+  });
+}
+// Resolve once every texture map on a model has its image decoded and ready to sample. A one-shot
+// bake (the rates ball icons) that renders before this fires captures black frames — the map exists
+// but samples as black until the image arrives.
+function waitForModelTextures(root, timeoutMs = 4000) {
+  const maps = [];
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    (Array.isArray(o.material) ? o.material : [o.material]).forEach(mm => { if (mm && mm.map) maps.push(mm.map); });
+  });
+  if (!maps.length) return Promise.resolve();
+  const ready = tex => tex.image && (tex.image.complete === undefined || tex.image.complete) && (tex.image.width || tex.image.naturalWidth);
+  return new Promise(resolve => {
+    const t0 = performance.now();
+    const check = () => {
+      if (maps.every(ready) || performance.now() - t0 > timeoutMs) { maps.forEach(m => (m.needsUpdate = true)); resolve(); }
+      else setTimeout(check, 50);
+    };
+    check();
   });
 }
 // Fallback ball (two plain hemispheres in the tier color) so a failed model load never stalls the show.
@@ -1738,7 +1761,10 @@ function startGachaSequence() {
   gachaSeq.pending = res;
   gachaSeq.ballPromise = loadGachaBallHalves(res.ball.ball);
   gachaSeq.monPromise = res.mon ? loadModelOrNull(effectiveModelPath(res.mon, 'm')) : Promise.resolve(null);
+  // Clear ALL buttons while the machine performs — nothing sits at the bottom to clip the ball as it
+  // rolls out. Buttons only return once the ball is opened (Continue) or the sequence resets (Back).
   document.getElementById('gacha-actions').classList.add('hidden');
+  document.getElementById('gacha-back-row').classList.add('hidden');
   gachaHint('Tap the knob!');
   setGachaPhase('armed');
 }
@@ -1805,6 +1831,7 @@ function resetGachaSequence() {
   document.getElementById('gacha-reveal').classList.add('hidden');
   document.getElementById('gacha-continue-row').classList.add('hidden');
   document.getElementById('gacha-actions').classList.remove('hidden');
+  document.getElementById('gacha-back-row').classList.remove('hidden');
   setGachaPhase('idle');
 }
 // Per-frame driver for the machine stage (called from the main loop while on the gacha screen).
@@ -1845,7 +1872,8 @@ function updateGachaSeq(now, dt) {
   }
   if (seq.phase === 'roll' && seq.ball) {
     const p = Math.min(1, t / 800);
-    const z = 1.25 + easeOutCubic(p) * 0.85;
+    // Settle more toward center-frame (was 2.1) so the ball/Pokemon stay clear of the bottom button.
+    const z = 1.25 + easeOutCubic(p) * 0.45;
     seq.ball.rotation.x += (z - seq.rollPrevZ) / GACHA_BALL_R;   // real rolling: spin matches travel
     seq.rollPrevZ = z;
     seq.ball.position.z = z; seq.ballShadow.position.z = z;
@@ -1932,7 +1960,11 @@ function wireGachaUI() {
 const ballFrameCache = {};
 function getBallFrames(ballName) {
   if (ballFrameCache[ballName]) return ballFrameCache[ballName];
-  const p = loadGachaBallHalves(ballName).then(halves => withThumbRenderer(() => {
+  const p = loadGachaBallHalves(ballName)
+    // Wait for the ball's texture to finish downloading before the one-shot bake — otherwise the map
+    // samples as black (this is why Great/Master rendered black here but never in the live machine).
+    .then(halves => (halves ? waitForModelTextures(halves.group).then(() => halves) : halves))
+    .then(halves => withThumbRenderer(() => {
     while (thumbHolder.children.length) thumbHolder.remove(thumbHolder.children[0]);
     const prevRot = thumbHolder.rotation.y;
     thumbHolder.rotation.y = 0;
@@ -1999,7 +2031,7 @@ function renderRates() {
     grid.appendChild(cell);
   }
   el.appendChild(grid);
-  el.querySelectorAll('img[data-ball]').forEach(img => startFrameSpin(img, getBallFrames(img.dataset.ball)));
+  el.querySelectorAll('img[data-ball]').forEach(img => startFrameSpin(img, getBallFrames(img.dataset.ball), 9));   // 9fps = half the coin spin speed
 }
 
 /* ============================== Q: CHARACTER SELECT (3D preview + silhouettes) ============================== */
@@ -2140,14 +2172,14 @@ function getCoinFrames(key) {
 function getCoinIconStatic(key) { return getCoinFrames(key).then(frames => frames[0]); }
 // Generic flipbook player: cycles an <img> through pre-baked rotation frames (coins, poke balls).
 const frameSpinTimers = new WeakMap();
-function startFrameSpin(img, framesPromise) {
+function startFrameSpin(img, framesPromise, fps = 18) {
   if (frameSpinTimers.has(img)) return;
   frameSpinTimers.set(img, -1);   // claimed; real interval id lands when the frames resolve
   framesPromise.then(frames => {
     if (!frameSpinTimers.has(img)) return;   // stopped while loading
     let i = 0;
     img.src = frames[0];
-    const id = setInterval(() => { i = (i + 1) % frames.length; img.src = frames[i]; }, 1000 / 18);
+    const id = setInterval(() => { i = (i + 1) % frames.length; img.src = frames[i]; }, 1000 / fps);
     frameSpinTimers.set(img, id);
   }).catch(() => {});
 }
