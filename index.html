@@ -183,16 +183,20 @@
   /* ---- Menu: transparent over the live 3D grass field; clicks pass through to the field except on controls ---- */
   #screen-menu {
     background: linear-gradient(180deg, rgba(10,14,30,0.15), rgba(10,14,30,0.35));
-    justify-content: flex-start; pointer-events: none; padding-top: 2vh;
+    justify-content: flex-start; pointer-events: none;
+    padding-top: max(2vh, calc(env(safe-area-inset-top) + 1.5vh));
   }
   #screen-menu > * { pointer-events: auto; }
   #logo-img { width: min(78vw, 460px); max-height: 30vh; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.45)); margin-bottom: 0.3rem; }
   #logo-fallback { color: #ffd54f; font-size: clamp(1.6rem, 7vw, 2.8rem); text-shadow: 0 3px 0 #b8860b; }
   /* Bare gold counter — no pill/circle behind it, just the gold P coin + gold number. */
-  #menu-coins-pill { display: flex; align-items: center; gap: 0.45rem; color: #ffd54f;
+  #menu-coins-pill { position: fixed; z-index: 20;
+    top: max(0.8rem, calc(env(safe-area-inset-top) + 0.5rem));
+    right: max(0.9rem, calc(env(safe-area-inset-right) + 0.9rem));
+    display: flex; align-items: center; gap: 0.45rem; color: #ffd54f; font-size: 1.5rem;
     text-shadow: 0 2px 0 rgba(0,0,0,0.55), 0 3px 6px rgba(0,0,0,0.4); }
   #menu-coins-pill img { width: 1.35em; height: 1.35em; }
-  .menu-buttons { margin-top: auto; margin-bottom: 4vh; }
+  .menu-buttons { margin-top: auto; margin-bottom: max(4vh, calc(env(safe-area-inset-bottom) + 2vh)); }
 
   /* Play button: label on the left, embedded 3D Pokemon on the right, both vertically centered */
   #btn-play { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.7rem; overflow: hidden; min-height: 64px; padding-top: 0.25rem; padding-bottom: 0.25rem; }
@@ -342,7 +346,7 @@
     button { padding: 0.5rem 1.1rem; font-size: 0.9rem; }
     #preview-wrap { height: 40vh; width: min(60vw, 260px); }
     #logo-img { max-height: 22vh; }
-    .menu-buttons { margin-bottom: 1vh; }
+    .menu-buttons { margin-bottom: max(1vh, env(safe-area-inset-bottom)); }
     .panel { max-height: 78vh; }
     #countdown-num { font-size: 30vh; }
     #roster-grid { max-height: 46vh; }
