@@ -11,7 +11,7 @@ Upcoming changes
     - Remove the circle behind the coin counter total and make the coin number gold and show an icon of the gold P coin
 - Why on mobile is there a section of the screen up top where the Dynamic Island is that changes color - it is black on the main menu and light blue in game - is that a restriction of Apple or can you remove that? - include a reference screenshot from iOS
 - In Pokemon selection screen
-    - Pokemon types not displaying properly on unlocked pokemon and wrong size (??? Type looks good but is blurry), 
+    - Pokemon types not displaying properly on unlocked pokemon and wrong size (??? Type looks good but is blurry), (fixed)
     - Add a small gap between runs and high score, 
     - During a run, some of the hitboxes are too large or make bigger spacing with the “cars”, - look up how Crossy Road handles this issue.
     - condense the information at the top so you can see more of the small boxes at the bottom
