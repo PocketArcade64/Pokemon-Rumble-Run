@@ -247,6 +247,14 @@
     display: flex; align-items: center; gap: 0.45rem; color: #ffd54f; font-size: 1.5rem;
     text-shadow: 0 2px 0 rgba(0,0,0,0.55), 0 3px 6px rgba(0,0,0,0.4); }
   #menu-coins-pill img { width: 1.35em; height: 1.35em; }
+  /* Overall best run, pinned top-left (mirrors the coin counter on the right). */
+  #menu-highscore { position: fixed; z-index: 20;
+    top: max(0.8rem, calc(env(safe-area-inset-top) + 0.5rem));
+    left: max(0.9rem, calc(env(safe-area-inset-left) + 0.9rem));
+    display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15;
+    color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,0.55), 0 3px 6px rgba(0,0,0,0.4); }
+  #menu-highscore .hs-label { font-size: 0.58rem; letter-spacing: 1.5px; color: #ffd54f; }
+  #menu-highscore-num { font-size: 1.35rem; font-weight: bold; }
   .menu-buttons { margin-top: auto; margin-bottom: max(4vh, calc(env(safe-area-inset-bottom) + 2vh)); }
 
   /* Play button: label on the left, embedded 3D Pokemon on the right, both vertically centered */
@@ -424,6 +432,7 @@
 
   <!-- MAIN MENU (transparent over the live 3D field) -->
   <div id="screen-menu" class="screen">
+    <div id="menu-highscore"><span class="hs-label">HIGH SCORE</span><span id="menu-highscore-num">0</span></div>
     <img id="logo-img" alt="Pokemon Rumble Run" />
     <div id="logo-fallback" style="display:none;">Pokemon Rumble Run</div>
     <div id="menu-coins-pill" class="coin-display"><img class="hud-coin" data-coin="gold" src="Pokemon%203D%20Models/Pok%C3%A9%20Coins/Poke/poke_gold.png" alt="P" /> <span id="menu-coins">0</span></div>
@@ -754,7 +763,8 @@ function isEntryUnlocked(e) {
 
 /* ============================== C: LANE TYPE DEFINITIONS ============================== */
 const LANE_TYPES = [
-  { key: 'grass', family: 'safe', minDistance: 0, weight: () => 10, build: (l) => spawnGrassLane(l) },
+  // Grass is plentiful early (rest stops between single obstacles) and thins out as distance grows.
+  { key: 'grass', family: 'safe', minDistance: 0, weight: (d) => d < 16 ? 16 : d < 45 ? 12 : Math.max(5, 10 - d / 60), build: (l) => spawnGrassLane(l) },
   { key: 'road_dodrio', family: 'road', minDistance: 0, weight: () => 8, build: (l, c) => spawnRoadLane(l, c, rosterById.dodrio) },
   { key: 'road_rapidash', family: 'road', minDistance: 3, weight: (d) => 5 + Math.min(d / 60, 5), build: (l, c) => spawnRoadLane(l, c, rosterById.rapidash) },
   { key: 'river_lotad', family: 'river', minDistance: 5, weight: (d) => 5 + Math.min(d / 70, 4), build: (l, c) => spawnRiverLane(l, c, rosterById.lotad) },
@@ -886,8 +896,10 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x557033, 1.05));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+// Pokemon Rumble palette: warm toy-box sunlight over saturated yellow-greens.
+const GRASS_A = 0x8ecb43, GRASS_B = 0x82c03a;   // alternating mowed-lawn stripes
+scene.add(new THREE.HemisphereLight(0xfff6e0, 0x5f8f3a, 1.15));
+const dirLight = new THREE.DirectionalLight(0xfff4dc, 1.15);
 dirLight.position.set(-6, 14, -6);
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.set(1024, 1024);
@@ -896,9 +908,22 @@ dirLight.shadow.camera.top = 22; dirLight.shadow.camera.bottom = -22;
 scene.add(dirLight);
 
 // Big grass underlay that follows the camera so any gap between lanes reads as grass, never blue void.
+// Striped like a mowed Rumble lawn: a 2px canvas (one pixel per green) repeated at TILE pitch so the
+// underlay's bands line up with the lanes' per-z alternation.
+function makeLawnTexture() {
+  const c = document.createElement('canvas'); c.width = 1; c.height = 2;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#8ecb43'; ctx.fillRect(0, 0, 1, 1);
+  ctx.fillStyle = '#82c03a'; ctx.fillRect(0, 1, 1, 1);
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
+  t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(1, 90);   // 180 units tall / 2 units per stripe pair = TILE-wide bands
+  return t;
+}
 const groundFill = new THREE.Mesh(
   new THREE.PlaneGeometry(180, 180),
-  new THREE.MeshStandardMaterial({ color: 0x74bd48 })
+  new THREE.MeshStandardMaterial({ map: makeLawnTexture() })
 );
 groundFill.rotation.x = -Math.PI / 2;
 groundFill.position.y = -0.06;
@@ -1063,6 +1088,44 @@ function applyShiny(object3d) {
   addSparkle(object3d);
 }
 
+// Pokemon Rumble scenery: chunky toy trees (stacked foliage blobs on a fat trunk) and rounded rocks.
+// These replace the old flat placeholder cubes; collision still uses the entry's boxSize.
+function makeRumbleTree() {
+  const g = new THREE.Group();
+  const s = 0.9 + Math.random() * 0.35;   // size variety
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1 * s, 0.15 * s, 0.55 * s, 8),
+    new THREE.MeshStandardMaterial({ color: 0x7a4f2c, roughness: 0.8 }));
+  trunk.position.y = 0.27 * s; trunk.castShadow = true;
+  g.add(trunk);
+  const greens = [0x2e8b3e, 0x3fa34d, 0x55bb5e];
+  const blobs = [[0.46, 0.78, 0], [0.36, 1.12, 1], [0.24, 1.4, 2]];
+  for (const [r, y, ci] of blobs) {
+    const blob = new THREE.Mesh(new THREE.SphereGeometry(r * s, 12, 9),
+      new THREE.MeshStandardMaterial({ color: greens[ci], roughness: 0.7 }));
+    blob.scale.y = 0.82;
+    blob.position.set((Math.random() - 0.5) * 0.08, y * s, (Math.random() - 0.5) * 0.08);
+    blob.castShadow = true;
+    g.add(blob);
+  }
+  return g;
+}
+function makeRumbleRock() {
+  const g = new THREE.Group();
+  const s = 0.8 + Math.random() * 0.4;
+  const mat = new THREE.MeshStandardMaterial({ color: 0x9aa3a8, roughness: 0.85 });
+  const main = new THREE.Mesh(new THREE.DodecahedronGeometry(0.32 * s, 0), mat);
+  main.scale.y = 0.7; main.position.y = 0.2 * s; main.rotation.y = Math.random() * Math.PI;
+  main.castShadow = true;
+  g.add(main);
+  if (Math.random() < 0.6) {
+    const side = new THREE.Mesh(new THREE.DodecahedronGeometry(0.17 * s, 0),
+      new THREE.MeshStandardMaterial({ color: 0x8a9297, roughness: 0.85 }));
+    side.scale.y = 0.65; side.position.set(0.3 * s, 0.1 * s, 0.12 * s); side.rotation.y = Math.random() * Math.PI;
+    side.castShadow = true;
+    g.add(side);
+  }
+  return g;
+}
 // Entity factory: instant cube placeholder, hot-swap to the real model when it loads.
 // `modelPath` overrides the entry's default (used for gender variants).
 function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
@@ -1074,7 +1137,9 @@ function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
   const wob = new THREE.Group();
   group.add(wob);
   group.userData.wob = wob;
-  const cube = makeCubeMesh(entry, shiny ? 0xffd54f : undefined);
+  const cube = entryId === 'tree' ? makeRumbleTree()
+             : entryId === 'rock' ? makeRumbleRock()
+             : makeCubeMesh(entry, shiny ? 0xffd54f : undefined);
   wob.add(cube);
   if (path) {
     loadModelOrNull(path).then(model => {
@@ -1093,20 +1158,34 @@ function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
 
 /* ============================== J: DIFFICULTY / FAIRNESS ============================== */
 function difficultyFactor(distance) { return Math.min(1, Math.max(0, distance) / DIFFICULTY_MAX_DISTANCE); }
+// Crossy-Road-style pacing: early on, every obstacle lane is bracketed by grass; the leash loosens
+// with distance (chains of 2, then 3-4), and awkward pairings (a stampede track hard against water)
+// are kept out of the early game entirely.
 function passesFairness(laneType, distance) {
-  const h = gameState.familyHistory, l1 = h[h.length - 1], l2 = h[h.length - 2];
-  if (distance < 3) return laneType.family === 'safe';
+  const h = gameState.familyHistory;
+  const l1 = h[h.length - 1], l2 = h[h.length - 2], l3 = h[h.length - 3];
+  const fam = laneType.family;
+  if (distance < 3) return fam === 'safe';
+  if (fam === 'safe') return true;
   if (laneType.family === 'rail' && l1 === 'rail') return false;
-  if (l1 === 'rail' && laneType.family !== 'safe') return false;
-  if (laneType.family === 'river' && l1 === 'river' && l2 === 'river') return false;
+  if (l1 === 'rail') return false;                        // a rail is always followed by a breather
+  if (distance < 16 && l1 !== 'safe') return false;       // early: one obstacle lane at a time
+  if (distance < 45 && l1 !== 'safe' && l2 !== 'safe') return false;   // mid: chains of 2 max
+  if (l1 !== 'safe' && l2 !== 'safe' && l3 !== 'safe') return false;   // late: never more than 3 straight
+  if (distance < 60 && ((fam === 'rail' && l1 === 'river') || (fam === 'river' && l1 === 'rail'))) return false;
+  if (fam === 'river' && l1 === 'river' && l2 === 'river' && distance < 120) return false;   // 3-river chains only late
   return true;
 }
 function pickLaneType(distance) {
   const candidates = LANE_TYPES.filter(lt => distance >= lt.minDistance && passesFairness(lt, distance));
   const pool = candidates.length ? candidates : [laneTypesByKey.grass];
-  const total = pool.reduce((s, lt) => s + lt.weight(distance), 0);
+  const last = gameState.familyHistory[gameState.familyHistory.length - 1];
+  // Crossy-style clustering: once a road/river has started, the same family likes to continue,
+  // so obstacles arrive in bands rather than a random pepper.
+  const w = lt => lt.weight(distance) * ((lt.family === last && (lt.family === 'road' || lt.family === 'river')) ? 2.2 : 1);
+  const total = pool.reduce((s, lt) => s + w(lt), 0);
   let r = Math.random() * total;
-  for (const lt of pool) { r -= lt.weight(distance); if (r <= 0) return lt; }
+  for (const lt of pool) { r -= w(lt); if (r <= 0) return lt; }
   return pool[pool.length - 1];
 }
 
@@ -1120,10 +1199,10 @@ function surfaceY(z) {
 }
 // Land lanes are raised slabs (top at LAND_H); water lanes are a flat plane at 0, a block lower.
 function createLaneGroundMesh(z, family) {
-  const safeColor = (z % 2 === 0) ? 0x7ec850 : 0x74bd48;
-  const colors = { safe: safeColor, road: 0x4a4a4a, rail: 0x7a6455 };
+  const safeColor = (z % 2 === 0) ? GRASS_A : GRASS_B;   // Rumble lawn stripes
+  const colors = { safe: safeColor, road: 0x5a5560, rail: 0x8a6f52 };
   if (family === 'river') {
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_WIDTH, TILE), new THREE.MeshStandardMaterial({ color: 0x2f7ec9 }));
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_WIDTH, TILE), new THREE.MeshStandardMaterial({ color: 0x3fa9f5, roughness: 0.35 }));
     water.rotation.x = -Math.PI / 2; water.position.set(0, 0, z * TILE); water.receiveShadow = true;
     return water;
   }
@@ -1131,6 +1210,20 @@ function createLaneGroundMesh(z, family) {
   const slab = new THREE.Mesh(new THREE.BoxGeometry(GROUND_WIDTH, LAND_H, TILE), new THREE.MeshStandardMaterial({ color: colors[family] || safeColor }));
   slab.position.set(0, -LAND_H / 2, z * TILE); slab.receiveShadow = true;
   return slab;
+}
+// Dashed light-gray divider between two ADJACENT road lanes (Crossy Road style — the line lives on
+// the shared boundary, never mid-road). Added to the newer lane, at its back edge.
+function addRoadDivider(lane) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: 0xb8b8c0 });
+  const dashLen = 0.55, gapLen = 0.55, stride = dashLen + gapLen;
+  for (let x = -GROUND_WIDTH / 2; x < GROUND_WIDTH / 2; x += stride) {
+    const dash = new THREE.Mesh(new THREE.PlaneGeometry(dashLen, 0.09), mat);
+    dash.rotation.x = -Math.PI / 2;
+    dash.position.set(x + dashLen / 2, 0.012, lane.z * TILE - TILE / 2);
+    g.add(dash);
+  }
+  lane.root.add(g);
 }
 function addBoundaryScenery(lane) {
   for (const side of [-1, 1]) {
@@ -1240,6 +1333,19 @@ function createWarningIndicator(z) {
 }
 function spawnRailLane(lane, ctx, entry) {
   lane.railEntry = entry; lane.railState = 'idle'; lane.railTimer = 0;
+  // Dress the dirt strip as a stampede track: wooden ties + two worn ground rails.
+  const tieMat = new THREE.MeshStandardMaterial({ color: 0x6b4f35, roughness: 0.8 });
+  for (let x = -GROUND_WIDTH / 2 + 0.6; x < GROUND_WIDTH / 2; x += 1.4) {
+    const tie = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.72), tieMat);
+    tie.position.set(x, 0.02, lane.z * TILE);
+    lane.root.add(tie);
+  }
+  const railMat = new THREE.MeshStandardMaterial({ color: 0x4c4238, roughness: 0.5, metalness: 0.25 });
+  for (const off of [-0.26, 0.26]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(GROUND_WIDTH, 0.05, 0.07), railMat);
+    rail.position.set(0, 0.045, lane.z * TILE + off);
+    lane.root.add(rail);
+  }
   lane.railWarningMesh = createWarningIndicator(lane.z); lane.root.add(lane.railWarningMesh);
 }
 function updateRailLane(lane, dt) {
@@ -1275,6 +1381,8 @@ function generateNextLane() {
   const lane = newLane(z, laneType.key, laneType.family);
   lane.root.position.y = (laneType.family === 'river') ? 0 : LAND_H;  // raise land, keep water low
   lane.root.add(createLaneGroundMesh(z, laneType.family));
+  const prevLane = gameState.lanes.get(z - 1);
+  if (laneType.family === 'road' && prevLane && prevLane.family === 'road') addRoadDivider(lane);
   laneType.build(lane, { distance });
   if (isGiftLane) {
     const gx = -GRID_HALF + 1 + Math.floor(Math.random() * (GRID_WIDTH - 2));
@@ -2415,7 +2523,70 @@ function clearField() {
   gameState.blockedTiles.clear();
   gameState.player.gridZ = 0; gameState.player.gridX = 0; gameState.scrollActive = false; gameState.scrollZ = 0;
 }
+// Cozy forest-home dressing around the ranch: an uneven tree line enclosing the meadow, with rocks,
+// bushes, wildflowers and a stump scattered where the Pokemon wander. Built once, reused thereafter.
+let menuScenery = null;
+function makeMenuFlower() {
+  const g = new THREE.Group();
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.18, 5),
+    new THREE.MeshStandardMaterial({ color: 0x3e9e4a }));
+  stem.position.y = 0.09; g.add(stem);
+  const petals = [0xfff3f3, 0xffe066, 0xff9eb5, 0xc7a8ff][Math.floor(Math.random() * 4)];
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6),
+    new THREE.MeshStandardMaterial({ color: petals, roughness: 0.6 }));
+  head.position.y = 0.2; g.add(head);
+  return g;
+}
+function buildMenuScenery() {
+  if (menuScenery) return;
+  menuScenery = new THREE.Group();
+  // Tree line ringing the meadow (the wander area is x ±6, z -2.5..8.5), denser toward the back.
+  for (let i = 0; i < 26; i++) {
+    const tree = makeRumbleTree();
+    const side = Math.random();
+    let x, z;
+    if (side < 0.35) { x = -8.5 - Math.random() * 2.5; z = -5 + Math.random() * 16; }        // left wall
+    else if (side < 0.7) { x = 8.5 + Math.random() * 2.5; z = -5 + Math.random() * 16; }     // right wall
+    else if (side < 0.9) { x = (Math.random() - 0.5) * 20; z = 10 + Math.random() * 3; }     // back row
+    else { x = (Math.random() - 0.5) * 20; z = -5.5 - Math.random() * 2; }                   // front accents
+    tree.position.set(x, 0, z);
+    tree.rotation.y = Math.random() * Math.PI * 2;
+    menuScenery.add(tree);
+  }
+  // Bushes (single foliage blobs) softening the tree line.
+  for (let i = 0; i < 8; i++) {
+    const bush = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random() * 0.15, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: 0.75 }));
+    bush.scale.y = 0.7;
+    bush.position.set((Math.random() < 0.5 ? -1 : 1) * (6.8 + Math.random() * 1.6), 0.18, -3 + Math.random() * 12);
+    bush.castShadow = true;
+    menuScenery.add(bush);
+  }
+  // Rocks + wildflowers sprinkled through the meadow itself (low, so wanderers walk "past" them).
+  for (let i = 0; i < 5; i++) {
+    const rock = makeRumbleRock();
+    rock.position.set((Math.random() - 0.5) * 11, 0, -1.5 + Math.random() * 9);
+    menuScenery.add(rock);
+  }
+  for (let i = 0; i < 14; i++) {
+    const f = makeMenuFlower();
+    f.position.set((Math.random() - 0.5) * 12, 0, -2 + Math.random() * 10.5);
+    menuScenery.add(f);
+  }
+  // A stump near the edge — every forest home needs somewhere to sit.
+  const stump = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.28, 10),
+    new THREE.MeshStandardMaterial({ color: 0x7a4f2c, roughness: 0.85 }));
+  trunk.position.y = 0.14; trunk.castShadow = true; stump.add(trunk);
+  const rings = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.02, 10),
+    new THREE.MeshStandardMaterial({ color: 0xc9a06c, roughness: 0.7 }));
+  rings.position.y = 0.29; stump.add(rings);
+  stump.position.set(-4.6, 0, 6.2);
+  menuScenery.add(stump);
+  menuGroup.add(menuScenery);
+}
 function buildMenuDiorama() {
+  buildMenuScenery();
   for (const a of menuAgents) menuGroup.remove(a.group);
   menuAgents.length = 0;
   const ids = gameState.save.unlockedIds.slice(0, 14);
@@ -2623,6 +2794,7 @@ function setMode(next) {
   if (next === 'rates') renderRates();
   if (next === 'menu') {
     document.getElementById('menu-coins').textContent = gameState.save.coins;
+    document.getElementById('menu-highscore-num').textContent = Math.max(0, ...Object.values(gameState.save.bestScoreByCharacter));
     clearField(); buildMenuDiorama(); updatePlayButtonModel();
     menuTag = null; document.getElementById('menu-selected').style.display = 'none';
   }
