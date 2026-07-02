@@ -54,6 +54,13 @@ This is a big change: completely redesigning the environment to match the aesthe
 
 - in the poke ball machine menu, after you click the 50 coins button, the mschine stretches vertically a little please keep it the same size as when you first click into the menu.
 
+- Coin/economy rework: 
+Coin spawn rate: Set coin spawn to 1 coin every 6.25 tiles
+Coin type appearance rate:
+* 1 coin = default
+* 5 coin = 1/15
+* 10 coin = 1/30
+
 Obstacles
 
 1. Roads / Cars
