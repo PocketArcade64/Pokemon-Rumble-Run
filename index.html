@@ -24,16 +24,22 @@
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%; width: 100%;
-    overflow: hidden; background: #87ceeb;
+    /* Dark (matches the status bar/theme) — NOT sky blue: on iOS standalone the layout viewport can
+       under-report by the home-indicator zone, exposing this background as a bottom band. Dark makes
+       any residual sliver invisible; the real fix is the 100lvh sizing below. */
+    overflow: hidden; background: #0b1020;
     touch-action: none; overscroll-behavior: none;
     font-family: 'PokemonPixel', 'Silkscreen', 'Trebuchet MS', system-ui, sans-serif;
     -webkit-user-select: none; user-select: none;
   }
   /* Silkscreen is a pixel font with a small x-height — nudge letter-spacing/line-height for readability. */
   body, button, input, .panel { letter-spacing: 0.5px; line-height: 1.6; }
-  @supports (height: 100dvh) { html, body { height: 100dvh; } }
+  /* lvh = LARGE viewport unit: the full screen incl. the iOS home-indicator zone (dvh/innerHeight
+     under-report there in standalone mode — that caused the blue bottom band). Page never scrolls,
+     so lvh is always correct here. */
+  @supports (height: 100lvh) { html, body { height: 100lvh; } }
   #game-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; outline: none; }
-  @supports (height: 100dvh) { #game-canvas { height: 100dvh; } }
+  @supports (height: 100lvh) { #game-canvas { height: 100lvh; } }
 
   /* Global hidden helper — applies to ANY element, not just .screen (this was missing before). */
   .hidden { display: none !important; }
@@ -75,6 +81,8 @@
     color: #fff; z-index: 10; padding: 1rem; box-sizing: border-box; text-align: center;
   }
   .overlay { z-index: 20; background: rgba(8,10,20,0.72); }
+  /* Reach past the under-reported iOS standalone layout viewport so panels cover the bottom band too. */
+  @supports (height: 100lvh) { .screen, .overlay { bottom: auto; height: 100lvh; } }
   .screen h1 { font-size: clamp(1.8rem, 7vw, 3rem); margin: 0 0 0.3rem; color: #ffd54f; text-shadow: 0 3px 0 #b8860b, 0 4px 8px rgba(0,0,0,0.4); letter-spacing: 1px; }
   .screen h2 { font-size: clamp(1.2rem, 5vw, 1.8rem); margin: 0 0 0.25rem; }
   .subtitle { opacity: 0.75; margin: -0.4rem 0 0.6rem; letter-spacing: 3px; font-size: 0.8rem; text-transform: uppercase; }
@@ -1295,7 +1303,10 @@ canvas.addEventListener('touchend', (e) => {
 }, { passive: true });
 
 function onViewportChange() {
-  const w = window.innerWidth, h = window.innerHeight;
+  // Measure the canvas's CSS box (sized via 100lvh), NOT window.innerHeight — innerHeight
+  // under-reports by the home-indicator zone in iOS standalone mode (caused the blue bottom band).
+  const canvasEl = renderer.domElement;
+  const w = canvasEl.clientWidth || window.innerWidth, h = canvasEl.clientHeight || window.innerHeight;
   renderer.setSize(w, h, false);
   const aspect = w / h;
   camera.left = -FRUSTUM_SIZE * aspect; camera.right = FRUSTUM_SIZE * aspect;
@@ -1304,6 +1315,9 @@ function onViewportChange() {
 }
 window.addEventListener('resize', onViewportChange);
 window.addEventListener('orientationchange', () => requestAnimationFrame(() => requestAnimationFrame(onViewportChange)));
+// iOS standalone settles its viewport shortly after launch without always firing `resize` — re-measure late.
+if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewportChange);
+window.addEventListener('load', () => setTimeout(onViewportChange, 300));
 
 /* ============================== M: PLAYER MOVEMENT ============================== */
 function isTileWalkable(x, z) {
@@ -1913,8 +1927,9 @@ function updateMenuSelectedTag(now) {
   const g = menuTag.agent.group;
   const v = new THREE.Vector3(g.position.x, g.position.y + 1.35, g.position.z);
   v.project(camera);
-  el.style.left = ((v.x * 0.5 + 0.5) * window.innerWidth) + 'px';
-  el.style.top = ((-v.y * 0.5 + 0.5) * window.innerHeight) + 'px';
+  // Project into the canvas's CSS box (innerWidth/Height under-report on iOS standalone).
+  el.style.left = ((v.x * 0.5 + 0.5) * canvas.clientWidth) + 'px';
+  el.style.top = ((-v.y * 0.5 + 0.5) * canvas.clientHeight) + 'px';
 }
 function t2Phase() { return performance.now() / 1000 * 4; }
 canvas.addEventListener('click', onMenuClick);
