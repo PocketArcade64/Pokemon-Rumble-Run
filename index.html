@@ -239,9 +239,12 @@
   .rarity-list { list-style: none; padding: 0; margin: 0.3rem 0; }
   .rarity-list li { display: flex; justify-content: space-between; padding: 0.3rem 0.5rem; border-radius: 8px; margin: 0.2rem 0; }
   .rarity-list li span:last-child { font-weight: bold; }
-  .setting-row { display: flex; align-items: center; gap: 1rem; margin: 1.1rem 0; }
-  .setting-row label { flex: 0 0 8rem; text-align: left; font-weight: bold; }
-  .setting-row .val { flex: 0 0 3rem; text-align: left; opacity: 0.8; }
+  /* Compact rows that always fit a phone width — the old 8rem labels forced a horizontal scroll. */
+  .setting-row { display: flex; align-items: center; gap: 0.6rem; margin: 1.1rem 0; }
+  .setting-row label { flex: 0 0 5.2rem; text-align: left; font-weight: bold; font-size: 0.9rem; }
+  .setting-row .val { flex: 0 0 2.6rem; text-align: left; opacity: 0.8; font-size: 0.85rem; }
+  .setting-row input[type=range] { min-width: 0; }
+  .panel { overflow-x: hidden; }
   /* Pixel-art sliders: chunky dark track with a square gold block for the thumb */
   .setting-row input[type=range] {
     flex: 1; -webkit-appearance: none; appearance: none; height: 14px;
@@ -632,7 +635,7 @@
       <div class="go-row total"><span>Total coins</span><strong id="go-total">0</strong></div>
     </div>
     <div class="screen-buttons">
-      <button id="btn-retry">Retry</button>
+      <button id="btn-retry">Play Again</button>
       <button id="btn-go-select" class="secondary small">Change Pokemon</button>
       <button id="btn-go-menu" class="secondary small">Main Menu</button>
     </div>
@@ -995,46 +998,58 @@ const MusicSys = (() => {
     title:    { file: 'Title Screen.mp3',       loop: true,  gain: 0.85 },
     run:      { file: 'During a run music.mp3', loop: true,  gain: 1.0 },
     gacha:    { file: 'Poke Ball Machine.mp3',  loop: true,  gain: 0.39 },
-    befriend: { file: 'Befriend a Pokémon.mp3', loop: false, gain: 0.65 },
+    befriend: { file: 'Befriend a Pokémon.mp3', loop: false, gain: 0.8 },   // overlay jingle, rides ON TOP of music
+    lose:     { file: 'You Lose.mp3',           loop: false, gain: 0.9 },   // one-shot; silence follows
   };
-  const MASTER = 0.75;              // overall music ceiling — background, never overbearing
-  let els = {}, current = null, dim = false, unlocked = false, resumeKey = null;
+  const MASTER = 0.4;               // music stays well under the sound effects
+  const DIM = 0.22;                 // pause menu: clearly quieter, not just a shade
+  let els = {}, current = null, dim = false, unlocked = false;
   function el(key) {
     if (!els[key]) {
       const a = new Audio(encodePath(BASE + TRACKS[key].file));
       a.loop = TRACKS[key].loop;
       a.preload = 'auto';
-      if (key === 'befriend') a.addEventListener('ended', () => { if (resumeKey) play(resumeKey); });
       els[key] = a;
     }
     return els[key];
   }
   function volumeFor(key) {
     const user = gameState.save ? (gameState.save.musicVol ?? 0.5) : 0.5;
-    return Math.min(1, TRACKS[key].gain * MASTER * user * (dim ? 0.35 : 1));
+    return Math.min(1, TRACKS[key].gain * MASTER * user * (dim ? DIM : 1));
   }
   function applyVolumes() { for (const k of Object.keys(els)) els[k].volume = volumeFor(k); }
+  // play(null) = stop the music entirely (used on the game-over screen).
   function play(key) {
-    if (!TRACKS[key]) return;
-    if (current === key) { applyVolumes(); return; }
+    if (key === current) { applyVolumes(); return; }
     if (current && els[current]) { els[current].pause(); els[current].currentTime = 0; }
-    current = key;
+    current = key || null;
+    if (!key || !TRACKS[key]) return;
     const a = el(key);
     a.volume = volumeFor(key);
     if (unlocked) a.play().catch(() => {});
   }
-  // One-shot befriend jingle: remembers what was playing and returns to it when the jingle ends.
-  function playBefriend() { resumeKey = current === 'befriend' ? resumeKey : current; play('befriend'); }
+  // Overlay one-shots: play OVER whatever music is running, like a sound effect — the current
+  // track keeps going underneath (befriend jingle in runs and at the ball machine).
+  function playOver(key) {
+    const a = el(key);
+    a.currentTime = 0;
+    a.volume = volumeFor(key);
+    if (unlocked) a.play().catch(() => {});
+  }
+  function playBefriend() { playOver('befriend'); }
+  function playLose() { play(null); playOver('lose'); }   // stop the music, then the lose sting alone
   function setDim(d) { dim = d; applyVolumes(); }
   function begin() {   // first user interaction: autoplay is now allowed
     if (unlocked) return;
     unlocked = true;
     if (current) el(current).play().catch(() => {});
   }
-  return { play, playBefriend, setDim, applyVolumes, begin };
+  return { play, playBefriend, playLose, setDim, applyVolumes, begin };
 })();
-// Which track belongs to a screen: runs and the ball machine have their own; all else is the title's.
-function musicForMode(mode) { return mode === 'playing' ? 'run' : mode === 'gacha' ? 'gacha' : 'title'; }
+window.MusicSys = MusicSys;   // handy for volume debugging from the console
+// Which track belongs to a screen: runs and the ball machine have their own; the game-over screen
+// is silent (the lose sting plays once) until Play Again (run) or any menu (title).
+function musicForMode(mode) { return mode === 'playing' ? 'run' : mode === 'gacha' ? 'gacha' : mode === 'gameover' ? null : 'title'; }
 
 /* ============================== H: THREE.JS SETUP ============================== */
 const scene = new THREE.Scene();
@@ -3019,11 +3034,24 @@ function devSubmit() {
       persistSave();
       msg.style.color = '#8CFF9E'; msg.textContent = 'Unlocked all Pokemon + shinies + 999 coins!';
       AudioSys.sfx.gacha();
-    } else if (devBuffer === 'coins') {
-      gameState.save.coins += 900;
+    } else if (devBuffer === 'coin' || devBuffer === 'coins') {
+      gameState.save.coins += 100;
       persistSave();
-      msg.style.color = '#8CFF9E'; msg.textContent = '+900 coins!';
+      msg.style.color = '#8CFF9E'; msg.textContent = '+100 coins!';
       AudioSys.sfx.coin();
+    } else if (devBuffer === 'legendaries' || devBuffer === 'mythicals' || devBuffer === 'megas') {
+      const match = devBuffer === 'legendaries' ? (e => e.tier === 'legendary' && !e.mythical)
+                  : devBuffer === 'mythicals'   ? (e => e.mythical)
+                  : (e => !!MEGA_BY_DEX[e.dex]);
+      let added = 0;
+      for (const e of PLAYER_ENTRIES) {
+        if (match(e) && !gameState.save.unlockedIds.includes(e.id)) { gameState.save.unlockedIds.push(e.id); added++; }
+      }
+      persistSave();
+      msg.style.color = '#8CFF9E';
+      const catLabel = { legendaries: 'Legendary', mythicals: 'Mythical', megas: 'Mega-capable' }[devBuffer];
+      msg.textContent = `Unlocked ${added} ${catLabel} Pokemon!`;
+      AudioSys.sfx.gacha();
     } else if (devBuffer === 'godmode') {
       gameState.save.godmode = !gameState.save.godmode;
       persistSave();
@@ -3215,13 +3243,15 @@ function advanceToGrassLane() {
 /* ---- Wild encounters: one Pokemon per run may appear on a grass lane ahead, hopping in place like
    another player. Step onto its tile to befriend it — it joins your roster for good. ---- */
 function spawnWildPokemon(lane) {
-  const pool = GACHA_POOL.filter(e => e.tier !== 'legendary' && !e.costume);
-  const unowned = pool.filter(e => !isEntryUnlocked(e));
-  const pick = (unowned.length ? unowned : pool)[Math.floor(Math.random() * (unowned.length ? unowned.length : pool.length))];
+  // Strictly Pokemon you do NOT own (never legendary/mythical) — nothing to meet once you own them all.
+  const unowned = GACHA_POOL.filter(e => e.tier !== 'legendary' && !e.costume && !isEntryUnlocked(e));
+  if (!unowned.length) return;
+  const pick = unowned[Math.floor(Math.random() * unowned.length)];
   const options = freeXPositions(lane.decor);
   const x = options.length ? options[Math.floor(Math.random() * options.length)] : 0;
   const g = createEntityObject(pick.id);
-  g.position.set(x, 0, lane.z * TILE);   // faces forward, "playing the game" ahead of you
+  g.position.set(x, 0, lane.z * TILE);
+  g.rotation.y = Math.PI;   // faces back down the field, looking at you as you approach
   lane.root.add(g);
   gameState.wild = { spawned: true, caught: false, laneZ: lane.z, x, id: pick.id, group: g };
 }
@@ -3305,7 +3335,6 @@ function triggerGameOver() {
   if (gameState.mode !== 'playing') return;
   // Godmode (dev toggle): every death instead teleports you forward to the next grass lane.
   if (gameState.save.godmode && advanceToGrassLane()) { AudioSys.sfx.hop(); return; }
-  AudioSys.sfx.die();
   const { newBest, shinyJustUnlocked, best } = finalizeRun();
   document.getElementById('go-score').textContent = gameState.distance;
   document.getElementById('go-best').textContent = best;
@@ -3313,7 +3342,8 @@ function triggerGameOver() {
   document.getElementById('go-total').textContent = gameState.save.coins;
   document.getElementById('go-newbadge').classList.toggle('hidden', !newBest);
   document.getElementById('go-shiny').classList.toggle('hidden', !shinyJustUnlocked);
-  setMode('gameover');
+  setMode('gameover');           // stops the music (game-over is a silent screen)
+  MusicSys.playLose();           // ...except for the one-shot "You Lose" sting
 }
 
 /* ============================== T: HOW TO PLAY / SETTINGS ============================== */
