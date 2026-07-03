@@ -425,4 +425,8 @@ export const QUEST_DEX = [
 {id:"q1000",d:1000,n:"Gholdengo",o:"#1000 Gholdengo/pq1000.obj"},
 {id:"q1007",d:1007,n:"Koraidon",o:"#1007 Koraidon/pq1007.obj"},
 {id:"q1008",d:1008,n:"Miraidon",o:"#1008 Miraidon/pq1008.obj"},
+// HAND-ADDED: the Mewtwo-clone variants (separate "(Clone)" folders, pq-code scheme) as toggleable forms.
+{id:"q0003_clone",d:3,n:"Venusaur (Clone)",o:"#0003 Venusaur (Clone)/pq0003c.obj"},
+{id:"q0006_clone",d:6,n:"Charizard (Clone)",o:"#0006 Charizard (Clone)/pq0006c.obj"},
+{id:"q0009_clone",d:9,n:"Blastoise (Clone)",o:"#0009 Blastoise (Clone)/pq0009c.obj"},
 ];

@@ -162,7 +162,9 @@
 
   /* ---- Character select ---- */
   /* Condensed header: smaller preview + tighter text so more of the roster grid is visible. */
-  #preview-wrap { position: relative; width: min(60vw, 220px); height: 20vh; }
+  /* Full-width canvas (it's transparent, so it costs nothing visually): wide models can rotate
+     without their wingtips getting sliced by the canvas edges. */
+  #preview-wrap { position: relative; width: min(96vw, 560px); height: 20vh; }
   /* Top-align so opening the filter panel / empty results don't recenter and nudge the header. */
   #screen-select { gap: 0.4rem; justify-content: flex-start;
     padding-top: max(2.5vh, calc(env(safe-area-inset-top) + 1vh));
@@ -306,7 +308,8 @@
   #btn-mode-toggle { position: fixed; z-index: 20;
     top: calc(max(0.8rem, env(safe-area-inset-top) + 0.5rem) + 2.7rem);
     left: max(0.9rem, calc(env(safe-area-inset-left) + 0.9rem));
-    display: flex; flex-direction: column; align-items: center; gap: 0.22rem; padding: 0.22rem 0.3rem;
+    display: flex; flex-direction: column; align-items: center; gap: 0.22rem; padding: 0.22rem 0.2rem;
+    box-sizing: border-box;   /* width is set from JS to match the HIGH SCORE label exactly */
     background: rgba(11,16,32,0.55); border: 2px solid rgba(255,255,255,0.3); border-radius: 6px;
     color: #fff; font-family: inherit; font-size: 0.55rem; letter-spacing: 0.5px; cursor: pointer; }
   #mode-toggle-canvas { width: 38px; height: 38px; display: block; border-radius: 4px; background: rgba(255,255,255,0.08); }
@@ -479,7 +482,7 @@
     .screen, .overlay { gap: 0.5rem; }
     .screen h1 { font-size: 1.5rem; margin-bottom: 0.1rem; }
     button { padding: 0.5rem 1.1rem; font-size: 0.9rem; }
-    #preview-wrap { height: 40vh; width: min(60vw, 260px); }
+    #preview-wrap { height: 40vh; width: min(96vw, 420px); }
     #logo-img { max-height: 22vh; }
     .menu-buttons { margin-bottom: max(1vh, env(safe-area-inset-bottom)); }
     .panel { max-height: 78vh; }
@@ -674,7 +677,7 @@ import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 // The ?v= query busts browser/CDN caches — bump it whenever pokedex.js changes, or home-screen PWAs
 // keep serving the stale roster (form toggles "missing" after a deploy was exactly this).
 import { POKEDEX, FORMS } from './pokedex.js?v=4';   // auto-generated: every model folder (dex, name, model path, gender variants) + alternate forms
-import { QUEST_DEX } from './questdex.js?v=1';       // auto-generated: Pokemon Quest Blocky Mode roster (dex, name, model path)
+import { QUEST_DEX } from './questdex.js?v=2';       // auto-generated: Pokemon Quest Blocky Mode roster (dex, name, model path)
 
 /* ============================== A: CONSTANTS & CONFIG ============================== */
 const TILE = 1;
@@ -1313,6 +1316,27 @@ const texLoader = new THREE.TextureLoader();
 
 function encodePath(p) { return p.split('/').map(seg => encodeURIComponent(seg)).join('/'); }
 
+// Shrink every triangle's UVs slightly toward its own centroid. Quest voxel models map each flat
+// face onto a solid-color patch in a shared atlas with white gutters between patches; when the
+// model renders SMALL (minified), samples land on the patch borders and pick up the gutter —
+// the white specks/lines on cube edges in-run (the zoomed-in select screen never minifies, so it
+// stayed clean there). Faces are solid colors, so pulling samples inward is visually free.
+function insetUVs(root, k = 0.06) {
+  root.traverse(o => {
+    if (!o.isMesh || !o.geometry) return;
+    const uv = o.geometry.attributes.uv;
+    if (!uv || o.geometry.index) return;   // OBJ loads non-indexed; skip anything else
+    for (let i = 0; i < uv.count; i += 3) {
+      const cu = (uv.getX(i) + uv.getX(i + 1) + uv.getX(i + 2)) / 3;
+      const cv = (uv.getY(i) + uv.getY(i + 1) + uv.getY(i + 2)) / 3;
+      for (let j = i; j < i + 3; j++) {
+        uv.setXY(j, uv.getX(j) + (cu - uv.getX(j)) * k, uv.getY(j) + (cv - uv.getY(j)) * k);
+      }
+    }
+    uv.needsUpdate = true;
+  });
+}
+
 function loadModelOrNull(path) {
   if (!path) return Promise.resolve(null);
   if (modelCache.has(path)) return modelCache.get(path);
@@ -1339,6 +1363,9 @@ function loadModelOrNull(path) {
   }
   const p = promise
     .then(model => {
+      // Quest models: pull UV samples inside their atlas patches (kills white gutter bleed at any
+      // render size — see insetUVs above).
+      if (path.startsWith(QB)) insetUVs(model);
       // These ripped Rumble-era models use MIRRORED texture coordinates (UVs running past 1 expect a
       // mirror flip). With the loaders' default plain-repeat wrap, features double into the wrong
       // places — extra eyes on Charmander's scalp, Charizard sampling his beige belly across his
@@ -1566,24 +1593,37 @@ function makeRumbleRock() {
   }
   return g;
 }
-// Blocky-mode scenery: everything in Pokemon Quest is built from chunky cubes — these stand in for
-// makeRumbleTree()/makeRumbleRock() when a lane's decor belongs to Quest ("q_tree"/"q_rock").
-function makeQuestTree() {
+// Blocky-mode scenery: faithful Pokemon Quest voxel trees (modeled on the ones baked into the maps):
+// a visible brown trunk with a two-block stacked canopy, or a taller three-tier pine. Axis-aligned
+// plain boxes — no rotation, no blobs — so they read exactly like the game's own props.
+const QUEST_TREE_KINDS = [
+  { greens: [0x2e7d4c, 0x256b40], kind: 'round' },   // dark deciduous
+  { greens: [0x5fae4e, 0x4e9a40], kind: 'round' },   // light deciduous
+  { greens: [0x2a6e46, 0x235e3b, 0x1d5233], kind: 'pine' },
+];
+function makeQuestTree(scale = 1, kindIndex = Math.floor(Math.random() * QUEST_TREE_KINDS.length)) {
   const g = new THREE.Group();
-  const s = 0.9 + Math.random() * 0.3;
-  const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.22 * s, 0.5 * s, 0.22 * s),
-    new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.9 }));
-  trunk.position.y = 0.25 * s; trunk.castShadow = true;
+  const s = scale;
+  const def = QUEST_TREE_KINDS[kindIndex];
+  const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9 });
+  const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.18 * s, 0.4 * s, 0.18 * s), mat(0x8a5a34));
+  trunk.position.y = 0.2 * s; trunk.castShadow = true;
   g.add(trunk);
-  const greens = [0x4caf50, 0x66bb6a, 0x7cc576];
-  const cubes = [[0.55, 0.72, 0], [0.42, 1.05, 1], [0.3, 1.32, 2]];
-  for (const [r, y, ci] of cubes) {
-    const blob = new THREE.Mesh(new THREE.BoxGeometry(r * 1.7 * s, r * 1.3 * s, r * 1.7 * s),
-      new THREE.MeshStandardMaterial({ color: greens[ci], roughness: 0.85 }));
-    blob.position.set(0, y * s, 0);
-    blob.rotation.y = (ci % 2) * (Math.PI / 4);
-    blob.castShadow = true;
-    g.add(blob);
+  if (def.kind === 'round') {
+    // Two stacked canopy blocks: broad below, smaller cap above.
+    const lower = new THREE.Mesh(new THREE.BoxGeometry(0.85 * s, 0.55 * s, 0.85 * s), mat(def.greens[0]));
+    lower.position.y = (0.4 + 0.275) * s; lower.castShadow = true; g.add(lower);
+    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.55 * s, 0.38 * s, 0.55 * s), mat(def.greens[1]));
+    upper.position.y = (0.4 + 0.55 + 0.19) * s; upper.castShadow = true; g.add(upper);
+  } else {
+    // Pine: three tapering tiers.
+    let y = 0.4 * s;
+    for (let i = 0; i < 3; i++) {
+      const w = (0.8 - i * 0.22) * s, h = 0.34 * s;
+      const tier = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), mat(def.greens[i]));
+      tier.position.y = y + h / 2; tier.castShadow = true; g.add(tier);
+      y += h;
+    }
   }
   return g;
 }
@@ -1600,90 +1640,6 @@ function makeQuestRock(scale = 1) {
     side.position.set(0.32 * s, 0.12 * s, 0.14 * s); side.rotation.y = Math.random() * Math.PI / 2; side.castShadow = true;
     g.add(side);
   }
-  return g;
-}
-/* ---- Real Quest trees, carved out of the ripped map models. The maps (Guild Field / First
-   Steppe) are single merged meshes with no named parts, so each tree is a hand-found LOCAL-space
-   box (cluster analysis over the raw geometry); triangles whose centroid falls inside get copied
-   into a standalone mesh that keeps the map's texture atlas. Boxes are in the map file's own
-   coordinates (before any normalize), so they stay valid no matter how the map is used elsewhere. */
-const QUEST_TREE_CUTS = {
-  // Boxes found by cluster analysis over the raw map geometry (compact, green-dominant triangle
-  // islands). y starts just above the terrain skin so no ground chip comes along.
-  // "boundary": the two Guild Field birch trees — run-lane side barriers.
-  boundary: [
-    { map: QB + 'Guild Field/mceGuildField.obj', min: [-27.7, 0.25, 58.7], max: [-23.9, 9.8, 62.5] },   // lone birch
-    { map: QB + 'Guild Field/mceGuildField.obj', min: [-31.2, 0.25, 41.4], max: [-27.2, 9.8, 48.4] },   // row birch
-  ],
-  // "small": Base Camp bushes/hedges + a birch — modest 1-2 block props for decor and the home ring.
-  small: [
-    { map: QB + 'Base Camp (First Steppe)/Base Camp (01 - First Steppe).obj', min: [39.3, 0.55, -2.3], max: [41.3, 1.6, -0.2] },   // round bush
-    { map: QB + 'Base Camp (First Steppe)/Base Camp (01 - First Steppe).obj', min: [-46.9, 0.55, -6.6], max: [-43.6, 2.4, -3.3] }, // square hedge
-    { map: QB + 'Base Camp (First Steppe)/Base Camp (01 - First Steppe).obj', min: [-9.7, 0.55, -64.6], max: [-6.4, 2.4, -61.0] }, // hedge slice
-    { map: QB + 'Guild Field/mceGuildField.obj', min: [-27.7, 0.25, 58.7], max: [-23.9, 9.8, 62.5] },                              // birch (small-scaled)
-  ],
-};
-const questTreeLibPromises = {};
-function extractMeshRegion(root, min, max) {
-  const lo = new THREE.Vector3(...min), hi = new THREE.Vector3(...max);
-  const out = new THREE.Group();
-  root.updateMatrixWorld(true);
-  root.traverse(o => {
-    if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
-    const pos = o.geometry.attributes.position, uv = o.geometry.attributes.uv, idx = o.geometry.index;
-    const triCount = (idx ? idx.count : pos.count) / 3;
-    const gi = i => (idx ? idx.getX(i) : i);
-    const keepPos = [], keepUv = [];
-    for (let t = 0; t < triCount; t++) {
-      const a = gi(t * 3), b = gi(t * 3 + 1), c = gi(t * 3 + 2);
-      const cx = (pos.getX(a) + pos.getX(b) + pos.getX(c)) / 3;
-      const cy = (pos.getY(a) + pos.getY(b) + pos.getY(c)) / 3;
-      const cz = (pos.getZ(a) + pos.getZ(b) + pos.getZ(c)) / 3;
-      if (cx < lo.x || cx > hi.x || cy < lo.y || cy > hi.y || cz < lo.z || cz > hi.z) continue;
-      for (const i of [a, b, c]) {
-        keepPos.push(pos.getX(i), pos.getY(i), pos.getZ(i));
-        if (uv) keepUv.push(uv.getX(i), uv.getY(i));
-      }
-    }
-    if (!keepPos.length) return;
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(keepPos, 3));
-    if (keepUv.length) g.setAttribute('uv', new THREE.Float32BufferAttribute(keepUv, 2));
-    g.computeVertexNormals();
-    out.add(new THREE.Mesh(g, Array.isArray(o.material) ? o.material[0] : o.material));
-  });
-  return out;
-}
-function loadQuestTreeLib(libName = 'boundary') {
-  if (questTreeLibPromises[libName]) return questTreeLibPromises[libName];
-  questTreeLibPromises[libName] = Promise.all(QUEST_TREE_CUTS[libName].map(cut =>
-    loadModelOrNull(cut.map).then(m => {
-      if (!m) return null;
-      const tree = extractMeshRegion(m, cut.min, cut.max);
-      if (!tree.children.length) return null;
-      // Stand the carved tree on the ground at its own origin.
-      const box = new THREE.Box3().setFromObject(tree);
-      const c = box.getCenter(new THREE.Vector3());
-      for (const ch of tree.children) ch.position.set(-c.x, -box.min.y, -c.z);
-      return tree;
-    }).catch(() => null)
-  )).then(list => list.filter(Boolean));
-  return questTreeLibPromises[libName];
-}
-// A Quest tree: instant procedural cube-tree placeholder, hot-swapped for a random carved map tree.
-function makeQuestMapTree(targetHeight = 1.4 + Math.random() * 0.35, libName = 'boundary') {
-  const g = new THREE.Group();
-  const ph = makeQuestTree();
-  ph.scale.setScalar(0.8);
-  g.add(ph);
-  loadQuestTreeLib(libName).then(lib => {
-    if (!lib.length || g.userData.destroyed) return;
-    const inst = lib[Math.floor(Math.random() * lib.length)].clone();
-    inst.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
-    const box = new THREE.Box3().setFromObject(inst);
-    inst.scale.setScalar(targetHeight / ((box.max.y - box.min.y) || 1));
-    g.remove(ph); g.add(inst);
-  });
   return g;
 }
 // Recenter a model on the x/z bbox of its BASE (bottom 40% of height) instead of the whole mesh —
@@ -1726,7 +1682,7 @@ function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
   group.userData.wob = wob;
   const cube = entryId === 'tree' ? makeRumbleTree()
              : entryId === 'rock' ? makeRumbleRock()
-             : entryId === 'q_tree' ? makeQuestMapTree()
+             : entryId === 'q_tree' ? makeQuestTree(0.95 + Math.random() * 0.25)
              : entryId === 'q_rock' ? makeQuestRock()
              : makeCubeMesh(entry, shiny ? 0xffd54f : undefined);
   wob.add(cube);
@@ -1873,7 +1829,8 @@ function newLane(z, typeKey, family) {
 function spawnGrassLane(lane) {
   addBoundaryScenery(lane);
   if (lane.z > 0 && Math.random() < 0.4) {
-    const options = freeXPositions();
+    // Keep the launch runway clear: no tree/rock directly ahead of the spawn tile on the first lanes.
+    const options = freeXPositions(lane.z <= 2 ? [0] : []);
     const count = 1 + (Math.random() < 0.3 ? 1 : 0);
     for (let i = 0; i < count && options.length; i++) {
       const x = options.splice(Math.floor(Math.random() * options.length), 1)[0];
@@ -2869,9 +2826,10 @@ function initPreview() {
   previewScene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.2));
   const dl = new THREE.DirectionalLight(0xffffff, 1.1); dl.position.set(2, 4, 3); previewScene.add(dl);
   previewCamera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
-  // Pulled back (was z=3.4): wide models (wingspans) rotated past the frustum's sides and were
-  // sliced off by the canvas edge — reading as dark vertical "barriers" against the background.
-  previewCamera.position.set(0, 1.0, 4.3); previewCamera.lookAt(0, 0.7, 0);
+  // The canvas is wider than the model needs (see #preview-wrap CSS): wide models rotating past
+  // the old narrow canvas edges were sliced off — the "dark barrier" effect. resizePreview()
+  // matches the camera aspect to the wide canvas, so nothing changes visually except more room.
+  previewCamera.position.set(0, 1.0, 3.4); previewCamera.lookAt(0, 0.7, 0);
   previewHolder = new THREE.Group(); previewScene.add(previewHolder);
   // Drag (mouse or finger) to spin the model yourself; on release the idle auto-spin resumes from
   // wherever you left it (same rotation value, so there's no snap-back).
@@ -2901,7 +2859,7 @@ function loadPreviewModel(id) {
     loadModelOrNull(path).then(model => {
       if (!model || !previewHolder.children.includes(holder)) return;
       const inst = cloneModel(model); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
-      normalizeGalleryModel(inst, 1.65, 0.7);   // slightly larger to offset the pulled-back camera
+      normalizeGalleryModel(inst, 1.5, 0.7);
       if (locked) blacken(inst); else if (shiny) applyShiny(inst, shinyFallbackFor(entry));
       holder.remove(cube); holder.add(inst);
     });
@@ -3280,7 +3238,14 @@ function randomFieldPoint(maxR = 1) {
   const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * maxR;
   return new THREE.Vector2(MENU_FIELD.cx + Math.cos(a) * MENU_FIELD.rx * r, MENU_FIELD.cz + Math.sin(a) * MENU_FIELD.rz * r);
 }
-function randomFieldTarget() { return randomFieldPoint(0.94); }
+function randomFieldTarget() {
+  // In Quest mode the clearing has solid props (tent, trees) — don't send a roamer INTO one.
+  for (let tries = 0; tries < 12; tries++) {
+    const p = randomFieldPoint(0.94);
+    if (gameState.save.gameMode !== 'quest' || !questMenuBlocked(p.x, p.y)) return p;
+  }
+  return randomFieldPoint(0.4);   // clearing center is always prop-light
+}
 function clearField() {
   for (const lane of gameState.lanes.values()) gameState.laneGroup.remove(lane.root);
   gameState.lanes.clear();
@@ -3354,11 +3319,21 @@ function buildMenuScenery() {
 }
 // Quest ("Blocky Mode") home screen: the real Base Camp (First Steppe) expedition island as the
 // ground — scaled up so its baked-in props read at Pokemon size, not miniature — the Expedition
-// Tent pitched in the clearing, and a ring of trees carved from the actual Quest map models.
+// Tent pitched tight against the top of the clearing (opening toward the middle), and a ring of
+// blocky voxel trees. Placed props register as OBSTACLES so the roaming Pokemon walk around them.
 let questMenuScenery = null;
+const questMenuObstacles = [];   // { x, z, r } circles the roamers may not enter
+function questMenuBlocked(x, z) {
+  for (const o of questMenuObstacles) {
+    const dx = x - o.x, dz = z - o.z;
+    if (dx * dx + dz * dz < o.r * o.r) return true;
+  }
+  return false;
+}
 function buildQuestMenuScenery() {
   if (questMenuScenery) return;
   questMenuScenery = new THREE.Group();
+  questMenuObstacles.length = 0;
   const F = MENU_FIELD;
   loadModelOrNull(QB + 'Base Camp (First Steppe)/Base Camp (01 - First Steppe).obj').then(model => {
     if (!model || !questMenuScenery) return;
@@ -3380,30 +3355,37 @@ function buildQuestMenuScenery() {
     if (surface !== Infinity) inst.position.y -= surface + 0.03;
     questMenuScenery.add(inst);
   });
+  // Tent: always tight against the TOP (screen-back) edge of the clearing, opening toward the
+  // middle where the Pokemon roam. Its footprint is registered before the model even loads.
+  const tentX = F.cx, tentZ = F.cz + F.rz * 0.72;
+  questMenuObstacles.push({ x: tentX, z: tentZ, r: 2.4 });
   loadModelOrNull(QB + 'Expedition Tent/bdExpeditionTent.obj').then(model => {
     if (!model || !questMenuScenery) return;
     const inst = cloneModel(model);
     inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     normalizeModel(inst, 4.0);
-    const p = randomFieldPoint(0.28);
-    inst.position.set(p.x, 0, p.y);
-    inst.rotation.y = Math.random() * Math.PI * 2;
+    inst.position.set(tentX, 0, tentZ);
+    inst.rotation.y = Math.atan2(F.cx - tentX, F.cz - tentZ);   // face the clearing center
     questMenuScenery.add(inst);
   });
-  // Sparse frame of SMALL carved props (Base Camp bushes/hedges + a birch) — the scaled-up island's
-  // own baked scenery is the real backdrop; this ring just hems the clearing without towering over it.
+  // Ring of blocky voxel trees hemming the clearing (the scaled-up island's own baked scenery is
+  // the real backdrop), plus a few interior props — every one an obstacle the roamers respect.
   for (let i = 0; i < 16; i++) {
     const a = (i / 16) * Math.PI * 2 + Math.random() * 0.18;
     const m = 1.04 + Math.random() * 0.1;
-    const deco = Math.random() < 0.8 ? makeQuestMapTree(1.3 + Math.random() * 0.7, 'small') : makeQuestRock(1.1);
-    deco.position.set(F.cx + Math.cos(a) * F.rx * m, 0, F.cz + Math.sin(a) * F.rz * m);
+    const x = F.cx + Math.cos(a) * F.rx * m, z = F.cz + Math.sin(a) * F.rz * m;
+    const deco = Math.random() < 0.8 ? makeQuestTree(1.15 + Math.random() * 0.45) : makeQuestRock(1.1);
+    deco.position.set(x, 0, z);
     questMenuScenery.add(deco);
+    questMenuObstacles.push({ x, z, r: 0.6 });
   }
   for (let i = 0; i < 4; i++) {
     const p = randomFieldPoint(0.75);
-    const deco = makeQuestMapTree(1.1 + Math.random() * 0.5, 'small');
+    if (questMenuBlocked(p.x, p.y)) continue;
+    const deco = makeQuestTree(0.95 + Math.random() * 0.35);
     deco.position.set(p.x, 0, p.y);
     questMenuScenery.add(deco);
+    questMenuObstacles.push({ x: p.x, z: p.y, r: 0.55 });
   }
   menuGroup.add(questMenuScenery);
 }
@@ -3420,7 +3402,7 @@ function buildMenuDiorama() {
   for (const id of ids) {
     const group = createEntityObject(id, { shiny: !!gameState.save.shinyUnlockedByCharacter[id] });
     group.userData.pokemonId = id;
-    const spawn = randomFieldPoint(0.85);
+    const spawn = randomFieldTarget();   // obstacle-aware in Quest mode (never inside the tent/trees)
     group.position.set(spawn.x, 0, spawn.y);
     menuGroup.add(group);
     menuAgents.push({ id, group, pos: spawn.clone(), target: randomFieldTarget(), speed: 0.5 + Math.random() * 0.6, hopPhase: Math.random() * Math.PI * 2 });
@@ -3428,11 +3410,15 @@ function buildMenuDiorama() {
 }
 function updateMenuDiorama(dt) {
   const t = performance.now() / 1000;
+  const quest = gameState.save.gameMode === 'quest';
   for (const a of menuAgents) {
     const dir = a.target.clone().sub(a.pos);
     if (dir.length() < 0.3) { a.target = randomFieldTarget(); continue; }
     dir.normalize();
-    a.pos.addScaledVector(dir, a.speed * dt);
+    const nx = a.pos.x + dir.x * a.speed * dt, nz = a.pos.y + dir.y * a.speed * dt;
+    // Solid props (tent, trees): walking into one re-routes instead of clipping through it.
+    if (quest && questMenuBlocked(nx, nz)) { a.target = randomFieldTarget(); continue; }
+    a.pos.set(nx, nz);
     a.group.position.x = a.pos.x; a.group.position.z = a.pos.y;
     a.group.rotation.y = Math.atan2(dir.x, dir.y);
     a.group.position.y = Math.abs(Math.sin(t * 4 + a.hopPhase)) * 0.18;
@@ -3557,8 +3543,15 @@ function initModeToggleButton() {
 // distinguished purely by id prefix — see isIdUnlocked).
 function applyGameModeVisuals() {
   const questMode = gameState.save.gameMode === 'quest';
-  document.getElementById('btn-mode-toggle').classList.toggle('on', questMode);
+  const toggleBtn = document.getElementById('btn-mode-toggle');
+  toggleBtn.classList.toggle('on', questMode);
   document.getElementById('mode-toggle-label').textContent = questMode ? 'Rumble Mode' : 'Blocky Mode';
+  // Same width as the "HIGH SCORE" label it sits under (measured live — fonts may load late).
+  const hsLabel = document.querySelector('#menu-highscore .hs-label');
+  if (hsLabel) {
+    const w = Math.ceil(hsLabel.getBoundingClientRect().width) + 'px';
+    toggleBtn.style.width = w; toggleBtn.style.minWidth = w; toggleBtn.style.maxWidth = w;
+  }
   updateModeToggleModel();   // show the Pikachu of the mode the button now leads to
   loadLogo();
   const prefix = questMode ? 'q' : 'p';
