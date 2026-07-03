@@ -1003,64 +1003,80 @@ const MusicSys = (() => {
   };
   const MASTER = 0.4;               // music stays well under the sound effects
   const DIM = 0.22;                 // pause menu: clearly quieter, not just a shade
-  let actx = null, els = {}, gains = {}, current = null, dim = false, unlocked = false, wasPlayingBeforeHide = false;
-  function el(key) {
-    if (!els[key]) {
-      const a = new Audio(encodePath(BASE + TRACKS[key].file));
-      a.loop = TRACKS[key].loop;
-      a.preload = 'auto';
-      a.volume = 1;   // real level is applied via the WebAudio gain node (see graphFor) —
-                       // iOS Safari silently ignores HTMLMediaElement.volume entirely.
-      els[key] = a;
-    }
-    return els[key];
-  }
+  // Music is played entirely through WebAudio (decoded buffers -> gain -> destination), NOT via
+  // <audio> elements. That matters on iOS: an <audio>/<video> element is treated as "media", which
+  // (a) makes iOS ignore HTMLMediaElement.volume so the slider does nothing, and (b) shows a Now
+  // Playing card in the Dynamic Island / lock screen and keeps playing when the app is backgrounded.
+  // WebAudio is treated as app sound instead, so the gain node controls volume and suspending the
+  // context on background actually stops it — no Now Playing UI, no background playback.
+  let actx = null, buffers = {}, nodes = {}, current = null, dim = false, unlocked = false;
   function ensureCtx() {
     if (actx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (AC) actx = new AC();
   }
-  // Every track is routed through a WebAudio GainNode. This is what makes the volume slider
-  // actually work on iOS: Safari hard-ignores <audio>.volume but honors GainNode.gain.
-  function graphFor(key) {
-    if (gains[key]) return gains[key];
-    ensureCtx();
-    if (!actx) return null;
-    const src = actx.createMediaElementSource(el(key));
-    const g = actx.createGain();
-    src.connect(g); g.connect(actx.destination);
-    gains[key] = g;
-    return g;
+  // Fetch + decode a track once, caching the AudioBuffer. Returns a promise of the buffer (or null).
+  function load(key) {
+    if (buffers[key] instanceof AudioBuffer) return Promise.resolve(buffers[key]);
+    if (buffers[key] && buffers[key].then) return buffers[key];   // in-flight
+    if (!actx) return Promise.resolve(null);
+    const p = fetch(encodePath(BASE + TRACKS[key].file))
+      .then(r => r.arrayBuffer())
+      .then(buf => new Promise((res, rej) => actx.decodeAudioData(buf, res, rej)))
+      .then(decoded => { buffers[key] = decoded; return decoded; })
+      .catch(() => { buffers[key] = null; return null; });
+    buffers[key] = p;
+    return p;
   }
   function volumeFor(key) {
     const user = gameState.save ? (gameState.save.musicVol ?? 0.5) : 0.5;
     return Math.min(1, TRACKS[key].gain * MASTER * user * (dim ? DIM : 1));
   }
+  // Live volume changes retarget the gain of whatever looped tracks are currently sounding.
   function applyVolumes() {
-    for (const k of Object.keys(els)) {
-      const g = graphFor(k);
-      if (g) g.gain.value = volumeFor(k); else els[k].volume = volumeFor(k);
+    for (const k of Object.keys(nodes)) { if (nodes[k] && nodes[k].gain) nodes[k].gain.gain.value = volumeFor(k); }
+  }
+  function stopNode(key) {
+    const n = nodes[key];
+    if (!n) return;
+    try { n.src.onended = null; n.src.stop(); } catch (e) {}
+    try { n.src.disconnect(); n.gain.disconnect(); } catch (e) {}
+    delete nodes[key];
+  }
+  // Start a fresh buffer source for `key`, wired through its own gain node. Looping tracks are
+  // tracked in `nodes` (so volume/stop can reach them); one-shots clean themselves up on end.
+  function startSource(key, tracked) {
+    if (!actx || !(buffers[key] instanceof AudioBuffer)) return;
+    if (tracked) stopNode(key);
+    const src = actx.createBufferSource();
+    src.buffer = buffers[key];
+    src.loop = !!TRACKS[key].loop;
+    const g = actx.createGain();
+    g.gain.value = volumeFor(key);
+    src.connect(g); g.connect(actx.destination);
+    src.start(0);
+    if (tracked) {
+      nodes[key] = { src, gain: g };
+      if (!src.loop) src.onended = () => { if (nodes[key] && nodes[key].src === src) delete nodes[key]; };
+    } else {
+      src.onended = () => { try { src.disconnect(); g.disconnect(); } catch (e) {} };
     }
   }
   // play(null) = stop the music entirely (used on the game-over screen).
   function play(key) {
     if (key === current) { applyVolumes(); return; }
-    if (current && els[current]) { els[current].pause(); els[current].currentTime = 0; }
+    if (current) stopNode(current);
     current = key || null;
-    if (!key || !TRACKS[key]) return;
-    const a = el(key);
-    graphFor(key);
-    applyVolumes();
-    if (unlocked) a.play().catch(() => {});
+    if (!key || !TRACKS[key] || !unlocked) return;
+    ensureCtx();
+    load(key).then(() => { if (current === key) startSource(key, true); });
   }
   // Overlay one-shots: play OVER whatever music is running, like a sound effect — the current
-  // track keeps going underneath (befriend jingle in runs and at the ball machine).
+  // looped track keeps going underneath (befriend jingle in runs and at the ball machine).
   function playOver(key) {
-    const a = el(key);
-    graphFor(key);
-    a.currentTime = 0;
-    applyVolumes();
-    if (unlocked) a.play().catch(() => {});
+    if (!unlocked) return;
+    ensureCtx();
+    load(key).then(() => startSource(key, false));
   }
   function playBefriend() { playOver('befriend'); }
   function playLose() { play(null); playOver('lose'); }   // stop the music, then the lose sting alone
@@ -1070,34 +1086,17 @@ const MusicSys = (() => {
     unlocked = true;
     ensureCtx();
     if (actx && actx.state === 'suspended') actx.resume();
-    if (current) { graphFor(current); el(current).play().catch(() => {}); }
+    if (current) load(current).then(() => { if (current) startSource(current, true); });
   }
-  // Backgrounding (home button / app switch / locking the phone) must actually stop playback —
-  // otherwise iOS keeps the tab's audio session alive, shows a Now Playing card on the lock
-  // screen / Dynamic Island, and only a full app-close (swipe-up) silences it.
-  function setMediaSessionState(state) {
-    if ('mediaSession' in navigator) { try { navigator.mediaSession.playbackState = state; } catch (e) {} }
-  }
-  function pauseForBackground() {
-    wasPlayingBeforeHide = !!(current && els[current] && !els[current].paused);
-    if (current && els[current]) els[current].pause();
-    if (actx && actx.state === 'running') actx.suspend();
-    setMediaSessionState('paused');
-  }
-  function resumeFromBackground() {
-    if (!unlocked) return;
-    if (actx && actx.state === 'suspended') actx.resume();
-    if (wasPlayingBeforeHide && current && els[current]) els[current].play().catch(() => {});
-    setMediaSessionState('playing');
-  }
-  if ('mediaSession' in navigator) {
-    navigator.mediaSession.metadata = null;   // don't advertise a "Now Playing" track at all
-    ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach(a => {
-      try { navigator.mediaSession.setActionHandler(a, null); } catch (e) {}
-    });
-  }
-  document.addEventListener('visibilitychange', () => { document.hidden ? pauseForBackground() : resumeFromBackground(); });
-  window.addEventListener('pagehide', pauseForBackground);
+  // Backgrounding (home button / app switch / locking the phone): suspend the WebAudio clock so
+  // playback truly halts, then resume on return. (WebAudio never shows a Now Playing card, so
+  // there's nothing to keep the audio session alive in the background.)
+  document.addEventListener('visibilitychange', () => {
+    if (!actx) return;
+    if (document.hidden) { if (actx.state === 'running') actx.suspend(); }
+    else if (unlocked && actx.state === 'suspended') actx.resume();
+  });
+  window.addEventListener('pagehide', () => { if (actx && actx.state === 'running') actx.suspend(); });
   return { play, playBefriend, playLose, setDim, applyVolumes, begin };
 })();
 window.MusicSys = MusicSys;   // handy for volume debugging from the console
