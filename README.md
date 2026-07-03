@@ -12,8 +12,8 @@ Upcoming changes
 - Why on mobile is there a section of the screen up top where the Dynamic Island is that changes color - it is black on the main menu and light blue in game - is that a restriction of Apple or can you remove that? - include a reference screenshot from iOS
 - In Pokemon selection screen
     - Pokemon types not displaying properly on unlocked pokemon and wrong size (??? Type looks good but is blurry), ✅ 
-    - Add a small gap between runs and high score, ✅ 
-    - During a run, some of the hitboxes are too large or make bigger spacing with the “cars”, - look up how Crossy Road handles this issue.
+    - Add a small gap between runs and high score, ✅
+    - During a run, some of the hitboxes are too large or make bigger spacing with the “cars”, - look up how Crossy Road handles this issue. ✅
     - condense the information at the top so you can see more of the small boxes at the bottom ✅ 
     - Label the boxes with 3 digits (001, 002, …) ✅ 
     - In the boxes, you can make the Pokemon icon 20% bigger and the name 20% bigger ✅ 
@@ -23,14 +23,14 @@ Upcoming changes
     - Remove the circle behind the coin counter total and make the coin number gold and show an icon of the gold P coin ✅ 
     - Redesign the pause button to be pixel art
 
-This is a big change: completely redesigning the environment to match the aesthetic of Pokemon Rumble
-- Keep all the pokemon the same but change the environment completely 
-- Redo the aesthetics of the environment to be exactly like pokemon rumble
-- Make the title screen not just be a flat green plane - add environmental objects to fit a cozy outdoors forest home. 
-- Add gray lines between road sections (not directly on each road but in between like how Crossy Road does it)
+This is a big change: completely redesigning the environment to match the aesthetic of Pokemon Rumble ✅
+- Keep all the pokemon the same but change the environment completely ✅
+- Redo the aesthetics of the environment to be exactly like pokemon rumble ✅
+- Make the title screen not just be a flat green plane - add environmental objects to fit a cozy outdoors forest home. ✅
+- Add gray lines between road sections (not directly on each road but in between like how Crossy Road does it) ✅
 
 - Implement type abilities ❌ 
-- Implement megas
+- Implement megas - If a pokemon is capable of mega evolution in the Pokemon Rumble Run normal mode (not the Quest blocky mode) - after 100 obstacles play a cool mega evolution animation then that pokemon mega evolves and if it takes 1 hit then it reverts back to normal (add a meter below the score in a run that shows its mega evolution meter that chareges if it is in normal form and automatically activates after 100 blocks were passed)
 - Add official Pokemon music in adjacent GitHub folder
 - Bulk download all models then bulk unzip into target folder ✅ 
 - After you pass 100 blocks, after that there is a 1/100 chance after each block passed for you to see a pokemon ahead of you playing the game as you would and if you run into it, you catch it and can use it in the future (no legendaries can appear this way) and only 1 pokemon can be found this way per run (you have to lose then start a new run to find and acquire a pokemon this way)
@@ -38,21 +38,21 @@ This is a big change: completely redesigning the environment to match the aesthe
 - Make poke ball machine only show silhouettes of the pokemon you can still pull - once one is pulled, remove it from that screen ✅ 
 - Make a different map/mode for Pokemon Quest with all blocky Pokemon
     - Redo the aesthetics of of the starting screen to correspond
-- Check if other coins appear normally with shiny legendaries. 
+- Check if other coins appear normally with shiny legendaries. ✅
 - Do not allow duplicate pokemon to be pulled from the poke ball machine - if you pulled them all then change the button to be grayed out and say “All Pokemon Owned”
 
 - In the Pokemon selection screen
-    - Make all the regions be expanded by default
+    - Make all the regions be expanded by default ✅
     - some of the sprites are messed up
-    - Make all the sprites the same size like gen 1
-    - The gen 7 pokemon have extra spaces for models that do not exist - remove those
-    - The gen 7 pokemon do not rotate in place
-    - When playing as the gen 7 pokemon, their sprite stays in place and you play as an invisible character  
-    - Make the developer code “pokemonrumblerush” also unlock all shiny pokemon
+    - Make all the sprites the same size like gen 1 ✅
+    - The gen 7 pokemon have extra spaces for models that do not exist - remove those ✅
+    - The gen 7 pokemon do not rotate in place ✅
+    - When playing as the gen 7 pokemon, their sprite stays in place and you play as an invisible character  ✅
+    - Make the developer code “pokemonrumblerun” also unlock all shiny pokemon ✅
 
-- How can I make the 5 and 10 coins appear normally with even non shiny pokemon but also have shiny legendaries have a better bonus from shiny non legendaries?
+- How can I make the 5 and 10 coins appear normally with even non shiny pokemon but also have shiny legendaries have a better bonus from shiny non legendaries? ✅
 
-- in the poke ball machine menu, after you click the 50 coins button, the mschine stretches vertically a little please keep it the same size as when you first click into the menu.
+- in the poke ball machine menu, after you click the 50 coins button, the machine stretches vertically a little please keep it the same size as when you first click into the menu. ✅
 
 - Coin/economy rework: 
 Coin spawn rate: Set coin spawn to 1 coin every 6.25 tiles
