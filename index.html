@@ -300,15 +300,18 @@
     color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,0.55), 0 3px 6px rgba(0,0,0,0.4); }
   #menu-highscore .hs-label { font-size: 0.58rem; letter-spacing: 1.5px; color: #ffd54f; }
   #menu-highscore-num { font-size: 1.35rem; font-weight: bold; }
-  /* Mode-toggle pill: sits directly under the high score, small embedded 3D Quest Pikachu + label. */
+  /* Mode-toggle: sits directly under the high score, left edge aligned with it. Shows the Pikachu of
+     the mode you'd switch TO, and takes that mode's shape language: blocky corners when it leads to
+     Blocky Mode, fully rounded when it leads back to Rumble. */
   #btn-mode-toggle { position: fixed; z-index: 20;
     top: calc(max(0.8rem, env(safe-area-inset-top) + 0.5rem) + 2.7rem);
     left: max(0.9rem, calc(env(safe-area-inset-left) + 0.9rem));
-    display: flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.55rem 0.2rem 0.2rem;
-    background: rgba(11,16,32,0.55); border: 2px solid rgba(255,255,255,0.25); border-radius: 999px;
+    display: flex; align-items: center; gap: 0.4rem; padding: 0.16rem 0.6rem 0.16rem 0.16rem;
+    background: rgba(11,16,32,0.55); border: 2px solid rgba(255,255,255,0.3); border-radius: 6px;
     color: #fff; font-family: inherit; font-size: 0.62rem; letter-spacing: 0.5px; cursor: pointer; }
-  #btn-mode-toggle.on { border-color: #ffd54f; color: #ffd54f; }
-  #mode-toggle-canvas { width: 34px; height: 34px; display: block; border-radius: 50%; background: rgba(255,255,255,0.08); }
+  #mode-toggle-canvas { width: 34px; height: 34px; display: block; border-radius: 4px; background: rgba(255,255,255,0.08); }
+  #btn-mode-toggle.on { border-color: #ffd54f; color: #ffd54f; border-radius: 999px; }
+  #btn-mode-toggle.on #mode-toggle-canvas { border-radius: 50%; }
   .menu-buttons { margin-top: auto; margin-bottom: max(4vh, calc(env(safe-area-inset-bottom) + 2vh)); }
 
   /* Play button: label on the left, embedded 3D Pokemon on the right, both vertically centered */
@@ -889,7 +892,7 @@ const QUEST_ROSTER = [
     modelPath: questPathForDex(84), modelTargetSize: 1.2, boxSize: [1.0, 1.1, 0.9], speedRange: [1.6, 2.4] },
   { id: 'q_tauros', displayName: 'Tauros', role: 'hazard', laneFamily: 'rail', color: 0x6d4c41,
     modelPath: questPathForDex(128), modelTargetSize: 1.5, boxSize: [1.4, 1.1, 1.0], warningMs: 1300, sweepSpeed: 15, herdMin: 4, herdMax: 7 },
-  { id: 'q_lotad', displayName: 'Lotad', role: 'platform', laneFamily: 'river', color: 0x66bb6a,
+  { id: 'q_lotad', displayName: 'Lotad', role: 'platform', laneFamily: 'river', color: 0x66bb6a, baseCenter: true,
     modelPath: questPathForDex(270), modelTargetSize: 1.0, boxSize: [0.95, 0.3, 0.95], speedRange: [1.7, 2.5], platformLength: 1, gapMin: 1.1, gapMax: 1.9 },
   { id: 'q_corsola', displayName: 'Corsola', role: 'platform', laneFamily: 'river', color: 0x26c6da,
     modelPath: questPathForDex(222), modelTargetSize: 1.4, boxSize: [1.2, 0.4, 1.1], speedRange: [1.4, 2.2], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
@@ -897,8 +900,12 @@ const QUEST_ROSTER = [
     modelPath: questPathForDex(131), modelTargetSize: 1.3, boxSize: [1.1, 0.6, 1.1], speedRange: [1.05, 1.6], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
   { id: 'q_wailmer', displayName: 'Wailmer', role: 'platform', laneFamily: 'river', color: 0x1e88e5,
     modelPath: questPathForDex(320), modelTargetSize: 1.3, boxSize: [1.1, 0.5, 1.1], speedRange: [0.85, 1.35], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
+  // Wailord & Dondozo are far too deep for one water lane — their rivers span TWO lanes (see the
+  // doubleRiver handling in generateNextLane) with the platforms floating on the seam between them.
   { id: 'q_wailord', displayName: 'Wailord', role: 'platform', laneFamily: 'river', color: 0x1565c0,
     modelPath: questPathForDex(321), modelTargetSize: 3.0, boxSize: [2.8, 0.95, 1.2], speedRange: [0.6, 1.0], platformLength: 3, gapMin: 2.0, gapMax: 3.0, rideSlots: [-0.75, 0.75] },
+  { id: 'q_dondozo', displayName: 'Dondozo', role: 'platform', laneFamily: 'river', color: 0x3b6fb5,
+    modelPath: questPathForDex(977), modelTargetSize: 3.2, boxSize: [2.9, 1.0, 1.4], speedRange: [0.5, 0.85], platformLength: 3, gapMin: 2.2, gapMax: 3.2, rideSlots: [-0.8, 0.8] },
   { id: 'q_tree', displayName: 'Blocky Tree', role: 'decor', color: 0x4caf50, modelPath: null, boxSize: [0.7, 1.9, 0.7] },
   { id: 'q_rock', displayName: 'Blocky Rock', role: 'decor', color: 0xb0b0a8, modelPath: null, boxSize: [0.85, 0.7, 0.85] },
 ];
@@ -930,9 +937,10 @@ const LANE_TYPES = [
   { key: 'river_wailord', family: 'river', minDistance: 24, weight: () => 4, build: (l, c) => spawnRiverLane(l, c, rosterById.wailord) },
 ];
 const laneTypesByKey = Object.fromEntries(LANE_TYPES.map(t => [t.key, t]));
-// Quest-mode lanes: same pacing/weights, built from the Quest-model hazard/platform roster instead.
+// Quest-mode lanes: same pacing family rules, built from the Quest-model roster. Grass carries a
+// 1.5x weight (Blocky Mode is the more forgiving mode — noticeably more breather lanes).
 const QUEST_LANE_TYPES = [
-  { key: 'grass', family: 'safe', minDistance: 0, weight: (d) => d < 16 ? 16 : d < 45 ? 12 : Math.max(5, 10 - d / 60), build: (l) => spawnGrassLane(l) },
+  { key: 'grass', family: 'safe', minDistance: 0, weight: (d) => (d < 16 ? 16 : d < 45 ? 12 : Math.max(5, 10 - d / 60)) * 1.5, build: (l) => spawnGrassLane(l) },
   { key: 'road_dodrio', family: 'road', minDistance: 0, weight: () => 8, build: (l, c) => spawnRoadLane(l, c, rosterById.q_dodrio) },
   { key: 'road_rapidash', family: 'road', minDistance: 3, weight: (d) => 5 + Math.min(d / 60, 5), build: (l, c) => spawnRoadLane(l, c, rosterById.q_rapidash) },
   { key: 'river_lotad', family: 'river', minDistance: 5, weight: (d) => 5 + Math.min(d / 70, 4), build: (l, c) => spawnRiverLane(l, c, rosterById.q_lotad) },
@@ -940,7 +948,8 @@ const QUEST_LANE_TYPES = [
   { key: 'rail_tauros', family: 'rail', minDistance: 12, weight: (d) => Math.min(2 + d / 80, 6), build: (l, c) => spawnRailLane(l, c, rosterById.q_tauros) },
   { key: 'river_lapras', family: 'river', minDistance: 14, weight: () => 5, build: (l, c) => spawnRiverLane(l, c, rosterById.q_lapras) },
   { key: 'river_corsola', family: 'river', minDistance: 18, weight: () => 4, build: (l, c) => spawnRiverLane(l, c, rosterById.q_corsola) },
-  { key: 'river_wailord', family: 'river', minDistance: 24, weight: () => 4, build: (l, c) => spawnRiverLane(l, c, rosterById.q_wailord) },
+  { key: 'river_wailord', family: 'river', minDistance: 24, weight: () => 4, doubleRiver: true, build: (l, c) => spawnRiverLane(l, c, rosterById.q_wailord) },
+  { key: 'river_dondozo', family: 'river', minDistance: 32, weight: () => 3, doubleRiver: true, build: (l, c) => spawnRiverLane(l, c, rosterById.q_dondozo) },
 ];
 const questLaneTypesByKey = Object.fromEntries(QUEST_LANE_TYPES.map(t => [t.key, t]));
 let ACTIVE_LANE_TYPES = LANE_TYPES;                 // swapped by switchGameMode()
@@ -989,7 +998,7 @@ const gameState = {
   selectedShiny: false, selectedGender: 'm',
   previewBaseId: 'p25', selectedForm: 'normal',   // 'normal' or a form label like 'Alola'
   player: { gridX: 0, gridZ: 0, isMoving: false, tween: null, group: null, tier: 'basic', isShiny: false, ridingPlatform: null },
-  distance: 0, coinsThisRun: 0, questRewardMark: 0,   // Quest mode: next distance milestone owed a flat coin bonus
+  distance: 0, coinsThisRun: 0,
   lanes: new Map(), nextLaneZ: 0, familyHistory: [], laneGroup: null, coinAccum: 0,
   blockedTiles: new Set(),
   scrollZ: 0, scrollActive: false,
@@ -1084,12 +1093,18 @@ const AudioSys = (() => {
    their own themes; "Befriend a Pokemon" is a one-shot that hands back to whatever was playing. ---- */
 const MusicSys = (() => {
   const BASE = 'Pokemon Music/Pokemon Rumble Run/';
+  const QBM = 'Pokemon Music/Pokemon Blocky Mode/';
   const TRACKS = {
     title:    { file: 'Title Screen.mp3',       loop: true,  gain: 0.85 },
     run:      { file: 'During a run music.mp3', loop: true,  gain: 1.0 },
     gacha:    { file: 'Poke Ball Machine.mp3',  loop: true,  gain: 0.39 },
     befriend: { file: 'Befriend a Pokémon.mp3', loop: false, gain: 0.8 },   // overlay jingle, rides ON TOP of music
     lose:     { file: 'You Lose.mp3',           loop: false, gain: 0.9 },   // one-shot; silence follows
+    // Blocky Mode soundtrack (befriend + lose stay shared between the modes). Gains normalize each
+    // track to the rumble set's effective loudness (~0.06 gain*RMS; these files are hotter mixes).
+    qtitle:   { file: 'Blocky Title Theme.mp3',  dir: QBM, loop: true, gain: 0.30 },
+    qrun:     { file: 'During a run music.mp3',  dir: QBM, loop: true, gain: 0.34 },
+    qgacha:   { file: 'Shop Music Blocky.mp3',   dir: QBM, loop: true, gain: 0.29 },
   };
   const MASTER = 0.4;               // music stays well under the sound effects
   const DIM = 0.22;                 // pause menu: clearly quieter, not just a shade
@@ -1110,7 +1125,7 @@ const MusicSys = (() => {
     if (buffers[key] instanceof AudioBuffer) return Promise.resolve(buffers[key]);
     if (buffers[key] && buffers[key].then) return buffers[key];   // in-flight
     if (!actx) return Promise.resolve(null);
-    const p = fetch(encodePath(BASE + TRACKS[key].file))
+    const p = fetch(encodePath((TRACKS[key].dir || BASE) + TRACKS[key].file))
       .then(r => r.arrayBuffer())
       .then(buf => new Promise((res, rej) => actx.decodeAudioData(buf, res, rej)))
       .then(decoded => { buffers[key] = decoded; return decoded; })
@@ -1192,7 +1207,12 @@ const MusicSys = (() => {
 window.MusicSys = MusicSys;   // handy for volume debugging from the console
 // Which track belongs to a screen: runs and the ball machine have their own; the game-over screen
 // is silent (the lose sting plays once) until Play Again (run) or any menu (title).
-function musicForMode(mode) { return mode === 'playing' ? 'run' : mode === 'gacha' ? 'gacha' : mode === 'gameover' ? null : 'title'; }
+function musicForMode(mode) {
+  const base = mode === 'playing' ? 'run' : mode === 'gacha' ? 'gacha' : mode === 'gameover' ? null : 'title';
+  // Blocky Mode swaps in its own title/run/shop themes; game-over silence and one-shots are shared.
+  if (base && gameState.save && gameState.save.gameMode === 'quest') return 'q' + base;
+  return base;
+}
 
 /* ============================== H: THREE.JS SETUP ============================== */
 const scene = new THREE.Scene();
@@ -1243,6 +1263,18 @@ groundFill.rotation.x = -Math.PI / 2;
 groundFill.position.y = -0.06;
 groundFill.receiveShadow = true;
 scene.add(groundFill);
+
+// Faint gray tint over the strips left/right of the playable grid — a quiet "out of bounds" cue.
+// Two long camera-following planes hovering just above land height (visible during runs only).
+const OOB_STRIP_W = GROUND_WIDTH / 2 - (GRID_HALF + 0.5);
+const oobMat = new THREE.MeshBasicMaterial({ color: 0x2b2f38, transparent: true, opacity: 0.26, depthWrite: false });
+const oobLeft = new THREE.Mesh(new THREE.PlaneGeometry(OOB_STRIP_W, 180), oobMat);
+oobLeft.rotation.x = -Math.PI / 2;
+oobLeft.position.set(-(GRID_HALF + 0.5) - OOB_STRIP_W / 2, LAND_H + 0.035, 0);
+const oobRight = oobLeft.clone();
+oobRight.position.x = (GRID_HALF + 0.5) + OOB_STRIP_W / 2;
+oobLeft.visible = oobRight.visible = false;
+scene.add(oobLeft, oobRight);
 
 gameState.laneGroup = new THREE.Group();
 scene.add(gameState.laneGroup);
@@ -1303,7 +1335,20 @@ function loadModelOrNull(path) {
             capTex.colorSpace = THREE.SRGBColorSpace;
             mm.map = capTex; mm.needsUpdate = true;
           }
-          if (mm.map) { mm.map.wrapS = mm.map.wrapT = THREE.MirroredRepeatWrapping; mm.map.needsUpdate = true; }
+          if (mm.map) {
+            if (path.startsWith(QB)) {
+              // Quest voxel models use tiny palette textures: linear filtering blends neighboring
+              // palette pixels at UV borders, showing as white flecks on cube corners. Nearest
+              // sampling (no mipmaps) + edge clamp keeps every face a flat, clean color.
+              mm.map.magFilter = THREE.NearestFilter;
+              mm.map.minFilter = THREE.NearestFilter;
+              mm.map.generateMipmaps = false;
+              mm.map.wrapS = mm.map.wrapT = THREE.ClampToEdgeWrapping;
+            } else {
+              mm.map.wrapS = mm.map.wrapT = THREE.MirroredRepeatWrapping;
+            }
+            mm.map.needsUpdate = true;
+          }
         });
       });
       return model;
@@ -1515,9 +1560,9 @@ function makeQuestTree() {
   }
   return g;
 }
-function makeQuestRock() {
+function makeQuestRock(scale = 1) {
   const g = new THREE.Group();
-  const s = 0.8 + Math.random() * 0.4;
+  const s = (0.8 + Math.random() * 0.4) * scale;
   const main = new THREE.Mesh(new THREE.BoxGeometry(0.6 * s, 0.42 * s, 0.6 * s),
     new THREE.MeshStandardMaterial({ color: 0xb0b0a8, roughness: 0.9 }));
   main.position.y = 0.21 * s; main.rotation.y = Math.random() * Math.PI / 2; main.castShadow = true;
@@ -1529,6 +1574,103 @@ function makeQuestRock() {
     g.add(side);
   }
   return g;
+}
+/* ---- Real Quest trees, carved out of the ripped map models. The maps (Guild Field / First
+   Steppe) are single merged meshes with no named parts, so each tree is a hand-found LOCAL-space
+   box (cluster analysis over the raw geometry); triangles whose centroid falls inside get copied
+   into a standalone mesh that keeps the map's texture atlas. Boxes are in the map file's own
+   coordinates (before any normalize), so they stay valid no matter how the map is used elsewhere. */
+const QUEST_TREE_CUTS = [
+  // Boxes found by cluster analysis over Guild Field's raw geometry (compact, tall, green-dominant
+  // triangle islands = trees). y starts just above the terrain skin so no ground chip comes along.
+  { map: QB + 'Guild Field/mceGuildField.obj', min: [-27.7, 0.25, 58.7], max: [-23.9, 9.8, 62.5] },   // lone tree
+  { map: QB + 'Guild Field/mceGuildField.obj', min: [-31.2, 0.25, 41.4], max: [-27.2, 9.8, 48.4] },   // row tree
+  { map: QB + 'Guild Field/mceGuildField.obj', min: [-39.2, 0.25, 41.4], max: [-32.2, 9.8, 48.4] },   // double-canopy clump
+];
+let questTreeLibPromise = null;
+function extractMeshRegion(root, min, max) {
+  const lo = new THREE.Vector3(...min), hi = new THREE.Vector3(...max);
+  const out = new THREE.Group();
+  root.updateMatrixWorld(true);
+  root.traverse(o => {
+    if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+    const pos = o.geometry.attributes.position, uv = o.geometry.attributes.uv, idx = o.geometry.index;
+    const triCount = (idx ? idx.count : pos.count) / 3;
+    const gi = i => (idx ? idx.getX(i) : i);
+    const keepPos = [], keepUv = [];
+    for (let t = 0; t < triCount; t++) {
+      const a = gi(t * 3), b = gi(t * 3 + 1), c = gi(t * 3 + 2);
+      const cx = (pos.getX(a) + pos.getX(b) + pos.getX(c)) / 3;
+      const cy = (pos.getY(a) + pos.getY(b) + pos.getY(c)) / 3;
+      const cz = (pos.getZ(a) + pos.getZ(b) + pos.getZ(c)) / 3;
+      if (cx < lo.x || cx > hi.x || cy < lo.y || cy > hi.y || cz < lo.z || cz > hi.z) continue;
+      for (const i of [a, b, c]) {
+        keepPos.push(pos.getX(i), pos.getY(i), pos.getZ(i));
+        if (uv) keepUv.push(uv.getX(i), uv.getY(i));
+      }
+    }
+    if (!keepPos.length) return;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(keepPos, 3));
+    if (keepUv.length) g.setAttribute('uv', new THREE.Float32BufferAttribute(keepUv, 2));
+    g.computeVertexNormals();
+    out.add(new THREE.Mesh(g, Array.isArray(o.material) ? o.material[0] : o.material));
+  });
+  return out;
+}
+function loadQuestTreeLib() {
+  if (questTreeLibPromise) return questTreeLibPromise;
+  questTreeLibPromise = Promise.all(QUEST_TREE_CUTS.map(cut =>
+    loadModelOrNull(cut.map).then(m => {
+      if (!m) return null;
+      const tree = extractMeshRegion(m, cut.min, cut.max);
+      if (!tree.children.length) return null;
+      // Stand the carved tree on the ground at its own origin.
+      const box = new THREE.Box3().setFromObject(tree);
+      const c = box.getCenter(new THREE.Vector3());
+      for (const ch of tree.children) ch.position.set(-c.x, -box.min.y, -c.z);
+      return tree;
+    }).catch(() => null)
+  )).then(list => list.filter(Boolean));
+  return questTreeLibPromise;
+}
+// A Quest tree: instant procedural cube-tree placeholder, hot-swapped for a random carved map tree.
+function makeQuestMapTree(targetHeight = 1.6 + Math.random() * 0.5) {
+  const g = new THREE.Group();
+  const ph = makeQuestTree();
+  g.add(ph);
+  loadQuestTreeLib().then(lib => {
+    if (!lib.length || g.userData.destroyed) return;
+    const inst = lib[Math.floor(Math.random() * lib.length)].clone();
+    inst.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
+    const box = new THREE.Box3().setFromObject(inst);
+    inst.scale.setScalar(targetHeight / ((box.max.y - box.min.y) || 1));
+    g.remove(ph); g.add(inst);
+  });
+  return g;
+}
+// Recenter a model on the x/z bbox of its BASE (bottom 40% of height) instead of the whole mesh —
+// Quest Lotad's sombrero leaf overhangs one side, dragging the full-bbox center off the lily pad,
+// which made riders stand visibly off his middle. Offset is computed once per entry and cached.
+function recenterOnBase(obj, entry) {
+  if (entry._baseOff) { obj.position.x += entry._baseOff.x; obj.position.z += entry._baseOff.z; return; }
+  obj.updateMatrixWorld(true);
+  const full = new THREE.Box3().setFromObject(obj);
+  const cut = full.min.y + (full.max.y - full.min.y) * 0.4;
+  const base = new THREE.Box3(); base.makeEmpty();
+  const v = new THREE.Vector3();
+  obj.traverse(o => {
+    if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+    const pos = o.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+      if (v.y <= cut) base.expandByPoint(v);
+    }
+  });
+  if (base.isEmpty()) { entry._baseOff = { x: 0, z: 0 }; return; }
+  const c = base.getCenter(new THREE.Vector3());
+  entry._baseOff = { x: -c.x, z: -c.z };
+  obj.position.x += entry._baseOff.x; obj.position.z += entry._baseOff.z;
 }
 // Which decor id to place for the current mode — kept as functions (not constants) so a mode switch
 // mid-session is picked up immediately by every call site below.
@@ -1547,7 +1689,7 @@ function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
   group.userData.wob = wob;
   const cube = entryId === 'tree' ? makeRumbleTree()
              : entryId === 'rock' ? makeRumbleRock()
-             : entryId === 'q_tree' ? makeQuestTree()
+             : entryId === 'q_tree' ? makeQuestMapTree()
              : entryId === 'q_rock' ? makeQuestRock()
              : makeCubeMesh(entry, shiny ? 0xffd54f : undefined);
   wob.add(cube);
@@ -1557,6 +1699,7 @@ function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
       const inst = cloneModel(model);
       inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
       normalizeModel(inst, entry.modelTargetSize ?? Math.max(...entry.boxSize));
+      if (entry.baseCenter) recenterOnBase(inst, entry);   // ride point = visual base, not full bbox
       if (shiny) applyShiny(inst, shinyFallbackFor(entry));
       wob.remove(cube); wob.add(inst);
     });
@@ -1721,7 +1864,8 @@ function spawnRiverLane(lane, ctx, entry) {
 }
 function spawnPlatformEntity(lane, entry, x, vx) {
   const group = createEntityObject(entry.id);
-  group.position.set(x, 0, lane.z * TILE);
+  // Double-wide rivers (Quest Wailord/Dondozo) float their platforms on the seam between the two lanes.
+  group.position.set(x, 0, (lane.z + (lane.entityZOffset || 0)) * TILE);
   group.rotation.y = vx >= 0 ? Math.PI / 2 : -Math.PI / 2;
   lane.root.add(group);
   lane.entities.push({ kind: 'platform', entry, group, x, vx, halfWidth: entry.platformLength / 2, bobPhase: Math.random() * Math.PI * 2, bob: 0 });
@@ -1777,8 +1921,13 @@ function updateRailLane(lane, dt) {
 function generateNextLane() {
   const z = gameState.nextLaneZ, distance = z;
   const isGiftLane = z > 0 && z % GIFT_INTERVAL === 0;
-  const laneType = isGiftLane ? ACTIVE_LANE_TYPES_BY_KEY.grass : pickLaneType(distance);
+  let laneType = isGiftLane ? ACTIVE_LANE_TYPES_BY_KEY.grass : pickLaneType(distance);
+  // Quest Wailord/Dondozo rivers occupy TWO lanes (their models are too deep for one strip of
+  // water). If the second lane would collide with a gift-box lane, fall back to a plain river.
+  const isDouble = !!laneType.doubleRiver && (z + 1) % GIFT_INTERVAL !== 0 && z + 1 > 0;
+  if (laneType.doubleRiver && !isDouble) laneType = ACTIVE_LANE_TYPES_BY_KEY.river_lapras || ACTIVE_LANE_TYPES_BY_KEY.grass;
   const lane = newLane(z, laneType.key, laneType.family);
+  if (isDouble) lane.entityZOffset = 0.5;   // platforms ride the seam between the two water lanes
   lane.root.position.y = (laneType.family === 'river') ? 0 : LAND_H;  // raise land, keep water low
   lane.root.add(createLaneGroundMesh(z, laneType.family));
   const prevLane = gameState.lanes.get(z - 1);
@@ -1800,8 +1949,7 @@ function generateNextLane() {
   // Fixed coin cadence: accrue one "tile" per lane; whenever we've banked a full interval AND this
   // lane can host a coin (grass or road, never water/rail/gift), drop one. If the lane can't host,
   // the debt carries to the next eligible lane — so the average holds at 1 per COIN_EVERY_TILES.
-  // Quest mode skips physical coins entirely — its economy is a flat bonus every 50 lanes (see tryMove).
-  if (z > 0 && gameState.save.gameMode !== 'quest') {
+  if (z > 0) {
     gameState.coinAccum += 1;
     const canHost = (laneType.family === 'safe' || laneType.family === 'road') && !isGiftLane;
     if (canHost && gameState.coinAccum >= COIN_EVERY_TILES) {
@@ -1815,6 +1963,23 @@ function generateNextLane() {
   gameState.familyHistory.push(laneType.family);
   if (gameState.familyHistory.length > 6) gameState.familyHistory.shift();
   gameState.nextLaneZ++;
+  if (isDouble) {
+    // Companion water lane: its own strip of water one tile further, but the SAME platform list —
+    // the shared array lets the ride/drown checks find the seam-floating Wailord from either row.
+    const z2 = z + 1;
+    const lane2 = newLane(z2, laneType.key, 'river');
+    lane2.isWater = true;
+    lane2.entitiesShared = true;          // updateLanes skips it; the primary lane drives movement
+    lane2.entities = lane.entities;
+    lane2.root.position.y = 0;
+    lane2.root.add(createLaneGroundMesh(z2, 'river'));
+    gameState.lanes.set(z2, lane2);
+    gameState.laneGroup.add(lane2.root);
+    gameState.familyHistory.push('river');
+    if (gameState.familyHistory.length > 6) gameState.familyHistory.shift();
+    gameState.coinAccum += 1;             // the companion still counts toward the coin cadence
+    gameState.nextLaneZ++;
+  }
 }
 function maintainLaneWindow() {
   const frontier = Math.max(gameState.player.gridZ, Math.ceil(gameState.scrollZ));
@@ -1914,15 +2079,6 @@ function isTileWalkable(x, z) {
   return true;
 }
 function faceDir(dx, dz) { const p = gameState.player; if (p.group && (dx || dz)) p.group.rotation.y = Math.atan2(dx, dz); }
-// Quest mode has no coin pickups — every 50 lanes of distance actually reached grants a flat bonus
-// instead. A shared helper (not just in tryMove) so godmode's forward-teleport also honors it.
-function grantQuestDistanceRewards() {
-  if (gameState.save.gameMode !== 'quest') return;
-  while (gameState.distance - gameState.questRewardMark >= 50) {
-    gameState.questRewardMark += 50;
-    gameState.coinsThisRun += 10;
-  }
-}
 function tryMove(dx, dz) {
   const p = gameState.player;
   const cx = Math.round(p.gridX);                        // snap off any fractional (water-ride) offset
@@ -1936,7 +2092,7 @@ function tryMove(dx, dz) {
   p.tween = { from: { x: fromX, z: p.gridZ * TILE }, to: { x: tx * TILE, z: tz * TILE },
     surfFrom: surfaceY(p.gridZ), surfTo: surfaceY(tz), startTime: performance.now(), duration: HOP_DURATION_MS, dx, dz };
   p.gridX = tx; p.gridZ = tz;
-  if (tz > gameState.distance) { gameState.distance = tz; grantQuestDistanceRewards(); }
+  if (tz > gameState.distance) gameState.distance = tz;
 }
 function playBumpAnimation(dx, dz) {
   const p = gameState.player; if (!p.group || p.isMoving) return;
@@ -1970,6 +2126,7 @@ function updateCamera(dt) {
   camera.position.set(CAM_OFFSET.x, CAM_OFFSET.y, CAM_OFFSET.z + cameraFollowZ);
   camera.lookAt(0, 0, cameraFollowZ);
   groundFill.position.z = cameraFollowZ;
+  oobLeft.position.z = oobRight.position.z = cameraFollowZ;
 }
 
 /* ============================== O: COINS / GIFT / HAZARDS / SAFETY ============================== */
@@ -2005,8 +2162,6 @@ function openGiftBox(lane) {
   lane.gift.taken = true;
   lane.root.remove(lane.gift.group);
   AudioSys.sfx.gacha();
-  // Quest mode has no physical coin pickups to scatter — grant a flat bonus instead.
-  if (gameState.save.gameMode === 'quest') { gameState.coinsThisRun += 25; return; }
   for (let i = 0; i < 5; i++) {
     const target = gameState.lanes.get(lane.z + 1 + Math.floor(Math.random() * 10));
     if (target && target.family !== 'rail') spawnCoin(target, -GRID_HALF + Math.floor(Math.random() * GRID_WIDTH));
@@ -2055,7 +2210,11 @@ function checkPlayerSafety(dt) {
       }
       p.group.position.x = rideX; p.gridX = rideX;
       p.group.position.y = platform.entry.boxSize[1] + (platform.bob || 0);   // ride with the bob
-      if (platform.x < (-GRID_HALF - 0.5) || platform.x > (GRID_HALF + 0.5)) { triggerGameOver('drowned'); return; }
+      if (platform.x < (-GRID_HALF - 0.5) || platform.x > (GRID_HALF + 0.5)) {
+        // A Mega carried out of bounds spends its form to surge back to dry land instead of dying.
+        if (gameState.mega.active) { megaSurge(performance.now()); return; }
+        triggerGameOver('drowned'); return;
+      }
     } else if (!p.isMoving) {
       p.group.position.y = LAND_H;   // keep grounded on land
     }
@@ -2071,6 +2230,7 @@ function checkPlayerSafety(dt) {
 }
 function updateLanes(dt) {
   for (const lane of gameState.lanes.values()) {
+    if (lane.entitiesShared) continue;   // companion half of a double river — its primary lane drives the shared platforms
     if (lane.family === 'rail') updateRailLane(lane, dt);
     for (const ent of lane.entities) {
       ent.x += ent.vx * dt; ent.group.position.x = ent.x;
@@ -3127,8 +3287,8 @@ function buildMenuScenery() {
   menuGroup.add(menuScenery);
 }
 // Quest ("Blocky Mode") home screen: the real Base Camp (First Steppe) expedition island as the
-// ground, the Expedition Tent pitched in the middle, and a loose ring of blocky trees/rocks — a
-// cozy outdoor camp for roaming Pokemon, instead of the rumble ranch's forest clearing.
+// ground — scaled up so its baked-in props read at Pokemon size, not miniature — the Expedition
+// Tent pitched in the clearing, and a ring of trees carved from the actual Quest map models.
 let questMenuScenery = null;
 function buildQuestMenuScenery() {
   if (questMenuScenery) return;
@@ -3138,7 +3298,8 @@ function buildQuestMenuScenery() {
     if (!model || !questMenuScenery) return;
     const inst = cloneModel(model);
     inst.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = false; } });
-    normalizeModel(inst, Math.max(F.rx, F.rz) * 2.1);   // cover the clearing footprint
+    // Big: the island becomes the whole backdrop, so its baked trees/blocks match the roamers' scale.
+    normalizeModel(inst, Math.max(F.rx, F.rz) * 4.2);
     inst.position.y -= 0.04;   // sit just under field level so it reads as ground, not a floating slab
     questMenuScenery.add(inst);
   });
@@ -3146,18 +3307,19 @@ function buildQuestMenuScenery() {
     if (!model || !questMenuScenery) return;
     const inst = cloneModel(model);
     inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-    normalizeModel(inst, 3.2);
-    const p = randomFieldPoint(0.3);
+    normalizeModel(inst, 4.0);
+    const p = randomFieldPoint(0.28);
     inst.position.set(p.x, 0, p.y);
     inst.rotation.y = Math.random() * Math.PI * 2;
     questMenuScenery.add(inst);
   });
-  const rows = [[30, 1.06], [22, 1.22]];
+  // Tree ring: real carved map trees, sized to stand taller than the roaming Pokemon.
+  const rows = [[26, 1.06], [18, 1.24]];
   for (const [count, mult] of rows) {
     for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2 + Math.random() * 0.12;
+      const a = (i / count) * Math.PI * 2 + Math.random() * 0.14;
       const m = mult + Math.random() * 0.08;
-      const deco = Math.random() < 0.6 ? makeQuestTree() : makeQuestRock();
+      const deco = Math.random() < 0.72 ? makeQuestMapTree(2.1 + Math.random() * 0.9) : makeQuestRock(1.6);
       deco.position.set(F.cx + Math.cos(a) * F.rx * m, 0, F.cz + Math.sin(a) * F.rz * m);
       deco.rotation.y = Math.random() * Math.PI * 2;
       questMenuScenery.add(deco);
@@ -3165,7 +3327,7 @@ function buildQuestMenuScenery() {
   }
   for (let i = 0; i < 4; i++) {
     const p = randomFieldPoint(0.75);
-    const deco = Math.random() < 0.5 ? makeQuestTree() : makeQuestRock();
+    const deco = Math.random() < 0.5 ? makeQuestMapTree(1.9 + Math.random() * 0.6) : makeQuestRock(1.4);
     deco.position.set(p.x, 0, p.y);
     questMenuScenery.add(deco);
   }
@@ -3276,11 +3438,31 @@ function updatePlayButtonModel() {
   });
 }
 
-/* ---- Mode toggle: a small fixed 3D render of Quest Pikachu at a 45-degree angle facing left.
-   Static (not animated like the play/preview holders), so it's rendered once on init and once more
-   when the real model swaps in for the placeholder cube. ---- */
-let modeToggleRenderer, modeToggleScene, modeToggleCamera, modeToggleHolder;
-const MODE_TOGGLE_PIKACHU_PATH = QB + '#0025 Pikachu/025 - Pikachu.obj';
+/* ---- Mode toggle: a small fixed 3D Pikachu at a 45-degree angle facing left — always the Pikachu
+   of the mode the button leads TO (Quest's blocky one while in Rumble, the Rumble model while in
+   Quest). Static: rendered once per model swap, after its textures finish (an immediate render
+   captured the map before decode and came out black). ---- */
+let modeToggleRenderer, modeToggleScene, modeToggleCamera, modeToggleHolder, modeToggleToken = 0;
+const MODE_TOGGLE_MODELS = {
+  quest: QB + '#0025 Pikachu/025 - Pikachu.obj',       // shown in Rumble: "this way to Blocky Mode"
+  rumble: MB + '#0025 Pikachu/M/Pikachu_M.obj',        // shown in Quest: "this way back to Rumble"
+};
+function updateModeToggleModel() {
+  if (!modeToggleHolder) return;
+  const target = gameState.save.gameMode === 'quest' ? 'rumble' : 'quest';
+  const myToken = ++modeToggleToken;
+  loadModelOrNull(MODE_TOGGLE_MODELS[target]).then(m => {
+    if (!m) return;
+    waitForModelTextures(m).then(() => {
+      if (myToken !== modeToggleToken) return;   // superseded by a newer toggle
+      while (modeToggleHolder.children.length) modeToggleHolder.remove(modeToggleHolder.children[0]);
+      const inst = cloneModel(m); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
+      normalizeGalleryModel(inst, 1.3, 0.7);
+      modeToggleHolder.add(inst);
+      modeToggleRenderer.render(modeToggleScene, modeToggleCamera);
+    });
+  });
+}
 function initModeToggleButton() {
   const pc = document.getElementById('mode-toggle-canvas');
   modeToggleRenderer = new THREE.WebGLRenderer({ canvas: pc, antialias: true, alpha: true });
@@ -3294,13 +3476,7 @@ function initModeToggleButton() {
   modeToggleHolder = new THREE.Group(); modeToggleHolder.rotation.y = -Math.PI / 4; modeToggleScene.add(modeToggleHolder); // 45°, facing left
   const cube = makeCubeMesh({ boxSize: [0.9, 0.9, 0.9], color: 0xf6c945 }); modeToggleHolder.add(cube);
   modeToggleRenderer.render(modeToggleScene, modeToggleCamera);
-  loadModelOrNull(MODE_TOGGLE_PIKACHU_PATH).then(m => {
-    if (!m) return;
-    const inst = cloneModel(m); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
-    normalizeGalleryModel(inst, 1.3, 0.7);
-    modeToggleHolder.remove(cube); modeToggleHolder.add(inst);
-    modeToggleRenderer.render(modeToggleScene, modeToggleCamera);
-  });
+  updateModeToggleModel();
 }
 // Refresh everything on screen that depends on which mode is active: the toggle button's own
 // on/off look, the title logo, and the high-score number (each mode tracks its own best distance,
@@ -3309,6 +3485,7 @@ function applyGameModeVisuals() {
   const questMode = gameState.save.gameMode === 'quest';
   document.getElementById('btn-mode-toggle').classList.toggle('on', questMode);
   document.getElementById('mode-toggle-label').textContent = questMode ? 'Rumble Mode' : 'Blocky Mode';
+  updateModeToggleModel();   // show the Pikachu of the mode the button now leads to
   loadLogo();
   const prefix = questMode ? 'q' : 'p';
   const scores = Object.entries(gameState.save.bestScoreByCharacter).filter(([id]) => id.startsWith(prefix)).map(([, v]) => v);
@@ -3342,7 +3519,8 @@ function switchGameMode(mode) {
   applyGameModeVisuals();
   updatePlayButtonModel();
   clearField(); buildMenuDiorama();
-  buildHowTo();   // tab set (Mega/Shinies vs Quest Rewards) differs per mode
+  buildHowTo();               // tab set (Mega/Shinies vs Blocky) differs per mode
+  MusicSys.play(musicForMode('menu'));   // each mode has its own title theme
 }
 
 /* ============================== Q3: DEVELOPER / RESET KEYPAD ============================== */
@@ -3489,6 +3667,7 @@ function setMode(next) {
   if (next !== 'playing') { gameState.paused = false; gameState.countdownUntil = 0; }
   gameState.mode = next;
   menuGroup.visible = (next === 'menu');
+  oobLeft.visible = oobRight.visible = (next === 'playing');   // out-of-bounds tint only during runs
   // Show the target screen FIRST so per-mode init (e.g. sizing the 3D preview canvas) sees real dimensions.
   const screen = document.getElementById(`screen-${next}`);
   if (screen) screen.classList.remove('hidden');
@@ -3587,12 +3766,13 @@ function advanceToGrassLane() {
   }
   const lane = gameState.lanes.get(z);
   if (!lane || lane.family !== 'safe') return false;
-  let gx = Math.round(p.gridX);
+  // Clamp back inside the grid — a platform ride can leave gridX out of bounds before a surge.
+  let gx = Math.round(THREE.MathUtils.clamp(p.gridX, -GRID_HALF, GRID_HALF));
   if (lane.decor.includes(gx)) gx = freeXPositions(lane.decor)[0] ?? 0;   // don't land inside a tree
   p.gridZ = z; p.gridX = gx;
   p.ridingPlatform = null; p.isMoving = false; p.tween = null;
   p.group.position.set(gx, LAND_H, z * TILE);
-  if (z > gameState.distance) { gameState.distance = z; grantQuestDistanceRewards(); }
+  if (z > gameState.distance) gameState.distance = z;
   return true;
 }
 /* ---- Wild encounters: one Pokemon per run may appear on a grass lane ahead, hopping in place like
@@ -3657,7 +3837,7 @@ function startRun(pokemonId) {
   gameState.player.ridingPlatform = null;
   gameState.player.tier = entry.tier; gameState.player.isShiny = shiny;
   gameState.save.runsByCharacter[pokemonId] = (gameState.save.runsByCharacter[pokemonId] || 0) + 1; persistSave();
-  gameState.distance = 0; gameState.coinsThisRun = 0; gameState.questRewardMark = 0;
+  gameState.distance = 0; gameState.coinsThisRun = 0;
   gameState.scrollZ = 0; gameState.scrollActive = false;
   gameState.paused = false; gameState.countdownUntil = 0;
   ACTIVE_LANE_TYPES = gameState.save.gameMode === 'quest' ? QUEST_LANE_TYPES : LANE_TYPES;
@@ -3739,11 +3919,7 @@ function buildHowTo() {
       <div class="row"><div><b>Roads:</b> dodge charging Pokemon like Rapidash and Dodrio.</div></div>
       <div class="row"><div><b>Rivers:</b> ride the water Pokemon across - miss and you sink.</div></div>
       <div class="row"><div><b>Stampede:</b> the lane flashes red, then a Tauros herd charges through.</div></div>` },
-    questMode ? { id: 'coins', name: 'Coins', html: `
-      <div class="row"><div>Blocky Mode has no coins to pick up mid-run — instead you earn <b>10 coins</b> automatically every <b>50 lanes</b> of distance you reach.</div></div>
-      <div class="row"><div>Every 100 lanes a gift box appears - run into it for a flat <b>25-coin</b> bonus.</div></div>
-      <div class="row"><div>Coins are shared with Rumble Mode — everything else (roster, unlocks, high score) is kept separate.</div></div>` }
-    : { id: 'coins', name: 'Coins', html: `
+    { id: 'coins', name: 'Coins', html: `
       <div class="howto-coins">${coinImg('silver', 'Silver = 1')}${coinImg('gold', 'Gold = 5')}${coinImg('L', 'Big Gold = 10')}</div>
       <div class="row"><div>Coins appear as you run. A Gold (5) turns up about <b>1 in 15</b>, a Big Gold (10) about <b>1 in 30</b>.</div></div>
       <div class="row"><div>Every 100 lanes a gift box appears - run into it to scatter 5 coins across the lanes just ahead.</div></div>` },
@@ -3759,7 +3935,8 @@ function buildHowTo() {
       <div class="row"><div>Shiny Pokemon have a <b>1 in 5</b> chance to <b>double</b> any coin they pick up — watch for the x2 over their head!</div></div>
       <div class="row"><div>Shiny <b>Legendary / Mythical</b> Pokemon double coins at <b>1 in 2</b>.</div></div>` },
     questMode && { id: 'blocky', name: 'Blocky Mode', html: `
-      <div class="row"><div>Blocky Mode plays with the <b>Pokemon Quest</b> roster instead — its own select screen, gacha pool and wild encounters. Progress here never touches your Rumble Mode roster.</div></div>
+      <div class="row"><div>Blocky Mode plays with the <b>Pokemon Quest</b> roster instead — its own select screen, gacha pool and wild encounters. Only your <b>coins</b> carry over; nothing here touches your Rumble Mode roster.</div></div>
+      <div class="row"><div>It's the <b>gentler mode</b>: runs weave in noticeably more grass lanes, so there's always somewhere to catch your breath.</div></div>
       <div class="row"><div>There's <b>no Mega Evolution and no shinies</b> here — but some Pokemon only appear as costumes (Ash Cap Pikachu, Halloween Gengar, and more), pulled from the Poke Ball Machine just like anyone else.</div></div>` },
     { id: 'wild', name: 'Wild', html: `
       <div class="row"><div>Past lane 100, a Pokemon you don't own yet may appear standing on the path. Walk into it to <b>befriend it permanently</b> — one per run.</div></div>` },
