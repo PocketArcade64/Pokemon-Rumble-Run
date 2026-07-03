@@ -24,16 +24,22 @@
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%; width: 100%;
-    overflow: hidden; background: #87ceeb;
+    /* Dark (matches the status bar/theme) — NOT sky blue: on iOS standalone the layout viewport can
+       under-report by the home-indicator zone, exposing this background as a bottom band. Dark makes
+       any residual sliver invisible; the real fix is the 100lvh sizing below. */
+    overflow: hidden; background: #0b1020;
     touch-action: none; overscroll-behavior: none;
     font-family: 'PokemonPixel', 'Silkscreen', 'Trebuchet MS', system-ui, sans-serif;
     -webkit-user-select: none; user-select: none;
   }
   /* Silkscreen is a pixel font with a small x-height — nudge letter-spacing/line-height for readability. */
   body, button, input, .panel { letter-spacing: 0.5px; line-height: 1.6; }
-  @supports (height: 100dvh) { html, body { height: 100dvh; } }
+  /* lvh = LARGE viewport unit: the full screen incl. the iOS home-indicator zone (dvh/innerHeight
+     under-report there in standalone mode — that caused the blue bottom band). Page never scrolls,
+     so lvh is always correct here. */
+  @supports (height: 100lvh) { html, body { height: 100lvh; } }
   #game-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; touch-action: none; outline: none; }
-  @supports (height: 100dvh) { #game-canvas { height: 100dvh; } }
+  @supports (height: 100lvh) { #game-canvas { height: 100lvh; } }
 
   /* Global hidden helper — applies to ANY element, not just .screen (this was missing before). */
   .hidden { display: none !important; }
@@ -49,19 +55,45 @@
     z-index: 5; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.6);
   }
   #hud .hud-left { display: flex; align-items: flex-start; }
-  #hud .hud-right { display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; }
+  #hud .hud-right { display: flex; flex-direction: row; gap: 0.6rem; align-items: center; }
   .hud-score { font-size: clamp(2rem, 9vw, 3.2rem); font-weight: bold; line-height: 1; }
+  /* Coin counter: no pill/box — just the coin + a bold gold number with a crisp shadow. */
   .hud-pill {
-    background: rgba(0,0,0,0.35); border-radius: 999px; padding: 0.35rem 0.9rem;
-    font-size: clamp(1rem, 4vw, 1.4rem); font-weight: bold; display: flex; gap: 0.4rem; align-items: center;
+    background: none; padding: 0; border-radius: 0;
+    font-size: clamp(1.2rem, 4.6vw, 1.6rem); font-weight: bold; color: #ffd54f;
+    display: flex; gap: 0.35rem; align-items: center;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.75), 0 0 3px rgba(0,0,0,0.9);
   }
+  .hud-pill .hud-coin { filter: drop-shadow(0 2px 3px rgba(0,0,0,0.55)); }
+  /* Pause: no square — two clean rounded bars with a soft shadow. */
   #btn-pause {
-    background: rgba(0,0,0,0.35); color: #fff; border: none; border-radius: 999px;
-    width: 2.6rem; height: 2.6rem; font-size: 1.1rem; padding: 0; box-shadow: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
+    background: none; border: none; box-shadow: none; padding: 0; cursor: pointer;
+    width: 2.4rem; height: 2.4rem; min-width: 0; position: relative; font-size: 0;
+    -webkit-tap-highlight-color: transparent;
   }
-  #btn-pause:active { transform: none; }
+  #btn-pause::before, #btn-pause::after {
+    content: ''; position: absolute; top: 50%; width: 5px; height: 1.35rem;
+    background: #fff; border-radius: 2.5px; transform: translateY(-50%);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  }
+  #btn-pause::before { left: calc(50% - 7px); }
+  #btn-pause::after  { left: calc(50% + 2px); }
+  #btn-pause:active { transform: none; filter: brightness(0.8); }
 
+  /* Shiny coin-double indicator: pixel-font "x2" that pops above the player's head and floats away. */
+  #coin-x2 {
+    position: fixed; left: -100px; top: -100px; transform: translate(-50%, -100%);
+    color: #ffd54f; font-size: 1.3rem; font-weight: bold; letter-spacing: 1px;
+    text-shadow: 2px 2px 0 #14161c, -2px 2px 0 #14161c, 2px -2px 0 #14161c, -2px -2px 0 #14161c;
+    pointer-events: none; z-index: 6; opacity: 0; image-rendering: pixelated;
+  }
+  #coin-x2.pop { animation: x2-float 0.9s ease-out forwards; }
+  @keyframes x2-float {
+    0%   { opacity: 0; margin-top: 0;     transform: translate(-50%, -100%) scale(0.5); }
+    15%  { opacity: 1;                    transform: translate(-50%, -100%) scale(1.25); }
+    30%  {                                transform: translate(-50%, -100%) scale(1); }
+    100% { opacity: 0; margin-top: -42px; transform: translate(-50%, -100%) scale(1); }
+  }
   #touch-hint {
     position: fixed; left: 50%; bottom: 8%; transform: translateX(-50%);
     background: rgba(0,0,0,0.55); color: #fff; padding: 0.5rem 1rem; border-radius: 999px;
@@ -75,6 +107,8 @@
     color: #fff; z-index: 10; padding: 1rem; box-sizing: border-box; text-align: center;
   }
   .overlay { z-index: 20; background: rgba(8,10,20,0.72); }
+  /* Reach past the under-reported iOS standalone layout viewport so panels cover the bottom band too. */
+  @supports (height: 100lvh) { .screen, .overlay { bottom: auto; height: 100lvh; } }
   .screen h1 { font-size: clamp(1.8rem, 7vw, 3rem); margin: 0 0 0.3rem; color: #ffd54f; text-shadow: 0 3px 0 #b8860b, 0 4px 8px rgba(0,0,0,0.4); letter-spacing: 1px; }
   .screen h2 { font-size: clamp(1.2rem, 5vw, 1.8rem); margin: 0 0 0.25rem; }
   .subtitle { opacity: 0.75; margin: -0.4rem 0 0.6rem; letter-spacing: 3px; font-size: 0.8rem; text-transform: uppercase; }
@@ -102,7 +136,11 @@
   /* Condensed header: smaller preview + tighter text so more of the roster grid is visible. */
   #preview-wrap { position: relative; width: min(60vw, 220px); height: 20vh; }
   /* Top-align so opening the filter panel / empty results don't recenter and nudge the header. */
-  #screen-select { gap: 0.4rem; justify-content: flex-start; padding-top: 2.5vh; }
+  #screen-select { gap: 0.4rem; justify-content: flex-start;
+    padding-top: max(2.5vh, calc(env(safe-area-inset-top) + 1vh));
+    padding-bottom: max(1.5vh, calc(env(safe-area-inset-bottom) + 1vh)); }
+  /* Buttons ride the very bottom; the roster grid grows to fill everything above them. */
+  #screen-select .screen-buttons { margin-top: 0.3rem; }
   #preview-canvas { width: 100%; height: 100%; display: block; }
   #preview-name { font-size: 1.3rem; font-weight: bold; margin-top: -0.4rem; }
   #preview-sub { opacity: 0.8; font-size: 0.85rem; }
@@ -121,10 +159,37 @@
   .roster-chip.locked .chip-dot { background: #14161c !important; border-color: #3a3f4a; }
   .chip-tier { font-size: 0.6rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
 
-  /* ---- Gacha ---- */
-  #gacha-result { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem 1.5rem; min-width: 240px; min-height: 90px; }
-  #gacha-result .thumb { width: 60px; height: 60px; border-radius: 12px; margin: 0 auto 0.5rem; border: 3px solid #fff; }
-  .ball-name { font-weight: bold; letter-spacing: 0.5px; }
+  /* ---- Gacha: gumball machine stage (the star of the screen — grows to fill it) ---- */
+  #gacha-machine-wrap { position: relative; width: min(94vw, 420px); flex: 1 1 auto; min-height: 260px; }
+  #gacha-canvas { width: 100%; height: 100%; display: block; touch-action: manipulation; }
+  #gacha-hint {
+    position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%);
+    background: rgba(11,16,32,0.85); color: #ffd54f; font-size: 0.8rem; white-space: nowrap;
+    padding: 0.35rem 0.8rem; border-radius: 4px; box-shadow: inset 0 0 0 2px #14161c;
+    pointer-events: none; animation: hint-pulse 1.1s ease-in-out infinite;
+  }
+  @keyframes hint-pulse { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.08); } }
+  #gacha-reveal { position: absolute; left: 0; right: 0; top: 2px; text-align: center; pointer-events: none; }
+  #gacha-reveal-name { font-size: 1.25rem; font-weight: bold; color: #ffd54f; text-shadow: 0 2px 0 rgba(0,0,0,0.6), 0 3px 8px rgba(0,0,0,0.4); }
+  #gacha-reveal-sub { font-size: 0.8rem; opacity: 0.95; text-shadow: 0 2px 3px rgba(0,0,0,0.6); }
+  /* ---- Pull Rates: odds rows (info only) + tinted ball tabs + remaining-pool silhouettes ---- */
+  .rates-odds-row {
+    display: flex; align-items: center; gap: 0.5rem; width: 100%; min-width: 0; text-align: left;
+    font-size: 0.78rem; padding: 0.3rem 0.5rem; margin-top: 0.3rem; color: #fff; background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+  }
+  .rates-odds-row img { width: 32px; height: 32px; flex: 0 0 auto; image-rendering: pixelated; }
+  .rates-odds-row .rates-odds-label { opacity: 0.7; font-size: 0.68rem; }
+  .rates-odds-row .rates-odds-right { margin-left: auto; color: #ffd54f; font-size: 0.72rem; white-space: nowrap; }
+  .rates-ball-tabs { display: flex; gap: 0.35rem; justify-content: center; margin: 0.7rem 0 0.4rem; }
+  .rates-ball-tab {
+    flex: 1 1 0; min-width: 0; font-size: 0.72rem; padding: 0.45rem 0.2rem; color: #fff; border-radius: 0;
+    box-shadow: inset 0 0 0 2px #14161c, 0 3px 0 rgba(0,0,0,0.4); text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+  }
+  .rates-ball-tab.on { box-shadow: inset 0 0 0 2px #ffd54f, 0 3px 0 rgba(0,0,0,0.4); }
+  .rates-tier-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; padding: 0.5rem 0.2rem;
+    background: rgba(0,0,0,0.22); border-radius: 8px; }
+  .rates-empty { opacity: 0.65; font-size: 0.75rem; padding: 0.4rem; }
 
   /* ---- Panels (how to play / settings) ---- */
   .panel {
@@ -183,16 +248,28 @@
   /* ---- Menu: transparent over the live 3D grass field; clicks pass through to the field except on controls ---- */
   #screen-menu {
     background: linear-gradient(180deg, rgba(10,14,30,0.15), rgba(10,14,30,0.35));
-    justify-content: flex-start; pointer-events: none; padding-top: 2vh;
+    justify-content: flex-start; pointer-events: none;
+    padding-top: max(2vh, calc(env(safe-area-inset-top) + 1.5vh));
   }
   #screen-menu > * { pointer-events: auto; }
   #logo-img { width: min(78vw, 460px); max-height: 30vh; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.45)); margin-bottom: 0.3rem; }
   #logo-fallback { color: #ffd54f; font-size: clamp(1.6rem, 7vw, 2.8rem); text-shadow: 0 3px 0 #b8860b; }
   /* Bare gold counter — no pill/circle behind it, just the gold P coin + gold number. */
-  #menu-coins-pill { display: flex; align-items: center; gap: 0.45rem; color: #ffd54f;
+  #menu-coins-pill { position: fixed; z-index: 20;
+    top: max(0.8rem, calc(env(safe-area-inset-top) + 0.5rem));
+    right: max(0.9rem, calc(env(safe-area-inset-right) + 0.9rem));
+    display: flex; align-items: center; gap: 0.45rem; color: #ffd54f; font-size: 1.5rem;
     text-shadow: 0 2px 0 rgba(0,0,0,0.55), 0 3px 6px rgba(0,0,0,0.4); }
   #menu-coins-pill img { width: 1.35em; height: 1.35em; }
-  .menu-buttons { margin-top: auto; margin-bottom: 4vh; }
+  /* Overall best run, pinned top-left (mirrors the coin counter on the right). */
+  #menu-highscore { position: fixed; z-index: 20;
+    top: max(0.8rem, calc(env(safe-area-inset-top) + 0.5rem));
+    left: max(0.9rem, calc(env(safe-area-inset-left) + 0.9rem));
+    display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15;
+    color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,0.55), 0 3px 6px rgba(0,0,0,0.4); }
+  #menu-highscore .hs-label { font-size: 0.58rem; letter-spacing: 1.5px; color: #ffd54f; }
+  #menu-highscore-num { font-size: 1.35rem; font-weight: bold; }
+  .menu-buttons { margin-top: auto; margin-bottom: max(4vh, calc(env(safe-area-inset-bottom) + 2vh)); }
 
   /* Play button: label on the left, embedded 3D Pokemon on the right, both vertically centered */
   #btn-play { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.7rem; overflow: hidden; min-height: 64px; padding-top: 0.25rem; padding-bottom: 0.25rem; }
@@ -222,7 +299,7 @@
   /* Roster browser: scrolling column of collapsible region sections, each holding a 5-col grid */
   #roster-grid {
     display: flex; flex-direction: column; gap: 0.4rem;
-    width: min(94vw, 460px); height: 40vh; overflow-y: auto; overflow-x: hidden; padding: 0.5rem;
+    width: min(94vw, 460px); flex: 1 1 auto; min-height: 120px; overflow-y: auto; overflow-x: hidden; padding: 0.5rem;
     background: rgba(0,0,0,0.28); border-radius: 12px; box-sizing: border-box;
   }
   .region-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; }
@@ -253,6 +330,10 @@
   .slot .idx { position: absolute; top: 2px; left: 4px; font-size: 0.5rem; opacity: 0.5; letter-spacing: 0; }
   .slot.empty .idx { position: static; font-size: 1rem; color: #9aa1ad; opacity: 1; letter-spacing: 1px; }
   .slot.selected { border-color: #ffd54f; background: rgba(255,213,79,0.22); }
+  /* The bar under each box (from the global button shadow) reads as an "owned" cue:
+     gold when unlocked, light gray when locked or empty. */
+  .slot { box-shadow: 0 4px 0 #b8860b; }
+  .slot.locked, .slot.empty { box-shadow: 0 4px 0 #9aa1ad; }
   .slot.locked { color: #6b7280; background: transparent; }   /* no box behind the ??? / silhouette */
   .slot.empty { background: rgba(255,255,255,0.03); border-style: dashed; border-color: rgba(255,255,255,0.08); cursor: default; color: #4b5563; }
   .slot .thumb { width: 55px; height: 55px; display: block; }             /* 3D sprite render at 45deg (+20%) */
@@ -276,16 +357,20 @@
   #preview-stats { font-size: 0.9rem; opacity: 0.95; height: 1.35rem; flex: 0 0 1.35rem; white-space: nowrap;
     display: flex; gap: 1.6rem; justify-content: center; }   /* clear gap between Runs and Highscore */
 
-  /* ---- Gacha tier pool (silhouettes of pullable Pokemon) ---- */
-  #gacha-pool { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; max-width: min(94vw, 460px);
-    max-height: 26vh; overflow-y: auto; padding: 0.4rem; background: rgba(0,0,0,0.25); border-radius: 10px; }
+  /* Gacha screen: machine grows to fill, footer holds a constant slot for the buttons. */
+  #screen-gacha { justify-content: flex-start; gap: 0.5rem;
+    padding-top: max(2.5vh, calc(env(safe-area-inset-top) + 1vh));
+    padding-bottom: max(1.5vh, calc(env(safe-area-inset-bottom) + 1vh)); }
+  /* Reserves room for the idle state (Insert/Rates row + Back row). Whichever rows are shown are
+     centered inside; hiding them leaves the slot — and thus the machine canvas — the same height. */
+  #gacha-footer { flex: 0 0 auto; min-height: 6.2rem; display: flex; flex-direction: column;
+    justify-content: center; gap: 0.5rem; }
   .pool-cell { width: 60px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 0.5rem; }
   .pool-cell img { width: 46px; height: 46px; }
   .pool-cell .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
-  /* ---- Coins: flip on the X axis so the sprite stays visible (a real spin would go edge-on) ---- */
-  .coin-spin { width: 34px; height: 34px; animation: coin-rot 1.4s ease-in-out infinite; }
-  @keyframes coin-rot { 0%,100% { transform: scaleX(1); } 25% { transform: scaleX(0.1); } 50% { transform: scaleX(-1); } 75% { transform: scaleX(0.1); } }
+  /* ---- Coins: real rotation is baked into the swapped frames (see startCoinSpin in JS), no CSS transform needed ---- */
+  .coin-spin { width: 34px; height: 34px; }
   .howto-coins { display: flex; gap: 1.4rem; justify-content: center; align-items: center; margin: 0.5rem 0; }
   .howto-coins .c { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; font-size: 0.72rem; }
 
@@ -342,10 +427,10 @@
     button { padding: 0.5rem 1.1rem; font-size: 0.9rem; }
     #preview-wrap { height: 40vh; width: min(60vw, 260px); }
     #logo-img { max-height: 22vh; }
-    .menu-buttons { margin-bottom: 1vh; }
+    .menu-buttons { margin-bottom: max(1vh, env(safe-area-inset-bottom)); }
     .panel { max-height: 78vh; }
     #countdown-num { font-size: 30vh; }
-    #roster-grid { max-height: 46vh; }
+    #roster-grid { min-height: 90px; }
   }
 </style>
 </head>
@@ -365,9 +450,11 @@
   </div>
 
   <div id="touch-hint" class="hidden">Swipe to move &middot; Tap to hop forward</div>
+  <div id="coin-x2">x2</div>
 
   <!-- MAIN MENU (transparent over the live 3D field) -->
   <div id="screen-menu" class="screen">
+    <div id="menu-highscore"><span class="hs-label">HIGH SCORE</span><span id="menu-highscore-num">0</span></div>
     <img id="logo-img" alt="Pokemon Rumble Run" />
     <div id="logo-fallback" style="display:none;">Pokemon Rumble Run</div>
     <div id="menu-coins-pill" class="coin-display"><img class="hud-coin" data-coin="gold" src="Pokemon%203D%20Models/Pok%C3%A9%20Coins/Poke/poke_gold.png" alt="P" /> <span id="menu-coins">0</span></div>
@@ -402,19 +489,28 @@
     </div>
   </div>
 
-  <!-- POKE BALL MACHINE -->
+  <!-- POKE BALL MACHINE (gumball machine: insert coins, tap the knob, ball rolls out and opens) -->
   <div id="screen-gacha" class="screen hidden">
     <h2>Poke Ball Machine</h2>
     <div class="coin-display"><img class="hud-coin" data-coin="gold" src="Pokemon%203D%20Models/Pok%C3%A9%20Coins/Poke/poke_gold.png" style="width:1.1em;height:1.1em;vertical-align:-2px;" /> <span id="gacha-coins">0</span></div>
-    <div class="screen-buttons">
-      <button id="btn-gacha-pull">Pull for 50 coins</button>
-      <button id="btn-rates" class="secondary small">Pull Rates</button>
+    <div id="gacha-machine-wrap">
+      <canvas id="gacha-canvas"></canvas>
+      <div id="gacha-hint" class="hidden">Tap the knob!</div>
+      <div id="gacha-reveal" class="hidden"><div id="gacha-reveal-name"></div><div id="gacha-reveal-sub"></div></div>
     </div>
-    <div id="gacha-result" class="hidden"></div>
-    <div class="howto-tabs" id="gacha-tabs"></div>
-    <div id="gacha-pool"></div>
-    <div class="screen-buttons">
-      <button id="btn-gacha-back" class="secondary small">Back</button>
+    <!-- Fixed-height footer: swapping which button rows show inside it never changes the canvas
+         size above, so the machine stays exactly as tall as when you enter the screen. -->
+    <div id="gacha-footer">
+      <div class="screen-buttons" id="gacha-actions">
+        <button id="btn-gacha-pull">Insert 50 coins</button>
+        <button id="btn-rates" class="secondary small">Pull Rates</button>
+      </div>
+      <div class="screen-buttons hidden" id="gacha-continue-row">
+        <button id="btn-gacha-continue">Continue</button>
+      </div>
+      <div class="screen-buttons" id="gacha-back-row">
+        <button id="btn-gacha-back" class="secondary small">Back</button>
+      </div>
     </div>
   </div>
 
@@ -517,6 +613,7 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 import { POKEDEX, FORMS } from './pokedex.js';   // auto-generated: every model folder (dex, name, model path, gender variants) + alternate forms
 
 /* ============================== A: CONSTANTS & CONFIG ============================== */
@@ -543,9 +640,10 @@ const MB = 'Pokemon 3D Models/';      // base folder (sibling of index.html)
 // Coin sprites (2D). silver = base, gold = 2x, "L" = 10x. Coin type is pre-rolled at spawn so the
 // visible sprite matches its value (this replaces the old invisible-multiplier scheme).
 const COIN_BASE = MB + 'Poké Coins/Poke/';   // note: accented folder + nested "Poke" subfolder
+const COIN_EVERY_TILES = 5;      // one loose coin, on average, every 5 tiles of progress
 const COIN_TYPES = {
   silver: { value: 1, tex: COIN_BASE + 'poke_silver.png', color: 0xc4ccd6 },
-  gold:   { value: 2, tex: COIN_BASE + 'poke_gold.png',   color: 0xffd54f },
+  gold:   { value: 5, tex: COIN_BASE + 'poke_gold.png',   color: 0xffd54f },
   L:      { value: 10, tex: COIN_BASE + 'poke_L.png',     color: 0xff5a5a },
 };
 // Standard Pokemon type colors (functional palette) for the pixel-art type badges.
@@ -693,7 +791,8 @@ function isEntryUnlocked(e) {
 
 /* ============================== C: LANE TYPE DEFINITIONS ============================== */
 const LANE_TYPES = [
-  { key: 'grass', family: 'safe', minDistance: 0, weight: () => 10, build: (l) => spawnGrassLane(l) },
+  // Grass is plentiful early (rest stops between single obstacles) and thins out as distance grows.
+  { key: 'grass', family: 'safe', minDistance: 0, weight: (d) => d < 16 ? 16 : d < 45 ? 12 : Math.max(5, 10 - d / 60), build: (l) => spawnGrassLane(l) },
   { key: 'road_dodrio', family: 'road', minDistance: 0, weight: () => 8, build: (l, c) => spawnRoadLane(l, c, rosterById.dodrio) },
   { key: 'road_rapidash', family: 'road', minDistance: 3, weight: (d) => 5 + Math.min(d / 60, 5), build: (l, c) => spawnRoadLane(l, c, rosterById.rapidash) },
   { key: 'river_lotad', family: 'river', minDistance: 5, weight: (d) => 5 + Math.min(d / 70, 4), build: (l, c) => spawnRiverLane(l, c, rosterById.lotad) },
@@ -747,7 +846,7 @@ const gameState = {
   previewBaseId: 'p1', selectedForm: 'normal',   // 'normal' or a form label like 'Alola'
   player: { gridX: 0, gridZ: 0, isMoving: false, tween: null, group: null, tier: 'basic', isShiny: false, ridingPlatform: null },
   distance: 0, coinsThisRun: 0,
-  lanes: new Map(), nextLaneZ: 0, familyHistory: [], laneGroup: null,
+  lanes: new Map(), nextLaneZ: 0, familyHistory: [], laneGroup: null, coinAccum: 0,
   blockedTiles: new Set(),
   scrollZ: 0, scrollActive: false,
   paused: false, countdownUntil: 0,
@@ -783,9 +882,27 @@ const AudioSys = (() => {
     g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
     o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t + dur + 0.02);
   }
+  // Classic arcade coin chime: a quick B5 grace note jumping to a longer, ringing E6 (the two-tone
+  // "ding!" pattern), with a soft triangle body plus a faint square layer for sparkle.
+  function coinChime() {
+    ensure(); if (!ctx) return;
+    const t = ctx.currentTime;
+    const note = (freq, start, dur, type, gain) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t + start);
+      g.gain.setValueAtTime(0.0001, t + start);
+      g.gain.exponentialRampToValueAtTime(gain, t + start + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + start + dur);
+      o.connect(g); g.connect(sfxGain); o.start(t + start); o.stop(t + start + dur + 0.02);
+    };
+    note(987.77, 0, 0.085, 'triangle', 0.2);      // B5 grace note
+    note(987.77, 0, 0.085, 'square', 0.05);
+    note(1318.51, 0.075, 0.34, 'triangle', 0.22); // E6 ring-out
+    note(1318.51, 0.075, 0.34, 'square', 0.045);
+  }
   const sfx = {
     hop: () => blip(520, 0.11, 'square', 0.13, 720),
-    coin: () => blip(880, 0.09, 'triangle', 0.16, 1250),
+    coin: coinChime,
     die: () => { blip(240, 0.5, 'sawtooth', 0.28, 60); },
     click: () => blip(420, 0.05, 'square', 0.1, 520),
     gacha: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => blip(f, 0.16, 'triangle', 0.18), i * 90)),
@@ -825,8 +942,10 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x557033, 1.05));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+// Pokemon Rumble palette: warm toy-box sunlight over saturated yellow-greens.
+const GRASS_A = 0x8ecb43, GRASS_B = 0x82c03a;   // alternating mowed-lawn stripes
+scene.add(new THREE.HemisphereLight(0xfff6e0, 0x5f8f3a, 1.15));
+const dirLight = new THREE.DirectionalLight(0xfff4dc, 1.15);
 dirLight.position.set(-6, 14, -6);
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.set(1024, 1024);
@@ -835,9 +954,22 @@ dirLight.shadow.camera.top = 22; dirLight.shadow.camera.bottom = -22;
 scene.add(dirLight);
 
 // Big grass underlay that follows the camera so any gap between lanes reads as grass, never blue void.
+// Striped like a mowed Rumble lawn: a 2px canvas (one pixel per green) repeated at TILE pitch so the
+// underlay's bands line up with the lanes' per-z alternation.
+function makeLawnTexture() {
+  const c = document.createElement('canvas'); c.width = 1; c.height = 2;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#8ecb43'; ctx.fillRect(0, 0, 1, 1);
+  ctx.fillStyle = '#82c03a'; ctx.fillRect(0, 1, 1, 1);
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
+  t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(1, 90);   // 180 units tall / 2 units per stripe pair = TILE-wide bands
+  return t;
+}
 const groundFill = new THREE.Mesh(
   new THREE.PlaneGeometry(180, 180),
-  new THREE.MeshStandardMaterial({ color: 0x74bd48 })
+  new THREE.MeshStandardMaterial({ map: makeLawnTexture() })
 );
 groundFill.rotation.x = -Math.PI / 2;
 groundFill.position.y = -0.06;
@@ -878,10 +1010,30 @@ function loadModelOrNull(path) {
   } else {
     promise = Promise.reject(new Error('unsupported format .' + ext));
   }
-  const p = promise.catch(err => { console.warn(`[assets] placeholder cube for ${path}: ${err && err.message || err}`); return null; });
+  const p = promise
+    .then(model => {
+      // These ripped Rumble-era models use MIRRORED texture coordinates (UVs running past 1 expect a
+      // mirror flip). With the loaders' default plain-repeat wrap, features double into the wrong
+      // places — extra eyes on Charmander's scalp, Charizard sampling his beige belly across his
+      // whole body. Mirrored wrap renders identically for models whose UVs stay inside [0,1].
+      model.traverse(o => {
+        if (!o.isMesh) return;
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach(mm => {
+          if (mm && mm.map) { mm.map.wrapS = mm.map.wrapT = THREE.MirroredRepeatWrapping; mm.map.needsUpdate = true; }
+        });
+      });
+      return model;
+    })
+    .catch(err => { console.warn(`[assets] placeholder cube for ${path}: ${err && err.message || err}`); return null; });
   modelCache.set(path, p);
   return p;
 }
+
+// Deep-clone a loaded model. ALWAYS use this instead of model.clone(true): a plain clone of a
+// skinned mesh (the gen-7 .fbx models) keeps bone references into the ORIGINAL skeleton, which
+// renders invisible or frozen at the origin. SkeletonUtils.clone rebinds bones correctly and is a
+// plain deep clone for non-skinned models, so it's safe for everything.
+function cloneModel(model) { return skeletonClone(model); }
 
 function getBoxGeometry(boxSize) {
   const key = boxSize.join(',');
@@ -899,14 +1051,21 @@ function makeCubeMesh(entry, colorOverride) {
 // skinned mesh breaks its skeleton binding in three.js and renders invisible — that's what made
 // coins vanish. This procedural coin is deterministic and always textured.)
 const coinTexCache = {};
+const coinTexReadyCache = {};
 function coinTexture(key) {
   if (!coinTexCache[key]) {
-    const t = texLoader.load(encodePath(COIN_TYPES[key].tex));
+    let t;
+    coinTexReadyCache[key] = new Promise(resolve => { t = texLoader.load(encodePath(COIN_TYPES[key].tex), () => resolve(t)); });
     t.colorSpace = THREE.SRGBColorSpace;
     coinTexCache[key] = t;
   }
   return coinTexCache[key];
 }
+// Resolves once the coin texture used by coinMaterials() has actually finished loading (image
+// decoded, ready to upload) — NOT just "a" texture request for the same URL. getCoinFrames() needs
+// this exact guarantee: it previously awaited a separate, independent texLoader call that raced
+// against this one, so the first render could fire before this texture was ready and come out blank.
+function coinTextureReady(key) { coinTexture(key); return coinTexReadyCache[key]; }
 const coinGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.08, 24);
 const coinMatCache = {};
 function coinMaterials(key) {
@@ -952,16 +1111,8 @@ function normalizeModel(obj, targetSize) {
   const box2 = new THREE.Box3().setFromObject(obj); const c = new THREE.Vector3(); box2.getCenter(c);
   obj.position.x -= c.x; obj.position.z -= c.z; obj.position.y -= box2.min.y;
 }
-function addSparkle(object3d) {
-  const geo = new THREE.SphereGeometry(0.06, 6, 6);
-  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
-  for (let i = 0; i < 4; i++) {
-    const s = new THREE.Mesh(geo, mat);
-    s.position.set((Math.random() - 0.5) * 0.7, 0.4 + Math.random() * 0.7, (Math.random() - 0.5) * 0.7);
-    s.userData.sparklePhase = Math.random() * Math.PI * 2; s.userData.isSparkle = true;
-    object3d.add(s);
-  }
-}
+// (Shiny Pokemon previously carried floating white sparkle orbs; removed by request — the shiny
+// texture swap plus the coin-doubling perk carry the distinction now.)
 // Shiny: swap each texture map to its "_C" variant. Gold tint fallback if a _C file is missing.
 function shinyTexUrl(url) {
   if (/_C\.[a-z0-9]+(\?|#|$)/i.test(url)) return url;
@@ -992,9 +1143,46 @@ function applyShiny(object3d) {
     });
     o.material = wasArray ? swapped : swapped[0];
   });
-  addSparkle(object3d);
 }
 
+// Pokemon Rumble scenery: chunky toy trees (stacked foliage blobs on a fat trunk) and rounded rocks.
+// These replace the old flat placeholder cubes; collision still uses the entry's boxSize.
+function makeRumbleTree() {
+  const g = new THREE.Group();
+  const s = 0.9 + Math.random() * 0.35;   // size variety
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1 * s, 0.15 * s, 0.55 * s, 8),
+    new THREE.MeshStandardMaterial({ color: 0x7a4f2c, roughness: 0.8 }));
+  trunk.position.y = 0.27 * s; trunk.castShadow = true;
+  g.add(trunk);
+  const greens = [0x2e8b3e, 0x3fa34d, 0x55bb5e];
+  const blobs = [[0.46, 0.78, 0], [0.36, 1.12, 1], [0.24, 1.4, 2]];
+  for (const [r, y, ci] of blobs) {
+    const blob = new THREE.Mesh(new THREE.SphereGeometry(r * s, 12, 9),
+      new THREE.MeshStandardMaterial({ color: greens[ci], roughness: 0.7 }));
+    blob.scale.y = 0.82;
+    blob.position.set((Math.random() - 0.5) * 0.08, y * s, (Math.random() - 0.5) * 0.08);
+    blob.castShadow = true;
+    g.add(blob);
+  }
+  return g;
+}
+function makeRumbleRock() {
+  const g = new THREE.Group();
+  const s = 0.8 + Math.random() * 0.4;
+  const mat = new THREE.MeshStandardMaterial({ color: 0x9aa3a8, roughness: 0.85 });
+  const main = new THREE.Mesh(new THREE.DodecahedronGeometry(0.32 * s, 0), mat);
+  main.scale.y = 0.7; main.position.y = 0.2 * s; main.rotation.y = Math.random() * Math.PI;
+  main.castShadow = true;
+  g.add(main);
+  if (Math.random() < 0.6) {
+    const side = new THREE.Mesh(new THREE.DodecahedronGeometry(0.17 * s, 0),
+      new THREE.MeshStandardMaterial({ color: 0x8a9297, roughness: 0.85 }));
+    side.scale.y = 0.65; side.position.set(0.3 * s, 0.1 * s, 0.12 * s); side.rotation.y = Math.random() * Math.PI;
+    side.castShadow = true;
+    g.add(side);
+  }
+  return g;
+}
 // Entity factory: instant cube placeholder, hot-swap to the real model when it loads.
 // `modelPath` overrides the entry's default (used for gender variants).
 function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
@@ -1006,39 +1194,53 @@ function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
   const wob = new THREE.Group();
   group.add(wob);
   group.userData.wob = wob;
-  const cube = makeCubeMesh(entry, shiny ? 0xffd54f : undefined);
+  const cube = entryId === 'tree' ? makeRumbleTree()
+             : entryId === 'rock' ? makeRumbleRock()
+             : makeCubeMesh(entry, shiny ? 0xffd54f : undefined);
   wob.add(cube);
   if (path) {
     loadModelOrNull(path).then(model => {
       if (!model || group.userData.destroyed) return;
-      const inst = model.clone(true);
+      const inst = cloneModel(model);
       inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
       normalizeModel(inst, entry.modelTargetSize ?? Math.max(...entry.boxSize));
       if (shiny) applyShiny(inst);
       wob.remove(cube); wob.add(inst);
     });
-  } else if (shiny) {
-    addSparkle(wob);
   }
   return group;
 }
 
 /* ============================== J: DIFFICULTY / FAIRNESS ============================== */
 function difficultyFactor(distance) { return Math.min(1, Math.max(0, distance) / DIFFICULTY_MAX_DISTANCE); }
+// Crossy-Road-style pacing: early on, every obstacle lane is bracketed by grass; the leash loosens
+// with distance (chains of 2, then 3-4), and awkward pairings (a stampede track hard against water)
+// are kept out of the early game entirely.
 function passesFairness(laneType, distance) {
-  const h = gameState.familyHistory, l1 = h[h.length - 1], l2 = h[h.length - 2];
-  if (distance < 3) return laneType.family === 'safe';
+  const h = gameState.familyHistory;
+  const l1 = h[h.length - 1], l2 = h[h.length - 2], l3 = h[h.length - 3];
+  const fam = laneType.family;
+  if (distance < 3) return fam === 'safe';
+  if (fam === 'safe') return true;
   if (laneType.family === 'rail' && l1 === 'rail') return false;
-  if (l1 === 'rail' && laneType.family !== 'safe') return false;
-  if (laneType.family === 'river' && l1 === 'river' && l2 === 'river') return false;
+  if (l1 === 'rail') return false;                        // a rail is always followed by a breather
+  if (distance < 16 && l1 !== 'safe') return false;       // early: one obstacle lane at a time
+  if (distance < 45 && l1 !== 'safe' && l2 !== 'safe') return false;   // mid: chains of 2 max
+  if (l1 !== 'safe' && l2 !== 'safe' && l3 !== 'safe') return false;   // late: never more than 3 straight
+  if (distance < 60 && ((fam === 'rail' && l1 === 'river') || (fam === 'river' && l1 === 'rail'))) return false;
+  if (fam === 'river' && l1 === 'river' && l2 === 'river' && distance < 120) return false;   // 3-river chains only late
   return true;
 }
 function pickLaneType(distance) {
   const candidates = LANE_TYPES.filter(lt => distance >= lt.minDistance && passesFairness(lt, distance));
   const pool = candidates.length ? candidates : [laneTypesByKey.grass];
-  const total = pool.reduce((s, lt) => s + lt.weight(distance), 0);
+  const last = gameState.familyHistory[gameState.familyHistory.length - 1];
+  // Crossy-style clustering: once a road/river has started, the same family likes to continue,
+  // so obstacles arrive in bands rather than a random pepper.
+  const w = lt => lt.weight(distance) * ((lt.family === last && (lt.family === 'road' || lt.family === 'river')) ? 2.2 : 1);
+  const total = pool.reduce((s, lt) => s + w(lt), 0);
   let r = Math.random() * total;
-  for (const lt of pool) { r -= lt.weight(distance); if (r <= 0) return lt; }
+  for (const lt of pool) { r -= w(lt); if (r <= 0) return lt; }
   return pool[pool.length - 1];
 }
 
@@ -1052,10 +1254,10 @@ function surfaceY(z) {
 }
 // Land lanes are raised slabs (top at LAND_H); water lanes are a flat plane at 0, a block lower.
 function createLaneGroundMesh(z, family) {
-  const safeColor = (z % 2 === 0) ? 0x7ec850 : 0x74bd48;
-  const colors = { safe: safeColor, road: 0x4a4a4a, rail: 0x7a6455 };
+  const safeColor = (z % 2 === 0) ? GRASS_A : GRASS_B;   // Rumble lawn stripes
+  const colors = { safe: safeColor, road: 0x5a5560, rail: 0x8a6f52 };
   if (family === 'river') {
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_WIDTH, TILE), new THREE.MeshStandardMaterial({ color: 0x2f7ec9 }));
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_WIDTH, TILE), new THREE.MeshStandardMaterial({ color: 0x3fa9f5, roughness: 0.35 }));
     water.rotation.x = -Math.PI / 2; water.position.set(0, 0, z * TILE); water.receiveShadow = true;
     return water;
   }
@@ -1063,6 +1265,20 @@ function createLaneGroundMesh(z, family) {
   const slab = new THREE.Mesh(new THREE.BoxGeometry(GROUND_WIDTH, LAND_H, TILE), new THREE.MeshStandardMaterial({ color: colors[family] || safeColor }));
   slab.position.set(0, -LAND_H / 2, z * TILE); slab.receiveShadow = true;
   return slab;
+}
+// Dashed light-gray divider between two ADJACENT road lanes (Crossy Road style — the line lives on
+// the shared boundary, never mid-road). Added to the newer lane, at its back edge.
+function addRoadDivider(lane) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: 0xb8b8c0 });
+  const dashLen = 0.55, gapLen = 0.55, stride = dashLen + gapLen;
+  for (let x = -GROUND_WIDTH / 2; x < GROUND_WIDTH / 2; x += stride) {
+    const dash = new THREE.Mesh(new THREE.PlaneGeometry(dashLen, 0.09), mat);
+    dash.rotation.x = -Math.PI / 2;
+    dash.position.set(x + dashLen / 2, 0.012, lane.z * TILE - TILE / 2);
+    g.add(dash);
+  }
+  lane.root.add(g);
 }
 function addBoundaryScenery(lane) {
   for (const side of [-1, 1]) {
@@ -1081,7 +1297,6 @@ function newLane(z, typeKey, family) {
 }
 function spawnGrassLane(lane) {
   addBoundaryScenery(lane);
-  const usedX = [];
   if (lane.z > 0 && Math.random() < 0.4) {
     const options = freeXPositions();
     const count = 1 + (Math.random() < 0.3 ? 1 : 0);
@@ -1090,29 +1305,17 @@ function spawnGrassLane(lane) {
       const decor = Math.random() < 0.5 ? rosterById.rock : rosterById.tree;
       const obj = createEntityObject(decor.id);
       obj.position.set(x, 0, lane.z * TILE); lane.root.add(obj);
-      lane.decor.push(x); usedX.push(x);
+      lane.decor.push(x);
     }
   }
-  if (lane.z > 0 && Math.random() < 0.55) {
-    const options = freeXPositions(usedX);
-    const count = Math.min(options.length, 1 + Math.floor(Math.random() * 2));
-    for (let i = 0; i < count; i++) spawnCoin(lane, options.splice(Math.floor(Math.random() * options.length), 1)[0]);
-  }
+  // Coins are placed centrally by generateNextLane on a fixed cadence (COIN_EVERY_TILES), not here.
 }
-// Pre-roll a coin's type from the current character's shiny status (same expected value as before,
-// now expressed as a visible silver / gold / L sprite).
+// Coin denomination roll: flat appearance rates — 10-coin at 1/30, 5-coin at 1/15, else a 1-coin.
 function rollCoinType() {
-  const p = gameState.player;
-  if (p.isShiny) {
-    if (p.tier === 'legendary') {
-      const r = Math.random();
-      if (r < 0.04) return 'L';     // 1/25
-      if (r < 0.14) return 'gold';  // 1/10
-      return 'silver';
-    }
-    return Math.random() < 0.20 ? 'gold' : 'silver'; // 20% double
-  }
-  return 'silver';
+  const r = Math.random();
+  if (r < 1 / 30) return 'L';                 // 10-coin
+  if (r < 1 / 30 + 1 / 15) return 'gold';     // 5-coin
+  return 'silver';                            // 1-coin (default)
 }
 function spawnCoin(lane, x, forceType) {
   const type = forceType || rollCoinType();
@@ -1132,7 +1335,6 @@ function spawnRoadLane(lane, ctx, entry) {
     const use = (entry.substitute && Math.random() < entry.substitute.chance) ? rosterById[entry.substitute.id] : entry;
     spawnHazardEntity(lane, use, start + i * stride, speed * dir);
   }
-  if (Math.random() < 0.15) spawnCoin(lane, -GRID_HALF + Math.floor(Math.random() * GRID_WIDTH));
 }
 function spawnHazardEntity(lane, entry, x, vx) {
   const group = createEntityObject(entry.id);
@@ -1172,6 +1374,19 @@ function createWarningIndicator(z) {
 }
 function spawnRailLane(lane, ctx, entry) {
   lane.railEntry = entry; lane.railState = 'idle'; lane.railTimer = 0;
+  // Dress the dirt strip as a stampede track: wooden ties + two worn ground rails.
+  const tieMat = new THREE.MeshStandardMaterial({ color: 0x6b4f35, roughness: 0.8 });
+  for (let x = -GROUND_WIDTH / 2 + 0.6; x < GROUND_WIDTH / 2; x += 1.4) {
+    const tie = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.72), tieMat);
+    tie.position.set(x, 0.02, lane.z * TILE);
+    lane.root.add(tie);
+  }
+  const railMat = new THREE.MeshStandardMaterial({ color: 0x4c4238, roughness: 0.5, metalness: 0.25 });
+  for (const off of [-0.26, 0.26]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(GROUND_WIDTH, 0.05, 0.07), railMat);
+    rail.position.set(0, 0.045, lane.z * TILE + off);
+    lane.root.add(rail);
+  }
   lane.railWarningMesh = createWarningIndicator(lane.z); lane.root.add(lane.railWarningMesh);
 }
 function updateRailLane(lane, dt) {
@@ -1207,6 +1422,8 @@ function generateNextLane() {
   const lane = newLane(z, laneType.key, laneType.family);
   lane.root.position.y = (laneType.family === 'river') ? 0 : LAND_H;  // raise land, keep water low
   lane.root.add(createLaneGroundMesh(z, laneType.family));
+  const prevLane = gameState.lanes.get(z - 1);
+  if (laneType.family === 'road' && prevLane && prevLane.family === 'road') addRoadDivider(lane);
   laneType.build(lane, { distance });
   if (isGiftLane) {
     const gx = -GRID_HALF + 1 + Math.floor(Math.random() * (GRID_WIDTH - 2));
@@ -1215,6 +1432,18 @@ function generateNextLane() {
     g.position.set(gx, 0, z * TILE);
     lane.root.add(g);
     lane.gift = { x: gx, group: g, taken: false };
+  }
+  // Fixed coin cadence: accrue one "tile" per lane; whenever we've banked a full interval AND this
+  // lane can host a coin (grass or road, never water/rail/gift), drop one. If the lane can't host,
+  // the debt carries to the next eligible lane — so the average holds at 1 per COIN_EVERY_TILES.
+  if (z > 0) {
+    gameState.coinAccum += 1;
+    const canHost = (laneType.family === 'safe' || laneType.family === 'road') && !isGiftLane;
+    if (canHost && gameState.coinAccum >= COIN_EVERY_TILES) {
+      gameState.coinAccum -= COIN_EVERY_TILES;
+      const options = freeXPositions(lane.decor);
+      if (options.length) spawnCoin(lane, options[Math.floor(Math.random() * options.length)]);
+    }
   }
   gameState.lanes.set(z, lane);
   gameState.laneGroup.add(lane.root);
@@ -1233,6 +1462,7 @@ function resetLanes() {
   gameState.lanes.clear();
   gameState.nextLaneZ = -(BEHIND_KEEP + 1);
   gameState.familyHistory = [];
+  gameState.coinAccum = 0;
 }
 // A dense forest just behind the start. Its tiles are recorded as blocked so you can't clip through them.
 function buildStartForest() {
@@ -1291,15 +1521,22 @@ canvas.addEventListener('touchend', (e) => {
 }, { passive: true });
 
 function onViewportChange() {
-  const w = window.innerWidth, h = window.innerHeight;
+  // Measure the canvas's CSS box (sized via 100lvh), NOT window.innerHeight — innerHeight
+  // under-reports by the home-indicator zone in iOS standalone mode (caused the blue bottom band).
+  const canvasEl = renderer.domElement;
+  const w = canvasEl.clientWidth || window.innerWidth, h = canvasEl.clientHeight || window.innerHeight;
   renderer.setSize(w, h, false);
   const aspect = w / h;
   camera.left = -FRUSTUM_SIZE * aspect; camera.right = FRUSTUM_SIZE * aspect;
   camera.top = FRUSTUM_SIZE; camera.bottom = -FRUSTUM_SIZE; camera.updateProjectionMatrix();
   if (previewRenderer) resizePreview();
+  if (gachaRenderer) sizeGachaCanvas();
 }
 window.addEventListener('resize', onViewportChange);
 window.addEventListener('orientationchange', () => requestAnimationFrame(() => requestAnimationFrame(onViewportChange)));
+// iOS standalone settles its viewport shortly after launch without always firing `resize` — re-measure late.
+if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewportChange);
+window.addEventListener('load', () => setTimeout(onViewportChange, 300));
 
 /* ============================== M: PLAYER MOVEMENT ============================== */
 function isTileWalkable(x, z) {
@@ -1362,12 +1599,27 @@ function updateCamera(dt) {
 }
 
 /* ============================== O: COINS / GIFT / HAZARDS / SAFETY ============================== */
+// Shiny perk: 20% chance a picked-up coin doubles, with a pixel "x2" popping over the player's head.
+function showCoinX2() {
+  const el = document.getElementById('coin-x2');
+  const g = gameState.player.group;
+  if (!el || !g) return;
+  const v = new THREE.Vector3(g.position.x, g.position.y + 1.5, g.position.z);
+  v.project(camera);
+  el.style.left = ((v.x * 0.5 + 0.5) * canvas.clientWidth) + 'px';
+  el.style.top = ((-v.y * 0.5 + 0.5) * canvas.clientHeight) + 'px';
+  el.classList.remove('pop');            // restart the CSS animation on rapid pickups
+  void el.offsetWidth;
+  el.classList.add('pop');
+}
 function checkCoinPickup(lane) {
   const p = gameState.player;
   for (const coin of lane.coins) {
     if (!coin.taken && Math.round(p.gridX) === coin.x) {
       coin.taken = true; lane.root.remove(coin.group);
-      gameState.coinsThisRun += coin.value;
+      let value = coin.value;
+      if (p.isShiny && Math.random() < 0.2) { value *= 2; showCoinX2(); }
+      gameState.coinsThisRun += value;
       AudioSys.sfx.coin(); updateHUD();
     }
   }
@@ -1455,81 +1707,522 @@ function updateLanes(dt) {
     }
     if (lane.gift && !lane.gift.taken) lane.gift.group.rotation.y += dt * 1.1;
   }
-  const t = performance.now() / 500;
-  gameState.laneGroup.traverse(obj => { if (obj.userData.isSparkle) obj.position.y = 0.5 + Math.sin(t + obj.userData.sparklePhase) * 0.15; });
-  if (gameState.player.group) gameState.player.group.traverse(obj => { if (obj.userData.isSparkle) obj.position.y = 0.5 + Math.sin(t + obj.userData.sparklePhase) * 0.15; });
 }
 
 /* ============================== P: GACHA ============================== */
+// Every un-owned pullable Pokemon, grouped by ball tier that still has something left.
+function tiersWithUnowned() {
+  return BALL_TIERS.map(b => ({ ball: b, pool: GACHA_POOL.filter(e => e.tier === b.tier && !isEntryUnlocked(e)) }))
+    .filter(t => t.pool.length > 0);
+}
+function anyUnownedLeft() { return GACHA_POOL.some(e => !isEntryUnlocked(e)); }
 function pullGacha() {
   const save = gameState.save;
   if (save.coins < GACHA_COST) return { error: 'not_enough_coins' };
+  // No duplicates: only ever pull an un-owned Pokemon, and only from tiers that still hold one.
+  const avail = tiersWithUnowned();
+  if (!avail.length) return { error: 'all_owned' };
   save.coins -= GACHA_COST;
-  const total = BALL_TIERS.reduce((s, b) => s + b.weight, 0);
+  const total = avail.reduce((s, t) => s + t.ball.weight, 0);
   let r = Math.random() * total;
-  const picked = BALL_TIERS.find(b => (r -= b.weight) < 0) ?? BALL_TIERS[0];
-  const pool = GACHA_POOL.filter(e => e.tier === picked.tier);
-  if (pool.length === 0) { persistSave(); return { ball: picked, mon: null }; }
-  const mon = pool[Math.floor(Math.random() * pool.length)];
-  const alreadyOwned = save.unlockedIds.includes(mon.id);
-  if (!alreadyOwned) save.unlockedIds.push(mon.id);
+  const picked = avail.find(t => (r -= t.ball.weight) < 0) ?? avail[0];
+  const mon = picked.pool[Math.floor(Math.random() * picked.pool.length)];
+  save.unlockedIds.push(mon.id);
   persistSave();
-  return { ball: picked, mon, alreadyOwned };
+  return { ball: picked.ball, mon, alreadyOwned: false };
+}
+// Enable/disable the pull button based on whether anything remains to be caught.
+function refreshGachaPullButton() {
+  const btn = document.getElementById('btn-gacha-pull');
+  if (anyUnownedLeft()) { btn.disabled = false; btn.textContent = 'Insert ' + GACHA_COST + ' coins'; }
+  else { btn.disabled = true; btn.textContent = 'All Pokemon Owned'; }
 }
 function hexColor(c) { return '#' + c.toString(16).padStart(6, '0'); }
-function wireGachaUI() {
-  document.getElementById('btn-gacha-pull').addEventListener('click', () => {
-    const el = document.getElementById('gacha-result');
-    const res = pullGacha(); updateGachaCoinDisplays(); el.classList.remove('hidden');
-    if (res.error === 'not_enough_coins') { el.innerHTML = `<p>Not enough coins! You need ${GACHA_COST} 🪙.</p>`; return; }
-    AudioSys.sfx.gacha();
-    if (!res.mon) { el.innerHTML = `<p class="ball-name" style="color:${hexColor(res.ball.color)}">${res.ball.ball}</p><p>No Pokemon in this tier yet!</p>`; return; }
-    el.innerHTML = `<div class="thumb" style="background:${hexColor(res.mon.color)}"></div>
-      <p class="ball-name" style="color:${hexColor(res.ball.color)}">${res.ball.ball}</p>
-      <p><strong>${res.mon.displayName}</strong> ${res.alreadyOwned ? '<span style="opacity:.7">(already owned)</span>' : '<span style="color:#ffd54f">— NEW!</span>'}</p>`;
-    getThumb(res.mon.id).then(src => { const t = el.querySelector('.thumb'); if (t) { t.style.background = 'none'; t.innerHTML = `<img src="${src}" style="width:100%;height:100%" />`; } });
-    gachaTier = res.ball.tier; renderGachaTiers();   // reveal the newly-unlocked Pokemon in its tier pool
-  });
-}
 function updateGachaCoinDisplays() {
   document.getElementById('gacha-coins').textContent = gameState.save.coins;
   document.getElementById('menu-coins').textContent = gameState.save.coins;
 }
-// Tier sub-menus: pick a ball tier and see silhouettes of the Pokemon still pullable from it.
-let gachaTier = null;
-function renderGachaTiers() {
-  if (!gachaTier) gachaTier = BALL_TIERS[0].tier;
-  const tabs = document.getElementById('gacha-tabs'); tabs.innerHTML = '';
-  BALL_TIERS.forEach(b => {
-    const btn = document.createElement('button');
-    btn.type = 'button'; btn.className = 'howto-tab' + (b.tier === gachaTier ? ' on' : ''); btn.textContent = b.ball;
-    btn.addEventListener('click', () => { AudioSys.sfx.click(); gachaTier = b.tier; renderGachaTiers(); });
-    tabs.appendChild(btn);
+
+/* ---- Gumball machine: a chunky glossy toy dispenser in the Pokemon Rumble spirit. ----
+   Flow: "Insert 50 coins" (deducts + rolls via pullGacha) -> machine armed -> tap the knob ->
+   ball drops from the chute -> rolls to center stage -> top half lifts off -> the pulled Pokemon
+   scales up out of the ball -> Continue resets the stage and re-renders the (shrunken) pool. */
+const GACHA_BALL_R = 0.34;
+const QUEST_BALL_MODELS = {
+  'Poke Ball': 'Pokemon Quest 3D Models/Poké Ball Model/bdPokeBallModel.obj',
+  'Great Ball': 'Pokemon Quest 3D Models/Great Ball Model/bdGreatBallModel.obj',
+  'Ultra Ball': 'Pokemon Quest 3D Models/Ultra Ball Model/bdUltraBallModel.obj',
+  'Master Ball': 'Pokemon Quest 3D Models/Master Ball Model/bdMasterBallModel.obj',
+};
+let gachaRenderer, gachaScene, gachaCamera, gachaKnob, gachaKnobHit, gachaFlap, gachaMachineGroup;
+const gachaSeq = {
+  id: 0, phase: 'idle', t0: 0, pending: null,
+  ballPromise: null, monPromise: null,
+  ball: null, ballTop: null, ballBottom: null, ballShadow: null, ballHit: null, ballZ: 0, tapCount: 0,
+  monWrap: null, flash: null, flashT0: 0, rollPrevZ: 0, settleFrom: 0, settleTo: 0, sfxFlag: false,
+};
+function setGachaPhase(p) { gachaSeq.phase = p; gachaSeq.t0 = performance.now(); gachaSeq.sfxFlag = false; }
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+const easeInQuad = t => t * t;
+const easeOutBack = t => { const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+
+// A tiny two-tone pokeball (colored cap over white base) — the globe is piled full of these.
+function makeMiniPokeball(color, r) {
+  const g = new THREE.Group();
+  const glossy = { roughness: 0.25, metalness: 0.05 };
+  const top = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color, ...glossy }));
+  const bot = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0xf5f5f5, ...glossy }));
+  g.add(top, bot);
+  g.rotation.set(Math.random() * 0.9 - 0.45, Math.random() * Math.PI * 2, Math.random() * 0.9 - 0.45);
+  return { group: g, topMat: top.material };
+}
+function buildGachaMachine() {
+  const m = new THREE.Group();
+  const glossy = { roughness: 0.25, metalness: 0.08 };
+  const red = 0xe53946, darkRed = 0xa02830, cream = 0xfff3e0, gold = 0xffca28;
+  // Feet + base + body: chunky stacked cylinders, toy proportions.
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.02, 1.16, 0.5, 28), new THREE.MeshStandardMaterial({ color: darkRed, ...glossy }));
+  base.position.y = 0.25; m.add(base);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.98, 1.15, 28), new THREE.MeshStandardMaterial({ color: red, ...glossy }));
+  body.position.y = 1.07; m.add(body);
+  // Cream face plate carrying the coin slot, knob and chute.
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.95, 0.16), new THREE.MeshStandardMaterial({ color: cream, roughness: 0.35 }));
+  plate.position.set(0, 1.02, 0.82); m.add(plate);
+  const slot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.28, 0.05), new THREE.MeshStandardMaterial({ color: gold, roughness: 0.3, metalness: 0.5 }));
+  slot.position.set(0, 1.33, 0.92); m.add(slot);
+  // The knob: fat silver dial with a bar handle. Tap target is a bigger invisible sphere around it.
+  gachaKnob = new THREE.Group(); gachaKnob.position.set(0, 1.0, 0.94);
+  const dial = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.14, 24),
+    new THREE.MeshStandardMaterial({ color: 0xcfd8dc, metalness: 0.75, roughness: 0.3, emissive: 0x000000 }));
+  dial.rotation.x = Math.PI / 2; gachaKnob.add(dial);
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.11, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0xb0bec5, metalness: 0.75, roughness: 0.3, emissive: 0x000000 }));
+  bar.position.z = 0.09; gachaKnob.add(bar);
+  // Invisible tap target (opacity 0, NOT material.visible=false — the latter is skipped by raycasts).
+  gachaKnobHit = new THREE.Mesh(new THREE.SphereGeometry(0.44, 8, 8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+  gachaKnob.add(gachaKnobHit);
+  m.add(gachaKnob);
+  // Chute: dark opening low on the body, with a cream flap that swings when a ball pops out.
+  const chute = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.36, 0.12), new THREE.MeshStandardMaterial({ color: 0x1c1114, roughness: 0.8 }));
+  chute.position.set(0, 0.46, 0.86); m.add(chute);
+  gachaFlap = new THREE.Group(); gachaFlap.position.set(0, 0.63, 0.93);   // hinge at the flap's top edge
+  const flapPane = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.32, 0.04), new THREE.MeshStandardMaterial({ color: cream, roughness: 0.35 }));
+  flapPane.position.y = -0.16; gachaFlap.add(flapPane);
+  m.add(gachaFlap);
+  // Collar, glass globe and the pile of mini pokeballs inside it.
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.8, 0.22, 28), new THREE.MeshStandardMaterial({ color: cream, roughness: 0.35 }));
+  collar.position.y = 1.74; m.add(collar);
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(0.8, 28, 20),
+    new THREE.MeshStandardMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0.2, roughness: 0.05, metalness: 0, depthWrite: false }));
+  globe.position.y = 2.45; globe.renderOrder = 2; m.add(globe);
+  // Fixed fill: 4 Poke (red), 2 Great (blue), 2 Ultra (yellow), 1 Master (purple) crowning the pile.
+  const MINI_FILL = [
+    [0xef5350, -0.38, 2.02,  0.12], [0xef5350, 0.34, 2.03, -0.20], [0xef5350, 0.05, 2.05, 0.38], [0xef5350, -0.10, 2.30, -0.30],
+    [0x42a5f5,  0.40, 2.28,  0.16], [0x42a5f5, -0.40, 2.28, -0.10],
+    [0xfbc02d,  0.12, 2.04, -0.42], [0xfbc02d, -0.34, 2.06, -0.34],
+    [0x8e24aa,  0.02, 2.52,  0.04],
+  ];
+  for (const [color, x, y, z] of MINI_FILL) {
+    const mini = makeMiniPokeball(color, 0.18);
+    mini.group.position.set(x, y, z);
+    m.add(mini.group);
+  }
+  // Dome cap + a pokeball finial on top, and a soft ground shadow.
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.52, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: red, ...glossy }));
+  cap.position.y = 3.06; m.add(cap);
+  const finial = makeMiniPokeball(red, 0.13); finial.group.rotation.set(0, 0, 0); finial.group.position.y = 3.42; m.add(finial.group);
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.35, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18 }));
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.005; m.add(shadow);
+  return m;
+}
+function sizeGachaCanvas() {
+  const canvas = document.getElementById('gacha-canvas');
+  const w = canvas.clientWidth || 300, h = canvas.clientHeight || 240;
+  gachaRenderer.setSize(w, h, false);
+  gachaCamera.aspect = w / h; gachaCamera.updateProjectionMatrix();
+}
+function initGachaMachine() {
+  if (gachaRenderer) return;
+  const canvas = document.getElementById('gacha-canvas');
+  gachaRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  gachaRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  gachaScene = new THREE.Scene();
+  gachaScene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.15));
+  const dl = new THREE.DirectionalLight(0xffffff, 1.1); dl.position.set(2.5, 5, 4); gachaScene.add(dl);
+  // Framing: must hold both the finial (y≈3.4 at z=0) and the rolled-out ball (y≈0.34 at z≈2.1).
+  // From (0,1.9,6.6) at fov 40 those sit ~16.5° and ~15.6° off the view axis — inside the 20° half-fov.
+  gachaCamera = new THREE.PerspectiveCamera(40, 1, 0.1, 50);
+  gachaCamera.position.set(0, 1.9, 6.6); gachaCamera.lookAt(0, 1.5, 0);
+  gachaMachineGroup = buildGachaMachine();
+  gachaScene.add(gachaMachineGroup);
+  sizeGachaCanvas();
+  canvas.addEventListener('click', onGachaCanvasTap);
+  // Test hooks: the preview harness runs backgrounded (rAF paused), so tests drive frames manually.
+  window.__gachaKnobScreen = () => {
+    const v = new THREE.Vector3(); gachaKnobHit.getWorldPosition(v); v.project(gachaCamera);
+    const r = gachaRenderer.domElement.getBoundingClientRect();
+    return { x: r.left + (v.x * 0.5 + 0.5) * r.width, y: r.top + (-v.y * 0.5 + 0.5) * r.height };
+  };
+  window.__gachaPhase = () => gachaSeq.phase;
+  window.__gachaStep = () => { updateGachaSeq(performance.now(), 0.05); gachaRenderer.render(gachaScene, gachaCamera); };
+}
+// Load a Quest ball model and keep only its two ball halves (the display pedestal `_Base` stays
+// out). Each half is wrapped so open/close animation happens in predictable world-scale units:
+// ballGroup (placement + rolling spin) -> topWrap/bottomWrap (animation) -> sizer (scale) -> mesh.
+const gachaBallSourceCache = {};
+function loadGachaBallHalves(ballName) {
+  if (!gachaBallSourceCache[ballName]) {
+    gachaBallSourceCache[ballName] = loadModelOrNull(QUEST_BALL_MODELS[ballName]).then(model => {
+      if (!model) return null;
+      let top = null, bottom = null;
+      model.traverse(o => {
+        if (!o.isMesh) return;
+        if (/_ballup$/i.test(o.name)) top = o;
+        else if (/_ball$/i.test(o.name)) bottom = o;
+      });
+      if (!top || !bottom) return null;
+      const box = new THREE.Box3().setFromObject(top).union(new THREE.Box3().setFromObject(bottom));
+      const center = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
+      return { top, bottom, center, scale: (GACHA_BALL_R * 2) / (Math.max(size.x, size.y, size.z) || 1) };
+    });
+  }
+  return gachaBallSourceCache[ballName].then(src => {
+    if (!src) return null;
+    const wrap = mesh => {
+      const inst = mesh.clone();
+      inst.position.set(-src.center.x, -src.center.y, -src.center.z);
+      // Yaw 180° about the ball's center so the pokeball's button-face points at the camera when it
+      // rolls out (the model's default facing is away). Rolling (group.rotation.x) and the open
+      // animation (on the wrap, outside this node) are unaffected.
+      const sizer = new THREE.Group(); sizer.scale.setScalar(src.scale); sizer.rotation.y = Math.PI; sizer.add(inst);
+      const w = new THREE.Group(); w.add(sizer); return w;
+    };
+    const topWrap = wrap(src.top), bottomWrap = wrap(src.bottom);
+    const group = new THREE.Group(); group.add(topWrap, bottomWrap);
+    return { group, topWrap, bottomWrap };
   });
-  const pool = document.getElementById('gacha-pool'); pool.innerHTML = '';
-  const mons = GACHA_POOL.filter(e => e.tier === gachaTier);
-  if (!mons.length) { pool.innerHTML = '<div style="opacity:.6;font-size:.7rem;padding:.5rem;">No Pokemon in this tier yet.</div>'; return; }
-  for (const mon of mons) {
-    const owned = isEntryUnlocked(mon);
-    const cell = document.createElement('div'); cell.className = 'pool-cell';
-    // Only owned Pokemon reveal their model; everything else you could pull shows as a silhouette.
-    const img = document.createElement('img'); getThumb(mon.id, { locked: !owned }).then(s => { img.src = s; }); cell.appendChild(img);
-    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = owned ? mon.displayName : '???'; cell.appendChild(nm);
-    pool.appendChild(cell);
+}
+// Resolve once every texture map on a model has its image decoded and ready to sample. A one-shot
+// bake (the rates ball icons) that renders before this fires captures black frames — the map exists
+// but samples as black until the image arrives.
+// The generous timeout matters: under heavy load (hundreds of roster models fetching at once)
+// individual textures can queue for many seconds; a short timeout here baked black sprites. The
+// wait runs BEFORE the serialized bake queue, so one slow model never stalls the others.
+function waitForModelTextures(root, timeoutMs = 30000) {
+  const maps = [];
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    (Array.isArray(o.material) ? o.material : [o.material]).forEach(mm => { if (mm && mm.map) maps.push(mm.map); });
+  });
+  if (!maps.length) return Promise.resolve();
+  const ready = tex => tex.image && (tex.image.complete === undefined || tex.image.complete) && (tex.image.width || tex.image.naturalWidth);
+  return new Promise(resolve => {
+    const t0 = performance.now();
+    const check = () => {
+      if (maps.every(ready) || performance.now() - t0 > timeoutMs) { maps.forEach(m => (m.needsUpdate = true)); resolve(); }
+      else setTimeout(check, 50);
+    };
+    check();
+  });
+}
+// Fallback ball (two plain hemispheres in the tier color) so a failed model load never stalls the show.
+function makeFallbackBallHalves(color) {
+  const mk = (geo, c) => { const w = new THREE.Group(); w.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: c, roughness: 0.3 }))); return w; };
+  const topWrap = mk(new THREE.SphereGeometry(GACHA_BALL_R, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), color);
+  const bottomWrap = mk(new THREE.SphereGeometry(GACHA_BALL_R, 20, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), 0xf5f5f5);
+  const group = new THREE.Group(); group.add(topWrap, bottomWrap);
+  return { group, topWrap, bottomWrap };
+}
+function gachaHint(text, autoHideMs) {
+  const el = document.getElementById('gacha-hint');
+  el.textContent = text; el.classList.remove('hidden');
+  if (autoHideMs) setTimeout(() => el.classList.add('hidden'), autoHideMs);
+}
+function startGachaSequence() {
+  if (gachaSeq.phase !== 'idle') return;
+  if (!anyUnownedLeft()) { gachaHint('All Pokemon owned!', 1400); return; }
+  if (gameState.save.coins < GACHA_COST) { gachaHint('Not enough coins!', 1400); return; }
+  AudioSys.sfx.coin();
+  const res = pullGacha();                       // existing logic: deduct, roll un-owned mon, unlock, persist
+  if (res.error) { gachaHint(res.error === 'all_owned' ? 'All Pokemon owned!' : 'Not enough coins!', 1400); return; }
+  updateGachaCoinDisplays();
+  gachaSeq.pending = res;
+  gachaSeq.ballPromise = loadGachaBallHalves(res.ball.ball);
+  gachaSeq.monPromise = res.mon ? loadModelOrNull(effectiveModelPath(res.mon, 'm')) : Promise.resolve(null);
+  // Clear ALL buttons while the machine performs — nothing sits at the bottom to clip the ball as it
+  // rolls out. Buttons only return once the ball is opened (Continue) or the sequence resets (Back).
+  document.getElementById('gacha-actions').classList.add('hidden');
+  document.getElementById('gacha-back-row').classList.add('hidden');
+  gachaHint('Tap the knob!');
+  setGachaPhase('armed');
+}
+function onGachaCanvasTap(ev) {
+  const rect = gachaRenderer.domElement.getBoundingClientRect();
+  const p = new THREE.Vector2(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
+  const ray = new THREE.Raycaster(); ray.setFromCamera(p, gachaCamera);
+  if (gachaSeq.phase === 'armed') {
+    if (!ray.intersectObject(gachaKnobHit, true).length) return;
+    AudioSys.sfx.click();
+    document.getElementById('gacha-hint').classList.add('hidden');
+    setGachaPhase('turn');
+  } else if ((gachaSeq.phase === 'tap-wait' || gachaSeq.phase === 'wobble') && gachaSeq.ballHit) {
+    // Crack the ball open: three taps, each answered with a wobble; the third pops it.
+    if (!ray.intersectObject(gachaSeq.ballHit, true).length) return;
+    gachaSeq.tapCount++;
+    if (gachaSeq.tapCount >= 3) {
+      AudioSys.sfx.gacha();
+      document.getElementById('gacha-hint').classList.add('hidden');
+      if (gachaSeq.ball) gachaSeq.ball.rotation.z = 0;
+      setGachaPhase('open');
+    } else {
+      AudioSys.sfx.hop();
+      setGachaPhase('wobble');   // restarts the wobble timer on rapid taps
+    }
   }
 }
-// Pull Rates screen: chance per ball tier + how many Pokemon live in each.
+function spawnGachaBall(halves) {
+  gachaSeq.ball = halves.group; gachaSeq.ballTop = halves.topWrap; gachaSeq.ballBottom = halves.bottomWrap;
+  // Generous invisible tap target for the tap-tap-tap opening.
+  const hit = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 8), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+  halves.group.add(hit); gachaSeq.ballHit = hit;
+  halves.group.position.set(0, 0.5, 0.95);
+  gachaScene.add(halves.group);
+  const sh = new THREE.Mesh(new THREE.CircleGeometry(GACHA_BALL_R * 0.95, 18), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25 }));
+  sh.rotation.x = -Math.PI / 2; sh.position.set(0, 0.006, 0.95);
+  gachaSeq.ballShadow = sh; gachaScene.add(sh);
+}
+function finishGachaReveal() {
+  const res = gachaSeq.pending;
+  const nameEl = document.getElementById('gacha-reveal-name'), subEl = document.getElementById('gacha-reveal-sub');
+  if (res.mon) {
+    nameEl.textContent = res.mon.displayName;
+    subEl.innerHTML = res.alreadyOwned ? '<span style="opacity:.75">(already owned)</span>' : '<span style="color:#ffd54f">NEW!</span>';
+  } else {
+    nameEl.textContent = res.ball.ball;
+    subEl.textContent = 'No Pokemon in this tier yet!';
+  }
+  document.getElementById('gacha-reveal').classList.remove('hidden');
+  document.getElementById('gacha-continue-row').classList.remove('hidden');
+  setGachaPhase('reveal');
+}
+function resetGachaSequence() {
+  gachaSeq.id++;
+  for (const k of ['ball', 'ballShadow', 'monWrap', 'flash']) {
+    if (gachaSeq[k]) { gachaScene && gachaScene.remove(gachaSeq[k]); gachaSeq[k] = null; }
+  }
+  gachaSeq.ballTop = gachaSeq.ballBottom = gachaSeq.ballHit = gachaSeq.pending = gachaSeq.ballPromise = gachaSeq.monPromise = null;
+  gachaSeq.tapCount = 0;
+  if (gachaKnob) gachaKnob.rotation.z = 0;
+  if (gachaFlap) gachaFlap.rotation.x = 0;
+  if (gachaMachineGroup) gachaMachineGroup.position.x = 0;
+  document.getElementById('gacha-hint').classList.add('hidden');
+  document.getElementById('gacha-reveal').classList.add('hidden');
+  document.getElementById('gacha-continue-row').classList.add('hidden');
+  document.getElementById('gacha-actions').classList.remove('hidden');
+  document.getElementById('gacha-back-row').classList.remove('hidden');
+  refreshGachaPullButton();   // may now read "All Pokemon Owned" if that pull was the last one
+  setGachaPhase('idle');
+}
+// Per-frame driver for the machine stage (called from the main loop while on the gacha screen).
+function updateGachaSeq(now, dt) {
+  const t = now - gachaSeq.t0, seq = gachaSeq;
+  if (seq.phase === 'armed') {
+    const pulse = (Math.sin(now / 180) + 1) / 2;
+    gachaKnob.traverse(o => { if (o.isMesh && o.material.emissive) o.material.emissive.setScalar(pulse * 0.35); });
+  } else if (gachaKnob) {
+    gachaKnob.traverse(o => { if (o.isMesh && o.material.emissive) o.material.emissive.setScalar(0); });
+  }
+  if (seq.phase === 'turn') {
+    const p = Math.min(1, t / 450);
+    gachaKnob.rotation.z = -easeOutCubic(p) * Math.PI / 2;
+    gachaMachineGroup.position.x = Math.sin(now / 14) * 0.02 * (1 - p);   // excited little rattle
+    if (p >= 1) {
+      gachaMachineGroup.position.x = 0;
+      const myId = seq.id;
+      setGachaPhase('vend');   // waits (machine idle) until the ball model is in hand
+      seq.ballPromise.then(halves => {
+        if (seq.id !== myId || seq.phase !== 'vend') return;
+        spawnGachaBall(halves || makeFallbackBallHalves(seq.pending.ball.color));
+        setGachaPhase('drop');
+      });
+    }
+  }
+  if (seq.phase === 'drop' && seq.ball) {
+    const p = Math.min(1, t / 600);
+    seq.ball.position.z = 0.95 + p * 0.3;
+    if (p < 0.55) seq.ball.position.y = 0.5 - easeInQuad(p / 0.55) * (0.5 - GACHA_BALL_R);
+    else if (p < 0.8) {
+      seq.ball.position.y = GACHA_BALL_R + Math.sin((p - 0.55) / 0.25 * Math.PI) * 0.12;
+      if (!seq.sfxFlag) { seq.sfxFlag = true; AudioSys.sfx.coin(); }
+    } else seq.ball.position.y = GACHA_BALL_R;
+    gachaFlap.rotation.x = -Math.sin(Math.min(1, p / 0.6) * Math.PI) * 1.0;   // swing open, fall shut
+    seq.ballShadow.position.z = seq.ball.position.z;
+    if (p >= 1) { seq.rollPrevZ = seq.ball.position.z; setGachaPhase('roll'); }
+  }
+  if (seq.phase === 'roll' && seq.ball) {
+    const p = Math.min(1, t / 800);
+    // Settle more toward center-frame (was 2.1) so the ball/Pokemon stay clear of the bottom button.
+    const z = 1.25 + easeOutCubic(p) * 0.45;
+    seq.ball.rotation.x += (z - seq.rollPrevZ) / GACHA_BALL_R;   // real rolling: spin matches travel
+    seq.rollPrevZ = z;
+    seq.ball.position.z = z; seq.ballShadow.position.z = z;
+    if (p >= 1) {
+      seq.settleFrom = seq.ball.rotation.x;
+      const twoPi = Math.PI * 2;
+      seq.settleTo = Math.ceil(seq.settleFrom / twoPi - 0.02) * twoPi;   // finish the spin upright
+      setGachaPhase('settle');
+    }
+  }
+  if (seq.phase === 'settle' && seq.ball) {
+    const p = Math.min(1, t / 350);
+    seq.ball.rotation.x = seq.settleFrom + (seq.settleTo - seq.settleFrom) * easeOutCubic(p);
+    if (p >= 1) { gachaHint('Tap the ball!'); setGachaPhase('tap-wait'); }
+  }
+  if (seq.phase === 'wobble' && seq.ball) {
+    // Tap feedback: a decaying side-to-side rock, a touch stronger with each successive tap.
+    const p = Math.min(1, t / 450);
+    seq.ball.rotation.z = Math.sin(p * Math.PI * 5) * 0.2 * (1 - p) * (1 + seq.tapCount * 0.25);
+    if (p >= 1) { seq.ball.rotation.z = 0; setGachaPhase('tap-wait'); }
+  }
+  if (seq.phase === 'open' && seq.ball) {
+    const p = Math.min(1, t / 550);
+    seq.ballTop.position.y = easeOutCubic(p) * 0.62;
+    seq.ballTop.position.z = p * 0.15;
+    seq.ballTop.rotation.x = -p * 0.5;
+    if (p > 0.25 && !seq.flash) {
+      seq.flash = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 }));
+      seq.flash.position.copy(seq.ball.position);
+      gachaScene.add(seq.flash); seq.flashT0 = now;
+    }
+    if (p >= 1) setGachaPhase('vanish');
+  }
+  if (seq.phase === 'vanish' && seq.ball) {
+    // The opened ball shrinks away so the Pokemon has the floor to itself.
+    const p = Math.min(1, t / 300);
+    seq.ball.scale.setScalar(Math.max(0.001, 1 - easeInQuad(p)));
+    if (p >= 1) {
+      seq.ballZ = seq.ball.position.z;
+      gachaScene.remove(seq.ball);
+      seq.ball = seq.ballTop = seq.ballBottom = seq.ballHit = null;
+      const myId = seq.id;
+      setGachaPhase('hatch');   // waits for the Pokemon model if it isn't loaded yet
+      seq.monPromise.then(model => {
+        if (seq.id !== myId || seq.phase !== 'hatch') return;
+        if (!seq.pending.mon) { finishGachaReveal(); return; }
+        const wrapG = new THREE.Group();
+        let inst;
+        if (model) { inst = cloneModel(model); normalizeModel(inst, 1.3); }
+        else inst = makeCubeMesh(seq.pending.mon);
+        wrapG.add(inst);
+        wrapG.position.set(0, 0.1, seq.ballZ);
+        wrapG.scale.setScalar(0.0001);
+        seq.monWrap = wrapG; gachaScene.add(wrapG);
+        setGachaPhase('hatch-in');
+      });
+    }
+  }
+  if (seq.flash) {
+    const fp = (now - seq.flashT0) / 380;
+    if (fp >= 1) { gachaScene.remove(seq.flash); seq.flash = null; }
+    else { seq.flash.scale.setScalar(0.2 + fp * 4.5); seq.flash.material.opacity = 0.95 * (1 - fp); }
+  }
+  if (seq.phase === 'hatch-in' && seq.monWrap) {
+    const p = Math.min(1, t / 450);
+    seq.monWrap.scale.setScalar(Math.max(0.0001, easeOutBack(p)));
+    if (p >= 1) finishGachaReveal();
+  }
+  if (seq.phase === 'reveal' && seq.monWrap) {
+    seq.monWrap.rotation.y += dt * 1.1;   // show off the new partner
+  }
+}
+function wireGachaUI() {
+  document.getElementById('btn-gacha-pull').addEventListener('click', startGachaSequence);
+  document.getElementById('btn-gacha-continue').addEventListener('click', () => {
+    AudioSys.sfx.click();
+    // Pull Rates opens on the tier you just pulled from — its silhouette is gone from that pool now.
+    if (gachaSeq.pending && gachaSeq.pending.ball) ratesTier = gachaSeq.pending.ball.tier;
+    resetGachaSequence();
+  });
+}
+// Rotating 3D ball icons for the rates screen: bake a ring of frames from the closed Quest ball
+// (both halves together, pedestal dropped), same flipbook approach as the coin icons.
+const ballFrameCache = {};
+function getBallFrames(ballName) {
+  if (ballFrameCache[ballName]) return ballFrameCache[ballName];
+  const p = loadGachaBallHalves(ballName)
+    // Wait for the ball's texture to finish downloading before the one-shot bake — otherwise the map
+    // samples as black (this is why Great/Master rendered black here but never in the live machine).
+    .then(halves => (halves ? waitForModelTextures(halves.group).then(() => halves) : halves))
+    .then(halves => withThumbRenderer(() => {
+    while (thumbHolder.children.length) thumbHolder.remove(thumbHolder.children[0]);
+    const prevRot = thumbHolder.rotation.y;
+    thumbHolder.rotation.y = 0;
+    const tierColor = (BALL_TIERS.find(b => b.ball === ballName) || BALL_TIERS[0]).color;
+    const obj = halves ? halves.group : makeFallbackBallHalves(tierColor).group;
+    const spin = new THREE.Group();
+    spin.add(obj);
+    spin.scale.setScalar(2.0);
+    spin.position.y = 0.7;
+    thumbHolder.add(spin);
+    const boost = new THREE.DirectionalLight(0xffffff, 1.3); boost.position.set(0, 1.5, 6);
+    thumbScene.add(boost);
+    const frames = [];
+    for (let i = 0; i < 24; i++) {
+      spin.rotation.y = (i / 24) * Math.PI * 2;
+      thumbRenderer.render(thumbScene, thumbCam);
+      frames.push(thumbRenderer.domElement.toDataURL('image/png'));
+    }
+    thumbScene.remove(boost);
+    thumbHolder.remove(spin);
+    thumbHolder.rotation.y = prevRot;
+    return frames;
+  }));
+  ballFrameCache[ballName] = p;
+  return p;
+}
+// Pull Rates: odds per ball (info rows with spinning 3D ball icons), a line of tier-tinted tab
+// buttons below, then silhouettes of everything STILL pullable from the selected ball (owned
+// Pokemon drop off the board as you catch them).
+let ratesTier = null;
 function renderRates() {
   const el = document.getElementById('rates-panel');
+  el.querySelectorAll('img[data-ball]').forEach(stopFrameSpin);   // kill spinners on detached imgs
   const total = BALL_TIERS.reduce((s, b) => s + b.weight, 0);
-  el.innerHTML =
-    `<div class="row"><div>Each ${GACHA_COST}-coin pull rolls a ball, then a random Pokemon from that ball's pool:</div></div>` +
-    '<ul class="rarity-list">' + BALL_TIERS.map(b => {
-      const pct = Math.round(b.weight / total * 100);
-      const count = GACHA_POOL.filter(e => e.tier === b.tier).length;
-      return `<li style="background:rgba(255,255,255,0.05)"><span><span class="swatch" style="background:${hexColor(b.color)}"></span>${b.ball} - ${b.label} (${count})</span><span>${pct}<span class="pct">%</span></span></li>`;
-    }).join('') + '</ul>' +
-    `<div class="row"><div>Duplicate pulls are safe - you keep the coins' worth of nothing, but never lose a Pokemon you own.</div></div>`;
+  if (!ratesTier) ratesTier = BALL_TIERS[0].tier;
+  el.innerHTML = `<div class="row"><div>Each ${GACHA_COST}-coin pull rolls a ball, then a random Pokemon from that ball's pool. Duplicate pulls never lose a Pokemon you own.</div></div>`;
+  for (const b of BALL_TIERS) {
+    const remaining = GACHA_POOL.filter(e => e.tier === b.tier && !isEntryUnlocked(e)).length;
+    const pct = Math.round(b.weight / total * 100);
+    const row = document.createElement('div'); row.className = 'rates-odds-row';
+    row.innerHTML = `<img data-ball="${b.ball}" alt="${b.ball}" /><span>${b.ball}</span>` +
+      `<span class="rates-odds-label">${b.label}</span>` +
+      `<span class="rates-odds-right">${pct}<span class="pct">%</span> &middot; ${remaining} left</span>`;
+    el.appendChild(row);
+  }
+  const tabs = document.createElement('div'); tabs.className = 'rates-ball-tabs';
+  for (const b of BALL_TIERS) {
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'rates-ball-tab' + (b.tier === ratesTier ? ' on' : '');
+    btn.textContent = b.ball.replace(' Ball', '');
+    const c = b.color;   // faint tier tint; the active tab tints stronger + gold outline
+    btn.style.background = `rgba(${(c >> 16) & 255},${(c >> 8) & 255},${c & 255},${b.tier === ratesTier ? 0.5 : 0.16})`;
+    btn.addEventListener('click', () => { AudioSys.sfx.click(); ratesTier = b.tier; renderRates(); });
+    tabs.appendChild(btn);
+  }
+  el.appendChild(tabs);
+  const grid = document.createElement('div'); grid.className = 'rates-tier-grid';
+  const mons = GACHA_POOL.filter(e => e.tier === ratesTier && !isEntryUnlocked(e));
+  if (!mons.length) grid.innerHTML = '<div class="rates-empty">All Pokemon from this ball have been caught!</div>';
+  else for (const mon of mons) {
+    const cell = document.createElement('div'); cell.className = 'pool-cell';
+    const img = document.createElement('img'); getThumb(mon.id, { locked: true }).then(s => { img.src = s; }); cell.appendChild(img);
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = '???'; cell.appendChild(nm);
+    grid.appendChild(cell);
+  }
+  el.appendChild(grid);
+  el.querySelectorAll('img[data-ball]').forEach(img => startFrameSpin(img, getBallFrames(img.dataset.ball), 9));   // 9fps = half the coin spin speed
 }
 
 /* ============================== Q: CHARACTER SELECT (3D preview + silhouettes) ============================== */
@@ -1563,7 +2256,7 @@ function loadPreviewModel(id) {
   if (path) {
     loadModelOrNull(path).then(model => {
       if (!model || !previewHolder.children.includes(holder)) return;
-      const inst = model.clone(true); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
+      const inst = cloneModel(model); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
       normalizeModel(inst, 1.7);
       if (locked) blacken(inst); else if (shiny) applyShiny(inst);
       holder.remove(cube); holder.add(inst);
@@ -1585,55 +2278,122 @@ function initThumb() {
   thumbCam = new THREE.PerspectiveCamera(42, 1, 0.1, 50); thumbCam.position.set(0, 0.95, 3.0); thumbCam.lookAt(0, 0.7, 0);
   thumbHolder = new THREE.Group(); thumbHolder.rotation.y = Math.PI / 4; thumbScene.add(thumbHolder); // 45deg like the Play button
 }
+// getThumb() and getCoinFrames() both mutate this same shared renderer/scene/holder. They're each
+// invoked from async chains (model/texture loads) that can settle in any order — e.g. dozens of
+// roster-grid getThumb() calls and a getCoinFrames() call all landing around the same tick — so
+// without serialization, one caller's "clear children, add object, render" can interleave with
+// another's, corrupting whatever gets read back. Funnel every render through one queue so each use
+// runs start-to-finish before the next begins.
+let thumbQueue = Promise.resolve();
+function withThumbRenderer(fn) {
+  const result = thumbQueue.then(() => { if (!thumbRenderer) initThumb(); return fn(); });
+  thumbQueue = result.then(() => {}, () => {});
+  return result;
+}
 function getThumb(id, { locked = false } = {}) {
   const key = id + (locked ? '|L' : '');
   if (thumbCache[key]) return thumbCache[key];
   const entry = rosterById[id];
-  const p = (entry.modelPath ? loadModelOrNull(entry.modelPath) : Promise.resolve(null)).then(model => {
-    if (!thumbRenderer) initThumb();
+  const p = (entry.modelPath ? loadModelOrNull(entry.modelPath) : Promise.resolve(null))
+    // Unlocked thumbs bake in one shot, so their textures must be fully decoded first — baking early
+    // captured corrupted sprites (white/black patches) for whichever models' textures were still in
+    // flight. Locked thumbs get blackened materials, so they can skip the wait.
+    .then(model => (model && !locked) ? waitForModelTextures(model).then(() => model) : model)
+    .then(model => withThumbRenderer(() => {
     while (thumbHolder.children.length) thumbHolder.remove(thumbHolder.children[0]);
     let obj;
-    if (model) { obj = model.clone(true); obj.traverse(o => { if (o.isMesh) o.castShadow = false; }); normalizeModel(obj, 1.6); if (locked) blacken(obj); }
+    if (model) { obj = cloneModel(model); obj.traverse(o => { if (o.isMesh) o.castShadow = false; }); normalizeModel(obj, 1.6); if (locked) blacken(obj); }
     else { obj = makeCubeMesh(entry, locked ? 0x0e1014 : undefined); }
     thumbHolder.add(obj);
     thumbRenderer.render(thumbScene, thumbCam);
     return thumbRenderer.domElement.toDataURL('image/png');
-  });
+  }));
   thumbCache[key] = p;
   return p;
 }
-// Snapshot the 3D coin (slightly tilted) to a data URL, and swap it into every <img data-coin>
-// (HUD, menu counter, gacha screen, How-to-Play) so no coin icon is a flat PNG.
-const coinIconCache = {};
-function getCoinIcon(key) {
-  if (coinIconCache[key]) return coinIconCache[key];
-  const p = texLoader.loadAsync(encodePath(COIN_TYPES[key].tex)).then(tex => {
-    tex.colorSpace = THREE.SRGBColorSpace;
-    if (!thumbRenderer) initThumb();
+// Real 3D coin icons: bake a ring of frames rotating the actual coin mesh (same geometry/material as
+// the in-game coin, metallic rim included) around its vertical axis, then use those frames for both
+// static UI icons (one hero frame) and the How-to-Play "spin" (cycled like a flipbook). This replaces
+// two earlier broken approaches: a single mis-angled 3D snapshot (rendered near edge-on, showing as a
+// thin sliver) and, after that, a flat 2D PNG (looked wrong next to the "should be the 3d model" bar
+// set by the in-game coins, and showed a corner-of-the-square artifact at small icon sizes).
+const COIN_FRAME_COUNT = 24;
+const coinFrameCache = {};
+function getCoinFrames(key) {
+  if (coinFrameCache[key]) return coinFrameCache[key];
+  const p = coinTextureReady(key).then(() => withThumbRenderer(() => {
     while (thumbHolder.children.length) thumbHolder.remove(thumbHolder.children[0]);
-    const m = new THREE.Mesh(coinGeo, coinMaterials(key));
-    m.rotation.z = Math.PI / 2;             // same upright-P orientation as the in-game coin
-    const g = new THREE.Group();
-    g.add(m);
-    g.rotation.y = Math.PI / 2 - 0.35;      // face mostly toward the camera with a gentle 3D tilt
-    g.scale.setScalar(2.1);
-    g.position.y = 0.7;
-    thumbHolder.add(g);
     const prevRot = thumbHolder.rotation.y;
     thumbHolder.rotation.y = 0;
-    thumbHolder.rotation.x = -0.12;
-    thumbRenderer.render(thumbScene, thumbCam);
+    // Two nested groups keep the math unambiguous (verified empirically, not just derived on paper):
+    // `tilt` (fixed, local) turns the cylinder's cap — which faces +Y/-Y by default — to face the
+    // camera (+Z). `spin` (the outer group) then rotates that already-camera-facing object around the
+    // *world* Y axis, so it correctly sweeps face -> edge (rim) -> back -> edge -> face over a turn.
+    const m = new THREE.Mesh(coinGeo, coinMaterials(key));
+    const tilt = new THREE.Group();
+    tilt.add(m);
+    // Point the cap's texture at the icon camera *and* keep the "P" upright. The cap's UV v-axis
+    // runs along local X (see makeCoinMesh's comment above), so a plain X-axis tilt leaves that axis
+    // untouched — it stays horizontal, rendering the coin's text sideways. Building the rotation from
+    // an explicit basis (local X -> world Y "up", local Y [cap normal] -> world Z "toward camera")
+    // gets both right at once, instead of chaining Euler rotations that fight each other.
+    tilt.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(1, 0, 0)
+    ));
+    const spin = new THREE.Group();
+    spin.add(tilt);
+    spin.scale.setScalar(2.3);
+    spin.position.y = 0.7;
+    thumbHolder.add(spin);
+    // Head-on fill light just for the coin bake — without it the gold face reads dull/muddy at icon size.
+    const boost = new THREE.DirectionalLight(0xffffff, 1.5); boost.position.set(0, 1.2, 6);
+    thumbScene.add(boost);
+    const frames = [];
+    for (let i = 0; i < COIN_FRAME_COUNT; i++) {
+      spin.rotation.y = (i / COIN_FRAME_COUNT) * Math.PI * 2;
+      thumbRenderer.render(thumbScene, thumbCam);
+      frames.push(thumbRenderer.domElement.toDataURL('image/png'));
+    }
+    thumbScene.remove(boost);
+    thumbHolder.remove(spin);
     thumbHolder.rotation.y = prevRot;
-    thumbHolder.rotation.x = 0;
-    while (thumbHolder.children.length) thumbHolder.remove(thumbHolder.children[0]);
-    return thumbRenderer.domElement.toDataURL('image/png');
-  });
-  coinIconCache[key] = p;
+    return frames;
+  }));
+  coinFrameCache[key] = p;
   return p;
 }
+// Static icons use the dead-on frame — the coin face looks straight at the player.
+function getCoinIconStatic(key) { return getCoinFrames(key).then(frames => frames[0]); }
+// Generic flipbook player: cycles an <img> through pre-baked rotation frames (coins, poke balls).
+const frameSpinTimers = new WeakMap();
+function startFrameSpin(img, framesPromise, fps = 18) {
+  if (frameSpinTimers.has(img)) return;
+  frameSpinTimers.set(img, -1);   // claimed; real interval id lands when the frames resolve
+  framesPromise.then(frames => {
+    if (!frameSpinTimers.has(img)) return;   // stopped while loading
+    let i = 0;
+    img.src = frames[0];
+    const id = setInterval(() => { i = (i + 1) % frames.length; img.src = frames[i]; }, 1000 / fps);
+    frameSpinTimers.set(img, id);
+  }).catch(() => {});
+}
+function stopFrameSpin(img) {
+  const id = frameSpinTimers.get(img);
+  if (id !== undefined) { if (id !== -1) clearInterval(id); frameSpinTimers.delete(img); }
+}
+function startCoinSpin(img, key) { startFrameSpin(img, getCoinFrames(key)); }
+function stopCoinSpin(img) { stopFrameSpin(img); }
 function refreshCoinIcons() {
+  // How-to-Play's coin-spin images are started/stopped by setMode() based on actual visibility
+  // (no point animating them while that screen is hidden), so skip those here.
   document.querySelectorAll('img[data-coin]').forEach(img => {
-    getCoinIcon(img.dataset.coin).then(src => { img.src = src; }).catch(() => {});
+    if (img.closest('#howto-panel')) return;
+    const key = img.dataset.coin;
+    if (!COIN_TYPES[key]) return;
+    if (img.classList.contains('coin-spin')) startCoinSpin(img, key);
+    else getCoinIconStatic(key).then(src => { img.src = src; }).catch(() => {});
   });
 }
 // Type icons live in the "Pokemon Types" folder. Tries the given candidate URLs in order, then
@@ -1671,11 +2431,12 @@ function setUnknownTypeBadges(container, count) {
 // Roster browser: collapsible regional sections (Kanto..Kalos) of 5-column dex grids, plus an
 // optional filter (types / legendary / mythical) that switches to a flat grid of matches.
 const PLAYER_BY_DEX = Object.fromEntries(PLAYER_ENTRIES.filter(e => e.dex).map(e => [e.dex, e]));
-const regionOpen = { Kanto: true };                      // collapse state; Kanto starts open
-const rosterFilter = { types: new Set(), legendary: false, mythical: false };
-function filterActive() { return rosterFilter.types.size > 0 || rosterFilter.legendary || rosterFilter.mythical; }
+const regionOpen = Object.fromEntries(REGIONS.map(r => [r.name, true]));   // all regions start open
+const rosterFilter = { types: new Set(), legendary: false, mythical: false, unlocked: false };
+function filterActive() { return rosterFilter.types.size > 0 || rosterFilter.legendary || rosterFilter.mythical || rosterFilter.unlocked; }
 function entryMatchesFilter(e) {
-  // Filtering only surfaces Pokemon you've actually unlocked (locked ones hide their type anyway).
+  // Filtering only surfaces Pokemon you've actually unlocked (locked ones hide their type anyway) —
+  // which also makes the dedicated "unlocked" chip a pure show-all-my-Pokemon toggle.
   if (!gameState.save.unlockedIds.includes(e.id)) return false;
   if (rosterFilter.types.size && !(e.types || []).some(t => rosterFilter.types.has(t))) return false;
   if (rosterFilter.legendary && !(e.tier === 'legendary' && !e.mythical)) return false;
@@ -1713,29 +2474,42 @@ function makeSlotCell(dexNo, entry) {
 function renderRosterGrid() {
   const grid = document.getElementById('roster-grid');
   grid.innerHTML = '';
-  if (filterActive()) {
-    const matches = PLAYER_ENTRIES.filter(e => e.dex && entryMatchesFilter(e));
-    const wrap = document.createElement('div'); wrap.className = 'region-grid';
-    if (!matches.length) {
-      const none = document.createElement('div'); none.className = 'region-none'; none.textContent = 'No Pokemon match this filter.';
-      grid.appendChild(none); return;
-    }
-    for (const e of matches) wrap.appendChild(makeSlotCell(e.dex, e));
-    grid.appendChild(wrap);
-    return;
-  }
+  const filtering = filterActive();
+  let anyMatch = false;
   for (const region of REGIONS) {
-    const owned = PLAYER_ENTRIES.filter(e => e.dex >= region.from && e.dex <= region.to && gameState.save.unlockedIds.includes(e.id)).length;
-    const total = region.to - region.from + 1;
+    const regionEntries = PLAYER_ENTRIES.filter(e => e.dex >= region.from && e.dex <= region.to);
+    const matches = filtering ? regionEntries.filter(entryMatchesFilter) : null;
+    const owned = regionEntries.filter(e => gameState.save.unlockedIds.includes(e.id)).length;
+    // Alola's dex has holes where no model exists — count and show only real slots there.
+    const total = region.name === 'Alola' ? regionEntries.length : region.to - region.from + 1;
+    // While filtering: a region with matches is force-expanded so nothing hides in a collapsed
+    // section; regions without matches render as a collapsed header only.
+    const open = filtering ? (matches.length > 0) : regionOpen[region.name];
     const head = document.createElement('button');
     head.type = 'button'; head.className = 'region-head';
-    head.innerHTML = `<span>${regionOpen[region.name] ? 'v' : '&gt;'}</span><span>${region.name}</span><span class="region-count">${owned}/${total}</span>`;
-    head.addEventListener('click', () => { AudioSys.sfx.click(); regionOpen[region.name] = !regionOpen[region.name]; renderRosterGrid(); });
+    head.innerHTML = `<span>${open ? 'v' : '&gt;'}</span><span>${region.name}</span>` +
+      `<span class="region-count">${filtering ? matches.length + ' match' + (matches.length === 1 ? '' : 'es') : owned + '/' + total}</span>`;
+    head.addEventListener('click', () => {
+      if (filtering) return;   // layout is filter-driven while a filter is on
+      AudioSys.sfx.click(); regionOpen[region.name] = !regionOpen[region.name]; renderRosterGrid();
+    });
     grid.appendChild(head);
-    if (!regionOpen[region.name]) continue;
+    if (!open) continue;
+    anyMatch = true;
     const wrap = document.createElement('div'); wrap.className = 'region-grid';
-    for (let d = region.from; d <= region.to; d++) wrap.appendChild(makeSlotCell(d, PLAYER_BY_DEX[d]));
+    if (filtering) {
+      for (const e of matches) wrap.appendChild(makeSlotCell(e.dex, e));
+    } else {
+      for (let d = region.from; d <= region.to; d++) {
+        if (region.name === 'Alola' && !PLAYER_BY_DEX[d]) continue;   // no empty ghost slots in gen 7
+        wrap.appendChild(makeSlotCell(d, PLAYER_BY_DEX[d]));
+      }
+    }
     grid.appendChild(wrap);
+  }
+  if (filtering && !anyMatch) {
+    const none = document.createElement('div'); none.className = 'region-none'; none.textContent = 'No Pokemon match this filter.';
+    grid.appendChild(none);
   }
 }
 // Filter panel: 18 type chips + Legendary / Mythical, all toggleable; any active filter flips the
@@ -1758,11 +2532,12 @@ function renderFilterPanel() {
   }
   addChip('legendary', '#8e24aa', rosterFilter.legendary, () => { rosterFilter.legendary = !rosterFilter.legendary; });
   addChip('mythical', '#d81b60', rosterFilter.mythical, () => { rosterFilter.mythical = !rosterFilter.mythical; });
+  addChip('unlocked', '#2e7d32', rosterFilter.unlocked, () => { rosterFilter.unlocked = !rosterFilter.unlocked; });
   const clear = document.createElement('button');
   clear.type = 'button'; clear.className = 'filter-chip clear'; clear.textContent = 'clear';
   clear.addEventListener('click', () => {
     AudioSys.sfx.click();
-    rosterFilter.types.clear(); rosterFilter.legendary = false; rosterFilter.mythical = false;
+    rosterFilter.types.clear(); rosterFilter.legendary = false; rosterFilter.mythical = false; rosterFilter.unlocked = false;
     renderFilterPanel(); renderRosterGrid();
   });
   panel.appendChild(clear);
@@ -1842,7 +2617,14 @@ const menuGroup = new THREE.Group(); scene.add(menuGroup);
 const menuAgents = [];
 const raycaster = new THREE.Raycaster();
 
-function randomFieldTarget() { return new THREE.Vector2((Math.random() - 0.5) * 12, (Math.random() * 11) - 2.5); }
+// The meadow is an ellipse; Pokemon roam inside it and the tree wall grows along its rim. The front
+// (screen-bottom) edge reaches down toward the Play button.
+const MENU_FIELD = { cx: -0.5, cz: 1.5, rx: 6.8, rz: 8.6 };
+function randomFieldPoint(maxR = 1) {
+  const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * maxR;
+  return new THREE.Vector2(MENU_FIELD.cx + Math.cos(a) * MENU_FIELD.rx * r, MENU_FIELD.cz + Math.sin(a) * MENU_FIELD.rz * r);
+}
+function randomFieldTarget() { return randomFieldPoint(0.94); }
 function clearField() {
   for (const lane of gameState.lanes.values()) gameState.laneGroup.remove(lane.root);
   gameState.lanes.clear();
@@ -1851,7 +2633,71 @@ function clearField() {
   gameState.blockedTiles.clear();
   gameState.player.gridZ = 0; gameState.player.gridX = 0; gameState.scrollActive = false; gameState.scrollZ = 0;
 }
+// Cozy forest-home dressing around the ranch: an uneven tree line enclosing the meadow, with rocks,
+// bushes, wildflowers and a stump scattered where the Pokemon wander. Built once, reused thereafter.
+let menuScenery = null;
+function makeMenuFlower() {
+  const g = new THREE.Group();
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.18, 5),
+    new THREE.MeshStandardMaterial({ color: 0x3e9e4a }));
+  stem.position.y = 0.09; g.add(stem);
+  const petals = [0xfff3f3, 0xffe066, 0xff9eb5, 0xc7a8ff][Math.floor(Math.random() * 4)];
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6),
+    new THREE.MeshStandardMaterial({ color: petals, roughness: 0.6 }));
+  head.position.y = 0.2; g.add(head);
+  return g;
+}
+function buildMenuScenery() {
+  if (menuScenery) return;
+  menuScenery = new THREE.Group();
+  const F = MENU_FIELD;
+  // Dense unbroken tree wall along the ellipse rim: three staggered rows, jittered so it reads as a
+  // wild forest edge rather than a fence. Everything else spawns strictly INSIDE the clearing.
+  const rows = [[36, 1.08], [28, 1.24], [20, 1.42]];
+  for (const [count, mult] of rows) {
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + Math.random() * 0.12;
+      const m = mult + Math.random() * 0.08;
+      const tree = makeRumbleTree();
+      tree.position.set(F.cx + Math.cos(a) * F.rx * m, 0, F.cz + Math.sin(a) * F.rz * m);
+      tree.rotation.y = Math.random() * Math.PI * 2;
+      menuScenery.add(tree);
+    }
+  }
+  // Bushes tucked against the inside of the tree line.
+  for (let i = 0; i < 7; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const bush = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random() * 0.15, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: 0.75 }));
+    bush.scale.y = 0.7;
+    bush.position.set(F.cx + Math.cos(a) * F.rx * 0.96, 0.18, F.cz + Math.sin(a) * F.rz * 0.96);
+    bush.castShadow = true;
+    menuScenery.add(bush);
+  }
+  // Random clutter inside the clearing, where the Pokemon roam.
+  for (let i = 0; i < 5; i++) {
+    const p = randomFieldPoint(0.82);
+    const rock = makeRumbleRock(); rock.position.set(p.x, 0, p.y); menuScenery.add(rock);
+  }
+  for (let i = 0; i < 14; i++) {
+    const p = randomFieldPoint(0.9);
+    const f = makeMenuFlower(); f.position.set(p.x, 0, p.y); menuScenery.add(f);
+  }
+  // A stump somewhere in the clearing — every forest home needs somewhere to sit.
+  const stump = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.28, 10),
+    new THREE.MeshStandardMaterial({ color: 0x7a4f2c, roughness: 0.85 }));
+  trunk.position.y = 0.14; trunk.castShadow = true; stump.add(trunk);
+  const rings = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.02, 10),
+    new THREE.MeshStandardMaterial({ color: 0xc9a06c, roughness: 0.7 }));
+  rings.position.y = 0.29; stump.add(rings);
+  const sp = randomFieldPoint(0.7);
+  stump.position.set(sp.x, 0, sp.y);
+  menuScenery.add(stump);
+  menuGroup.add(menuScenery);
+}
 function buildMenuDiorama() {
+  buildMenuScenery();
   for (const a of menuAgents) menuGroup.remove(a.group);
   menuAgents.length = 0;
   const ids = gameState.save.unlockedIds.slice(0, 14);
@@ -1859,10 +2705,10 @@ function buildMenuDiorama() {
   for (const id of ids) {
     const group = createEntityObject(id, { shiny: !!gameState.save.shinyUnlockedByCharacter[id] });
     group.userData.pokemonId = id;
-    const x = (Math.random() - 0.5) * 11, z = (Math.random() * 10) - 2;
-    group.position.set(x, 0, z);
+    const spawn = randomFieldPoint(0.85);
+    group.position.set(spawn.x, 0, spawn.y);
     menuGroup.add(group);
-    menuAgents.push({ id, group, pos: new THREE.Vector2(x, z), target: randomFieldTarget(), speed: 0.5 + Math.random() * 0.6, hopPhase: Math.random() * Math.PI * 2 });
+    menuAgents.push({ id, group, pos: spawn.clone(), target: randomFieldTarget(), speed: 0.5 + Math.random() * 0.6, hopPhase: Math.random() * Math.PI * 2 });
   }
 }
 function updateMenuDiorama(dt) {
@@ -1909,8 +2755,9 @@ function updateMenuSelectedTag(now) {
   const g = menuTag.agent.group;
   const v = new THREE.Vector3(g.position.x, g.position.y + 1.35, g.position.z);
   v.project(camera);
-  el.style.left = ((v.x * 0.5 + 0.5) * window.innerWidth) + 'px';
-  el.style.top = ((-v.y * 0.5 + 0.5) * window.innerHeight) + 'px';
+  // Project into the canvas's CSS box (innerWidth/Height under-report on iOS standalone).
+  el.style.left = ((v.x * 0.5 + 0.5) * canvas.clientWidth) + 'px';
+  el.style.top = ((-v.y * 0.5 + 0.5) * canvas.clientHeight) + 'px';
 }
 function t2Phase() { return performance.now() / 1000 * 4; }
 canvas.addEventListener('click', onMenuClick);
@@ -1940,7 +2787,7 @@ function updatePlayButtonModel() {
   const cube = makeCubeMesh(entry); holder.add(cube);
   if (path) loadModelOrNull(path).then(m => {
     if (!m || !playHolder.children.includes(holder)) return;
-    const inst = m.clone(true); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
+    const inst = cloneModel(m); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
     normalizeModel(inst, 1.5);
     // Vertically center the model on the camera's look-at point (0.7) — wide models normalize
     // shorter than tall ones and otherwise sit low in the little canvas.
@@ -1986,9 +2833,15 @@ function devSubmit() {
     if (devBuffer === 'pokemonrumblerush') {
       gameState.save.coins += 999;
       gameState.save.unlockedIds = ALL_PLAYABLE.map(e => e.id);
+      for (const e of ALL_PLAYABLE) gameState.save.shinyUnlockedByCharacter[e.id] = true;
       persistSave();
-      msg.style.color = '#8CFF9E'; msg.textContent = 'Unlocked all Pokemon + 999 coins!';
+      msg.style.color = '#8CFF9E'; msg.textContent = 'Unlocked all Pokemon + shinies + 999 coins!';
       AudioSys.sfx.gacha();
+    } else if (devBuffer === 'coins') {
+      gameState.save.coins += 900;
+      persistSave();
+      msg.style.color = '#8CFF9E'; msg.textContent = '+900 coins!';
+      AudioSys.sfx.coin();
     } else { msg.style.color = '#ff9a8a'; msg.textContent = 'Incorrect password.'; }
   } else {
     if (devBuffer === 'reset') {
@@ -2044,14 +2897,26 @@ function setMode(next) {
   const screen = document.getElementById(`screen-${next}`);
   if (screen) screen.classList.remove('hidden');
   if (next === 'select') openSelect();
-  if (next === 'gacha') { updateGachaCoinDisplays(); document.getElementById('gacha-result').classList.add('hidden'); renderGachaTiers(); }
+  if (next === 'gacha') {
+    updateGachaCoinDisplays(); initGachaMachine(); sizeGachaCanvas(); resetGachaSequence();
+    // Pre-bake the rates screen's spinning ball icons now — otherwise they'd queue behind the
+    // hundreds of silhouette thumbnails that renderRates kicks off, and appear seconds late.
+    BALL_TIERS.forEach(b => getBallFrames(b.ball));
+  }
   if (next === 'rates') renderRates();
   if (next === 'menu') {
     document.getElementById('menu-coins').textContent = gameState.save.coins;
+    document.getElementById('menu-highscore-num').textContent = Math.max(0, ...Object.values(gameState.save.bestScoreByCharacter));
     clearField(); buildMenuDiorama(); updatePlayButtonModel();
     menuTag = null; document.getElementById('menu-selected').style.display = 'none';
   }
   if (next === 'settings') refreshSettingsUI();
+  // Only spend cycles animating the How-to-Play coins while that screen is actually visible.
+  document.querySelectorAll('#howto-panel .coin-spin').forEach(img => {
+    if (next === 'howto') startCoinSpin(img, img.dataset.coin); else stopCoinSpin(img);
+  });
+  // Same for the rates screen's spinning ball icons (renderRates restarts them on entry).
+  if (next !== 'rates') document.querySelectorAll('#rates-panel img[data-ball]').forEach(stopFrameSpin);
   if (next === 'playing') startRun(gameState.selectedPokemonId);
   if (next === 'playing') setTimeout(() => document.getElementById('touch-hint').classList.add('hidden'), 3500);
 }
@@ -2131,15 +2996,15 @@ function buildHowTo() {
       <div class="row"><div><b>Rivers:</b> ride the water Pokemon across - miss and you sink.</div></div>
       <div class="row"><div><b>Stampede:</b> the lane flashes red, then a Tauros herd charges through.</div></div>` },
     { id: 'coins', name: 'Coins', html: `
-      <div class="howto-coins">${coinImg('silver', 'Silver = 1')}${coinImg('gold', 'Gold = 2')}${coinImg('L', 'Big Gold = 10')}</div>
+      <div class="howto-coins">${coinImg('silver', 'Silver = 1')}${coinImg('gold', 'Gold = 5')}${coinImg('L', 'Big Gold = 10')}</div>
+      <div class="row"><div>Coins appear as you run. A Gold (5) turns up about <b>1 in 15</b>, a Big Gold (10) about <b>1 in 30</b>.</div></div>
       <div class="row"><div>Every 100 lanes a gift box appears - run into it to scatter 5 coins across the lanes just ahead.</div></div>` },
     { id: 'balls', name: 'Poke Balls', html: `
       <div class="row"><div>Spend <b>${GACHA_COST} coins</b> per pull at the Poke Ball Machine for a random ball with a new playable Pokemon:</div></div>
       <ul class="rarity-list">${balls}</ul>` },
     { id: 'shiny', name: 'Shinies', html: `
       <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its shiny form.</div></div>
-      <div class="row"><div>Shiny: <b>${P(20)}</b> chance for a gold coin (worth 2) instead of silver.</div></div>
-      <div class="row"><div>Shiny Legendary: <b>1/10</b> chance for gold (worth 2) and <b>1/25</b> chance for a Big Gold (worth 10).</div></div>` },
+      <div class="row"><div>Shiny Pokemon have a <b>${P(20)}</b> chance to <b>double</b> any coin they pick up — watch for the x2!</div></div>` },
   ];
   el.innerHTML =
     `<div class="howto-tabs">${tabs.map((t, i) => `<button class="howto-tab${i === 0 ? ' on' : ''}" data-tab="${t.id}">${t.name}</button>`).join('')}</div>` +
@@ -2240,7 +3105,9 @@ function animate(now) {
       checkPlayerSafety(dt);
       maintainLaneWindow();
       // remove the start forest once it has scrolled off behind us
-      if (gameState.startForest && cameraFollowZ > 3) { scene.remove(gameState.startForest); gameState.startForest = null; }
+      // Only drop the start forest once the camera is far enough that it's fully off-screen behind
+      // us — removing it at z>3 visibly popped the trees out mid-view four hops into the run.
+      if (gameState.startForest && cameraFollowZ > 20) { scene.remove(gameState.startForest); gameState.startForest = null; }
       updateHUD();
     }
   }
@@ -2255,6 +3122,11 @@ function animate(now) {
     const b = performance.now() - (previewHolder.userData.bounce || 0);
     previewHolder.scale.setScalar(b < 300 ? 1 + Math.sin(b / 300 * Math.PI) * 0.12 : 1);
     previewRenderer.render(previewScene, previewCamera);
+  }
+
+  if (gameState.mode === 'gacha' && gachaRenderer) {
+    updateGachaSeq(now, dt);
+    gachaRenderer.render(gachaScene, gachaCamera);
   }
 }
 
