@@ -437,7 +437,10 @@ export const POKEDEX = [
 {d:436,n:"Bronzor",o:"#0436 Bronzor/Bronzor.obj"},
 {d:437,n:"Bronzong",o:"#0437 Bronzong/Bronzong.obj"},
 {d:438,n:"Bonsly",o:"#0438 Bonsly/Bonsly.obj"},
-{d:439,n:"Mime Jr",o:"#0439 Mime Jr/Mime Jr.obj"},
+// NOTE: on GitHub this folder is "#0439 Mime Jr." (trailing period); Windows strips trailing dots so
+// the local copy is "#0439 Mime Jr". The deployed site is what players load, so the path matches
+// GitHub. Rename the GitHub folder to "#0439 Mime Jr" (no dot) to unify, then drop the dot here.
+{d:439,n:"Mime Jr",o:"#0439 Mime Jr./Mime Jr.obj"},
 {d:440,n:"Happiny",o:"#0440 Happiny/Happiny.obj"},
 {d:441,n:"Chatot",o:"#0441 Chatot/Chatot.obj"},
 {d:442,n:"Spiritomb",o:"#0442 Spiritomb/Spiritomb.obj"},

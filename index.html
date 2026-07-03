@@ -660,7 +660,7 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 // The ?v= query busts browser/CDN caches — bump it whenever pokedex.js changes, or home-screen PWAs
 // keep serving the stale roster (form toggles "missing" after a deploy was exactly this).
-import { POKEDEX, FORMS } from './pokedex.js?v=3';   // auto-generated: every model folder (dex, name, model path, gender variants) + alternate forms
+import { POKEDEX, FORMS } from './pokedex.js?v=4';   // auto-generated: every model folder (dex, name, model path, gender variants) + alternate forms
 
 /* ============================== A: CONSTANTS & CONFIG ============================== */
 const TILE = 1;
@@ -809,7 +809,7 @@ const PLAYER_ENTRIES = POKEDEX.map(p => {
     region: regionOfDex(p.d),
     color: 0x88a0b8, types: KNOWN_TYPES[p.d] || null,
     modelPath: MB + p.o, modelTargetSize: 1.5, boxSize: [0.9, 0.9, 0.9],
-    unlockedByDefault: p.d === 1,   // start with Bulbasaur
+    unlockedByDefault: p.d === 25,   // start with Pikachu
   };
   if (p.m && p.f) entry.genderPaths = { m: MB + p.m, f: MB + p.f };
   return entry;
@@ -897,10 +897,10 @@ function persistSave() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameState
 /* ============================== F: GAME STATE ============================== */
 const gameState = {
   mode: 'menu',
-  selectedPokemonId: 'p1',
-  previewId: 'p1',
+  selectedPokemonId: 'p25',
+  previewId: 'p25',
   selectedShiny: false, selectedGender: 'm',
-  previewBaseId: 'p1', selectedForm: 'normal',   // 'normal' or a form label like 'Alola'
+  previewBaseId: 'p25', selectedForm: 'normal',   // 'normal' or a form label like 'Alola'
   player: { gridX: 0, gridZ: 0, isMoving: false, tween: null, group: null, tier: 'basic', isShiny: false, ridingPlatform: null },
   distance: 0, coinsThisRun: 0,
   lanes: new Map(), nextLaneZ: 0, familyHistory: [], laneGroup: null, coinAccum: 0,
@@ -2899,7 +2899,7 @@ function buildMenuDiorama() {
   for (const a of menuAgents) menuGroup.remove(a.group);
   menuAgents.length = 0;
   const ids = gameState.save.unlockedIds.slice(0, 14);
-  if (!ids.length) ids.push('p1');
+  if (!ids.length) ids.push('p25');
   for (const id of ids) {
     const group = createEntityObject(id, { shiny: !!gameState.save.shinyUnlockedByCharacter[id] });
     group.userData.pokemonId = id;
@@ -3070,7 +3070,11 @@ function devSubmit() {
     if (devBuffer === 'reset') {
       localStorage.removeItem(SAVE_KEY);
       gameState.save = defaultSave(); persistSave();
-      refreshSettingsUI(); AudioSys.applyVolumes();
+      // Fresh start: back to Pikachu, plain form, like a brand-new game.
+      gameState.selectedPokemonId = 'p25'; gameState.previewBaseId = 'p25'; gameState.previewId = 'p25';
+      gameState.selectedShiny = false; gameState.selectedGender = 'm'; gameState.selectedForm = 'normal';
+      updatePlayButtonModel();
+      refreshSettingsUI(); AudioSys.applyVolumes(); MusicSys.applyVolumes();
       msg.style.color = '#8CFF9E'; msg.textContent = 'All progress reset.';
       AudioSys.sfx.die();
     } else { msg.style.color = '#ff9a8a'; msg.textContent = 'Type the confirm word exactly.'; }
