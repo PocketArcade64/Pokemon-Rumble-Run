@@ -80,6 +80,20 @@
   #btn-pause::after  { left: calc(50% + 2px); }
   #btn-pause:active { transform: none; filter: brightness(0.8); }
 
+  /* Shiny coin-double indicator: pixel-font "x2" that pops above the player's head and floats away. */
+  #coin-x2 {
+    position: fixed; left: -100px; top: -100px; transform: translate(-50%, -100%);
+    color: #ffd54f; font-size: 1.3rem; font-weight: bold; letter-spacing: 1px;
+    text-shadow: 2px 2px 0 #14161c, -2px 2px 0 #14161c, 2px -2px 0 #14161c, -2px -2px 0 #14161c;
+    pointer-events: none; z-index: 6; opacity: 0; image-rendering: pixelated;
+  }
+  #coin-x2.pop { animation: x2-float 0.9s ease-out forwards; }
+  @keyframes x2-float {
+    0%   { opacity: 0; margin-top: 0;     transform: translate(-50%, -100%) scale(0.5); }
+    15%  { opacity: 1;                    transform: translate(-50%, -100%) scale(1.25); }
+    30%  {                                transform: translate(-50%, -100%) scale(1); }
+    100% { opacity: 0; margin-top: -42px; transform: translate(-50%, -100%) scale(1); }
+  }
   #touch-hint {
     position: fixed; left: 50%; bottom: 8%; transform: translateX(-50%);
     background: rgba(0,0,0,0.55); color: #fff; padding: 0.5rem 1rem; border-radius: 999px;
@@ -436,6 +450,7 @@
   </div>
 
   <div id="touch-hint" class="hidden">Swipe to move &middot; Tap to hop forward</div>
+  <div id="coin-x2">x2</div>
 
   <!-- MAIN MENU (transparent over the live 3D field) -->
   <div id="screen-menu" class="screen">
@@ -867,9 +882,27 @@ const AudioSys = (() => {
     g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
     o.connect(g); g.connect(sfxGain); o.start(t); o.stop(t + dur + 0.02);
   }
+  // Classic arcade coin chime: a quick B5 grace note jumping to a longer, ringing E6 (the two-tone
+  // "ding!" pattern), with a soft triangle body plus a faint square layer for sparkle.
+  function coinChime() {
+    ensure(); if (!ctx) return;
+    const t = ctx.currentTime;
+    const note = (freq, start, dur, type, gain) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t + start);
+      g.gain.setValueAtTime(0.0001, t + start);
+      g.gain.exponentialRampToValueAtTime(gain, t + start + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + start + dur);
+      o.connect(g); g.connect(sfxGain); o.start(t + start); o.stop(t + start + dur + 0.02);
+    };
+    note(987.77, 0, 0.085, 'triangle', 0.2);      // B5 grace note
+    note(987.77, 0, 0.085, 'square', 0.05);
+    note(1318.51, 0.075, 0.34, 'triangle', 0.22); // E6 ring-out
+    note(1318.51, 0.075, 0.34, 'square', 0.045);
+  }
   const sfx = {
     hop: () => blip(520, 0.11, 'square', 0.13, 720),
-    coin: () => blip(880, 0.09, 'triangle', 0.16, 1250),
+    coin: coinChime,
     die: () => { blip(240, 0.5, 'sawtooth', 0.28, 60); },
     click: () => blip(420, 0.05, 'square', 0.1, 520),
     gacha: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => blip(f, 0.16, 'triangle', 0.18), i * 90)),
@@ -977,7 +1010,21 @@ function loadModelOrNull(path) {
   } else {
     promise = Promise.reject(new Error('unsupported format .' + ext));
   }
-  const p = promise.catch(err => { console.warn(`[assets] placeholder cube for ${path}: ${err && err.message || err}`); return null; });
+  const p = promise
+    .then(model => {
+      // These ripped Rumble-era models use MIRRORED texture coordinates (UVs running past 1 expect a
+      // mirror flip). With the loaders' default plain-repeat wrap, features double into the wrong
+      // places — extra eyes on Charmander's scalp, Charizard sampling his beige belly across his
+      // whole body. Mirrored wrap renders identically for models whose UVs stay inside [0,1].
+      model.traverse(o => {
+        if (!o.isMesh) return;
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach(mm => {
+          if (mm && mm.map) { mm.map.wrapS = mm.map.wrapT = THREE.MirroredRepeatWrapping; mm.map.needsUpdate = true; }
+        });
+      });
+      return model;
+    })
+    .catch(err => { console.warn(`[assets] placeholder cube for ${path}: ${err && err.message || err}`); return null; });
   modelCache.set(path, p);
   return p;
 }
@@ -1064,16 +1111,8 @@ function normalizeModel(obj, targetSize) {
   const box2 = new THREE.Box3().setFromObject(obj); const c = new THREE.Vector3(); box2.getCenter(c);
   obj.position.x -= c.x; obj.position.z -= c.z; obj.position.y -= box2.min.y;
 }
-function addSparkle(object3d) {
-  const geo = new THREE.SphereGeometry(0.06, 6, 6);
-  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
-  for (let i = 0; i < 4; i++) {
-    const s = new THREE.Mesh(geo, mat);
-    s.position.set((Math.random() - 0.5) * 0.7, 0.4 + Math.random() * 0.7, (Math.random() - 0.5) * 0.7);
-    s.userData.sparklePhase = Math.random() * Math.PI * 2; s.userData.isSparkle = true;
-    object3d.add(s);
-  }
-}
+// (Shiny Pokemon previously carried floating white sparkle orbs; removed by request — the shiny
+// texture swap plus the coin-doubling perk carry the distinction now.)
 // Shiny: swap each texture map to its "_C" variant. Gold tint fallback if a _C file is missing.
 function shinyTexUrl(url) {
   if (/_C\.[a-z0-9]+(\?|#|$)/i.test(url)) return url;
@@ -1104,7 +1143,6 @@ function applyShiny(object3d) {
     });
     o.material = wasArray ? swapped : swapped[0];
   });
-  addSparkle(object3d);
 }
 
 // Pokemon Rumble scenery: chunky toy trees (stacked foliage blobs on a fat trunk) and rounded rocks.
@@ -1169,8 +1207,6 @@ function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
       if (shiny) applyShiny(inst);
       wob.remove(cube); wob.add(inst);
     });
-  } else if (shiny) {
-    addSparkle(wob);
   }
   return group;
 }
@@ -1563,12 +1599,27 @@ function updateCamera(dt) {
 }
 
 /* ============================== O: COINS / GIFT / HAZARDS / SAFETY ============================== */
+// Shiny perk: 20% chance a picked-up coin doubles, with a pixel "x2" popping over the player's head.
+function showCoinX2() {
+  const el = document.getElementById('coin-x2');
+  const g = gameState.player.group;
+  if (!el || !g) return;
+  const v = new THREE.Vector3(g.position.x, g.position.y + 1.5, g.position.z);
+  v.project(camera);
+  el.style.left = ((v.x * 0.5 + 0.5) * canvas.clientWidth) + 'px';
+  el.style.top = ((-v.y * 0.5 + 0.5) * canvas.clientHeight) + 'px';
+  el.classList.remove('pop');            // restart the CSS animation on rapid pickups
+  void el.offsetWidth;
+  el.classList.add('pop');
+}
 function checkCoinPickup(lane) {
   const p = gameState.player;
   for (const coin of lane.coins) {
     if (!coin.taken && Math.round(p.gridX) === coin.x) {
       coin.taken = true; lane.root.remove(coin.group);
-      gameState.coinsThisRun += coin.value;
+      let value = coin.value;
+      if (p.isShiny && Math.random() < 0.2) { value *= 2; showCoinX2(); }
+      gameState.coinsThisRun += value;
       AudioSys.sfx.coin(); updateHUD();
     }
   }
@@ -1656,9 +1707,6 @@ function updateLanes(dt) {
     }
     if (lane.gift && !lane.gift.taken) lane.gift.group.rotation.y += dt * 1.1;
   }
-  const t = performance.now() / 500;
-  gameState.laneGroup.traverse(obj => { if (obj.userData.isSparkle) obj.position.y = 0.5 + Math.sin(t + obj.userData.sparklePhase) * 0.15; });
-  if (gameState.player.group) gameState.player.group.traverse(obj => { if (obj.userData.isSparkle) obj.position.y = 0.5 + Math.sin(t + obj.userData.sparklePhase) * 0.15; });
 }
 
 /* ============================== P: GACHA ============================== */
@@ -2569,7 +2617,14 @@ const menuGroup = new THREE.Group(); scene.add(menuGroup);
 const menuAgents = [];
 const raycaster = new THREE.Raycaster();
 
-function randomFieldTarget() { return new THREE.Vector2((Math.random() - 0.5) * 12, (Math.random() * 11) - 2.5); }
+// The meadow is an ellipse; Pokemon roam inside it and the tree wall grows along its rim. The front
+// (screen-bottom) edge reaches down toward the Play button.
+const MENU_FIELD = { cx: -0.5, cz: 1.5, rx: 6.8, rz: 8.6 };
+function randomFieldPoint(maxR = 1) {
+  const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * maxR;
+  return new THREE.Vector2(MENU_FIELD.cx + Math.cos(a) * MENU_FIELD.rx * r, MENU_FIELD.cz + Math.sin(a) * MENU_FIELD.rz * r);
+}
+function randomFieldTarget() { return randomFieldPoint(0.94); }
 function clearField() {
   for (const lane of gameState.lanes.values()) gameState.laneGroup.remove(lane.root);
   gameState.lanes.clear();
@@ -2595,40 +2650,40 @@ function makeMenuFlower() {
 function buildMenuScenery() {
   if (menuScenery) return;
   menuScenery = new THREE.Group();
-  // Tree line ringing the meadow (the wander area is x ±6, z -2.5..8.5), denser toward the back.
-  for (let i = 0; i < 26; i++) {
-    const tree = makeRumbleTree();
-    const side = Math.random();
-    let x, z;
-    if (side < 0.35) { x = -8.5 - Math.random() * 2.5; z = -5 + Math.random() * 16; }        // left wall
-    else if (side < 0.7) { x = 8.5 + Math.random() * 2.5; z = -5 + Math.random() * 16; }     // right wall
-    else if (side < 0.9) { x = (Math.random() - 0.5) * 20; z = 10 + Math.random() * 3; }     // back row
-    else { x = (Math.random() - 0.5) * 20; z = -5.5 - Math.random() * 2; }                   // front accents
-    tree.position.set(x, 0, z);
-    tree.rotation.y = Math.random() * Math.PI * 2;
-    menuScenery.add(tree);
+  const F = MENU_FIELD;
+  // Dense unbroken tree wall along the ellipse rim: three staggered rows, jittered so it reads as a
+  // wild forest edge rather than a fence. Everything else spawns strictly INSIDE the clearing.
+  const rows = [[36, 1.08], [28, 1.24], [20, 1.42]];
+  for (const [count, mult] of rows) {
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + Math.random() * 0.12;
+      const m = mult + Math.random() * 0.08;
+      const tree = makeRumbleTree();
+      tree.position.set(F.cx + Math.cos(a) * F.rx * m, 0, F.cz + Math.sin(a) * F.rz * m);
+      tree.rotation.y = Math.random() * Math.PI * 2;
+      menuScenery.add(tree);
+    }
   }
-  // Bushes (single foliage blobs) softening the tree line.
-  for (let i = 0; i < 8; i++) {
+  // Bushes tucked against the inside of the tree line.
+  for (let i = 0; i < 7; i++) {
+    const a = Math.random() * Math.PI * 2;
     const bush = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random() * 0.15, 10, 8),
       new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: 0.75 }));
     bush.scale.y = 0.7;
-    bush.position.set((Math.random() < 0.5 ? -1 : 1) * (6.8 + Math.random() * 1.6), 0.18, -3 + Math.random() * 12);
+    bush.position.set(F.cx + Math.cos(a) * F.rx * 0.96, 0.18, F.cz + Math.sin(a) * F.rz * 0.96);
     bush.castShadow = true;
     menuScenery.add(bush);
   }
-  // Rocks + wildflowers sprinkled through the meadow itself (low, so wanderers walk "past" them).
+  // Random clutter inside the clearing, where the Pokemon roam.
   for (let i = 0; i < 5; i++) {
-    const rock = makeRumbleRock();
-    rock.position.set((Math.random() - 0.5) * 11, 0, -1.5 + Math.random() * 9);
-    menuScenery.add(rock);
+    const p = randomFieldPoint(0.82);
+    const rock = makeRumbleRock(); rock.position.set(p.x, 0, p.y); menuScenery.add(rock);
   }
   for (let i = 0; i < 14; i++) {
-    const f = makeMenuFlower();
-    f.position.set((Math.random() - 0.5) * 12, 0, -2 + Math.random() * 10.5);
-    menuScenery.add(f);
+    const p = randomFieldPoint(0.9);
+    const f = makeMenuFlower(); f.position.set(p.x, 0, p.y); menuScenery.add(f);
   }
-  // A stump near the edge — every forest home needs somewhere to sit.
+  // A stump somewhere in the clearing — every forest home needs somewhere to sit.
   const stump = new THREE.Group();
   const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.28, 10),
     new THREE.MeshStandardMaterial({ color: 0x7a4f2c, roughness: 0.85 }));
@@ -2636,7 +2691,8 @@ function buildMenuScenery() {
   const rings = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.02, 10),
     new THREE.MeshStandardMaterial({ color: 0xc9a06c, roughness: 0.7 }));
   rings.position.y = 0.29; stump.add(rings);
-  stump.position.set(-4.6, 0, 6.2);
+  const sp = randomFieldPoint(0.7);
+  stump.position.set(sp.x, 0, sp.y);
   menuScenery.add(stump);
   menuGroup.add(menuScenery);
 }
@@ -2649,10 +2705,10 @@ function buildMenuDiorama() {
   for (const id of ids) {
     const group = createEntityObject(id, { shiny: !!gameState.save.shinyUnlockedByCharacter[id] });
     group.userData.pokemonId = id;
-    const x = (Math.random() - 0.5) * 11, z = (Math.random() * 10) - 2;
-    group.position.set(x, 0, z);
+    const spawn = randomFieldPoint(0.85);
+    group.position.set(spawn.x, 0, spawn.y);
     menuGroup.add(group);
-    menuAgents.push({ id, group, pos: new THREE.Vector2(x, z), target: randomFieldTarget(), speed: 0.5 + Math.random() * 0.6, hopPhase: Math.random() * Math.PI * 2 });
+    menuAgents.push({ id, group, pos: spawn.clone(), target: randomFieldTarget(), speed: 0.5 + Math.random() * 0.6, hopPhase: Math.random() * Math.PI * 2 });
   }
 }
 function updateMenuDiorama(dt) {
@@ -2948,7 +3004,7 @@ function buildHowTo() {
       <ul class="rarity-list">${balls}</ul>` },
     { id: 'shiny', name: 'Shinies', html: `
       <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its shiny form.</div></div>
-      <div class="row"><div>Shiny Pokemon are a gleaming alternate color — a bragging-rights collectible for your best runs.</div></div>` },
+      <div class="row"><div>Shiny Pokemon have a <b>${P(20)}</b> chance to <b>double</b> any coin they pick up — watch for the x2!</div></div>` },
   ];
   el.innerHTML =
     `<div class="howto-tabs">${tabs.map((t, i) => `<button class="howto-tab${i === 0 ? ' on' : ''}" data-tab="${t.id}">${t.name}</button>`).join('')}</div>` +
@@ -3049,7 +3105,9 @@ function animate(now) {
       checkPlayerSafety(dt);
       maintainLaneWindow();
       // remove the start forest once it has scrolled off behind us
-      if (gameState.startForest && cameraFollowZ > 3) { scene.remove(gameState.startForest); gameState.startForest = null; }
+      // Only drop the start forest once the camera is far enough that it's fully off-screen behind
+      // us — removing it at z>3 visibly popped the trees out mid-view four hops into the run.
+      if (gameState.startForest && cameraFollowZ > 20) { scene.remove(gameState.startForest); gameState.startForest = null; }
       updateHUD();
     }
   }
