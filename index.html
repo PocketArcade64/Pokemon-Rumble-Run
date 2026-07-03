@@ -54,7 +54,16 @@
     padding: max(0.6rem, env(safe-area-inset-top)) 1rem 0.5rem;
     z-index: 5; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.6);
   }
-  #hud .hud-left { display: flex; align-items: flex-start; }
+  #hud .hud-left { display: flex; flex-direction: column; align-items: flex-start; }
+  /* Mega Evolution meter: fills purple as lanes pass; glows rainbow while Mega is active. */
+  #mega-meter { position: relative; width: 5.4rem; height: 0.55rem; margin-top: 0.35rem;
+    background: rgba(0,0,0,0.4); border-radius: 999px; overflow: hidden;
+    box-shadow: inset 0 0 0 2px rgba(20,22,28,0.8); }
+  #mega-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #b388ff, #7c4dff);
+    border-radius: 999px; transition: width 0.25s ease; }
+  #mega-meter.active #mega-fill { background: linear-gradient(90deg, #ffd54f, #ff8a65, #b388ff);
+    animation: mega-glow 0.8s linear infinite; }
+  @keyframes mega-glow { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.6); } }
   #hud .hud-right { display: flex; flex-direction: row; gap: 0.6rem; align-items: center; }
   .hud-score { font-size: clamp(2rem, 9vw, 3.2rem); font-weight: bold; line-height: 1; }
   /* Coin counter: no pill/box — just the coin + a bold gold number with a crisp shadow. */
@@ -394,6 +403,8 @@
   #howto-panel .howto-coins .c { font-size: 0.85rem; }
   #howto-panel .coin-spin { width: 42px; height: 42px; }
   #howto-panel .rarity-list li { font-size: 0.95rem; }
+  .howto-ball { width: 30px; height: 30px; vertical-align: middle; margin-right: 0.35rem; image-rendering: pixelated; }
+  .rarity-list li > span:first-child { display: flex; align-items: center; }
 
   /* ---- Pixel-art styled scrollbars ---- */
   * { scrollbar-width: thin; scrollbar-color: #ffca28 #2b2f3a; }
@@ -416,7 +427,9 @@
   .kbd-key {
     min-width: 1.9rem; height: 2.3rem; padding: 0 0.2rem; font-size: 0.85rem; border-radius: 6px;
     background: linear-gradient(180deg,#eceff4,#c7ccd6); color: #23262e; box-shadow: 0 3px 0 #8b909b; border: none; cursor: pointer;
+    text-transform: uppercase;   /* display only — typed codes stay lowercase internally */
   }
+  #dev-display { text-transform: uppercase; }
   .kbd-key.wide { min-width: 4rem; }
   .kbd-key:active { transform: translateY(3px); box-shadow: 0 0 0 #8b909b; }
   .dev-actions { display: flex; gap: 0.6rem; justify-content: center; margin-top: 0.7rem; flex-wrap: wrap; }
@@ -442,6 +455,7 @@
   <div id="hud" class="hidden">
     <div class="hud-left">
       <div id="score-count" class="hud-score">0</div>
+      <div id="mega-meter" class="hidden"><div id="mega-fill"></div></div>
     </div>
     <div class="hud-right">
       <div class="hud-pill"><img class="hud-coin" data-coin="gold" src="Pokemon%203D%20Models/Pok%C3%A9%20Coins/Poke/poke_gold.png" alt="coins" style="width:1.3em;height:1.3em;object-fit:contain;" /> <span id="coin-total">0</span></div>
@@ -614,7 +628,9 @@ import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
-import { POKEDEX, FORMS } from './pokedex.js';   // auto-generated: every model folder (dex, name, model path, gender variants) + alternate forms
+// The ?v= query busts browser/CDN caches — bump it whenever pokedex.js changes, or home-screen PWAs
+// keep serving the stale roster (form toggles "missing" after a deploy was exactly this).
+import { POKEDEX, FORMS } from './pokedex.js?v=3';   // auto-generated: every model folder (dex, name, model path, gender variants) + alternate forms
 
 /* ============================== A: CONSTANTS & CONFIG ============================== */
 const TILE = 1;
@@ -767,9 +783,18 @@ const PLAYER_ENTRIES = POKEDEX.map(p => {
   return entry;
 }).sort((a, b) => a.dex - b.dex);
 
+// Mega/Primal forms power the in-run Mega Evolution system (meter fills, auto-evolve, revert on a
+// hit) rather than appearing as select-screen toggles. Alpha/Omega/Delta are the Hoenn primals.
+function isMegaForm(f) {
+  return /^mega/i.test(f.label) ||
+    (f.base === 382 && f.label === 'Alpha') || (f.base === 383 && f.label === 'Omega') || (f.base === 384 && f.label === 'Delta');
+}
+const MEGA_BY_DEX = {};
+for (const f of FORMS) if (isMegaForm(f)) (MEGA_BY_DEX[f.base] = MEGA_BY_DEX[f.base] || []).push(MB + f.o);
+
 // Alternate forms (Alolan, Ash-Greninja): playable, but unlocked SEPARATELY from the normal form and
 // reached via a "Form" toggle on the base Pokemon's page (they don't take their own dex slot).
-const FORM_ENTRIES = FORMS.map(f => ({
+const FORM_ENTRIES = FORMS.filter(f => !isMegaForm(f)).map(f => ({
   id: 'p' + f.base + '_' + f.label.toLowerCase(), dex: f.base, baseId: 'p' + f.base,
   displayName: f.n, form: f.label, role: 'player',
   tier: tierForDex(f.base), mythical: MYTHICAL_DEX.has(f.base), region: regionOfDex(f.base),
@@ -852,6 +877,8 @@ const gameState = {
   paused: false, countdownUntil: 0,
   startForest: null,
   input: { touchStart: null },
+  // In-run Mega Evolution: meter fills with distance, auto-evolves at 100, one hit reverts.
+  mega: { capable: false, baseline: 0, active: false, invulnUntil: 0, megaPath: null, fx: null, fxT0: 0 },
   save: null,
 };
 
@@ -1659,7 +1686,7 @@ function checkCoinPickup(lane) {
     if (!coin.taken && Math.round(p.gridX) === coin.x) {
       coin.taken = true; lane.root.remove(coin.group);
       let value = coin.value;
-      if (p.isShiny && Math.random() < 0.2) { value *= 2; showCoinX2(); }
+      if (p.isShiny && Math.random() < 0.5) { value *= 2; showCoinX2(); }
       gameState.coinsThisRun += value;
       AudioSys.sfx.coin(); updateHUD();
     }
@@ -1712,7 +1739,12 @@ function checkPlayerSafety(dt) {
     } else if (!p.isMoving) {
       p.group.position.y = LAND_H;   // keep grounded on land
     }
-    if ((lane.family === 'road' || lane.family === 'rail') && !p.isMoving && hazardOverlapsTile(lane, p.gridX)) { triggerGameOver('squashed'); return; }
+    if ((lane.family === 'road' || lane.family === 'rail') && !p.isMoving && hazardOverlapsTile(lane, p.gridX)) {
+      const now = performance.now();
+      if (now < gameState.mega.invulnUntil) { /* mercy window after reverting — hit ignored */ }
+      else if (gameState.mega.active) { revertMega(now); return; }   // Mega soaks the hit
+      else { triggerGameOver('squashed'); return; }
+    }
   }
   // Offscreen (fell behind the advancing world)
   if (gameState.scrollActive && !p.isMoving && p.gridZ * TILE < cameraFollowZ - DEATH_MARGIN) triggerGameOver('offscreen');
@@ -2882,6 +2914,13 @@ function devSubmit() {
       persistSave();
       msg.style.color = '#8CFF9E'; msg.textContent = '+900 coins!';
       AudioSys.sfx.coin();
+    } else if (devBuffer === 'ponyta' || devBuffer === 'jigglypuff') {
+      const id = devBuffer === 'ponyta' ? 'p77' : 'p39';
+      if (!gameState.save.unlockedIds.includes(id)) gameState.save.unlockedIds.push(id);
+      persistSave();
+      msg.style.color = '#8CFF9E';
+      msg.textContent = (devBuffer === 'ponyta' ? 'Ponyta' : 'Jigglypuff') + ' unlocked!';
+      AudioSys.sfx.gacha();
     } else { msg.style.color = '#ff9a8a'; msg.textContent = 'Incorrect password.'; }
   } else {
     if (devBuffer === 'reset') {
@@ -2899,6 +2938,12 @@ function devSubmit() {
 function updateHUD() {
   document.getElementById('score-count').textContent = gameState.distance;
   document.getElementById('coin-total').textContent = gameState.save.coins + gameState.coinsThisRun; // live running total
+  const m = gameState.mega, meter = document.getElementById('mega-meter');
+  meter.classList.toggle('hidden', !m.capable);
+  if (m.capable) {
+    meter.classList.toggle('active', m.active);
+    document.getElementById('mega-fill').style.width = (m.active ? 100 : Math.max(0, Math.min(100, gameState.distance - m.baseline))) + '%';
+  }
 }
 function togglePause() {
   if (gameState.mode !== 'playing') return;
@@ -2951,9 +2996,12 @@ function setMode(next) {
     menuTag = null; document.getElementById('menu-selected').style.display = 'none';
   }
   if (next === 'settings') refreshSettingsUI();
-  // Only spend cycles animating the How-to-Play coins while that screen is actually visible.
+  // Only spend cycles animating the How-to-Play coins/balls while that screen is actually visible.
   document.querySelectorAll('#howto-panel .coin-spin').forEach(img => {
     if (next === 'howto') startCoinSpin(img, img.dataset.coin); else stopCoinSpin(img);
+  });
+  document.querySelectorAll('#howto-panel img[data-ball]').forEach(img => {
+    if (next === 'howto') startFrameSpin(img, getBallFrames(img.dataset.ball), 9); else stopFrameSpin(img);
   });
   // Same for the rates screen's spinning ball icons (renderRates restarts them on entry).
   if (next !== 'rates') document.querySelectorAll('#rates-panel img[data-ball]').forEach(stopFrameSpin);
@@ -2965,6 +3013,63 @@ function isTouchDevice() { return 'ontouchstart' in window || navigator.maxTouch
 function effectiveModelPath(entry, gender) {
   if (entry.genderPaths && entry.genderPaths[gender]) return entry.genderPaths[gender];
   return entry.modelPath;
+}
+/* ---- Mega Evolution (in-run): the meter under the score fills as lanes pass; at 100 the Pokemon
+   Mega Evolves with a flash (random pick when it has multiple Megas). One hazard hit while Mega
+   reverts it to normal instead of ending the run, and the meter starts recharging. ---- */
+function swapPlayerModel(path, targetSize) {
+  const p = gameState.player;
+  if (!p.group) return;
+  const wob = p.group.userData.wob;
+  loadModelOrNull(path).then(model => {
+    if (!model || !p.group || p.group.userData.destroyed || p.group.userData.wob !== wob) return;
+    const inst = cloneModel(model);
+    inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    normalizeModel(inst, targetSize);
+    if (p.isShiny) applyShiny(inst, shinyFallbackFor(rosterById[gameState.selectedPokemonId]));
+    while (wob.children.length) wob.remove(wob.children[0]);
+    wob.add(inst);
+  });
+}
+function spawnMegaFlash() {
+  const p = gameState.player, m = gameState.mega;
+  if (!p.group) return;
+  if (m.fx) scene.remove(m.fx);
+  m.fx = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 12),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 }));
+  m.fx.position.copy(p.group.position); m.fx.position.y += 0.5;
+  scene.add(m.fx);
+  m.fxT0 = performance.now();
+}
+function megaEvolve() {
+  const m = gameState.mega, entry = rosterById[gameState.selectedPokemonId];
+  const paths = MEGA_BY_DEX[entry.dex];
+  if (!paths || m.active) return;
+  m.active = true;
+  m.megaPath = paths[Math.floor(Math.random() * paths.length)];   // Charizard/Mewtwo roll X or Y
+  AudioSys.sfx.gacha();
+  spawnMegaFlash();
+  swapPlayerModel(m.megaPath, (entry.modelTargetSize ?? 1.5) * 1.25);   // Megas stand a bit larger
+}
+function revertMega(now) {
+  const m = gameState.mega, entry = rosterById[gameState.selectedPokemonId];
+  m.active = false;
+  m.baseline = gameState.distance;      // the meter starts over from here
+  m.invulnUntil = now + 1500;           // brief mercy window so the same hazard can't double-tap
+  AudioSys.sfx.hop();
+  spawnMegaFlash();
+  swapPlayerModel(effectiveModelPath(entry, gameState.selectedGender), entry.modelTargetSize ?? 1.5);
+}
+function updateMegaSystem(now) {
+  const m = gameState.mega;
+  if (m.capable && !m.active && gameState.distance - m.baseline >= 100) megaEvolve();
+  if (m.fx) {
+    const p = (now - m.fxT0) / 500;
+    if (p >= 1) { scene.remove(m.fx); m.fx = null; }
+    else { m.fx.scale.setScalar(1 + p * 5); m.fx.material.opacity = 0.95 * (1 - p); }
+  }
+  const pl = gameState.player;
+  if (pl.group) pl.group.visible = now >= m.invulnUntil || Math.floor(now / 120) % 2 === 0;   // post-revert blink
 }
 function startRun(pokemonId) {
   const entry = rosterById[pokemonId];
@@ -2981,6 +3086,9 @@ function startRun(pokemonId) {
   gameState.paused = false; gameState.countdownUntil = 0;
   const group = createEntityObject(pokemonId, { shiny, modelPath: effectiveModelPath(entry, gameState.selectedGender) });
   group.position.set(0, LAND_H, 0); scene.add(group); gameState.player.group = group;
+  if (gameState.mega.fx) { scene.remove(gameState.mega.fx); }
+  // Mega meter only runs for BASE forms with a Mega on file (an Alolan variant can't Mega Evolve).
+  gameState.mega = { capable: !!MEGA_BY_DEX[entry.dex] && !entry.form, baseline: 0, active: false, invulnUntil: 0, megaPath: null, fx: null, fxT0: 0 };
   cameraFollowZ = 0;
   maintainLaneWindow();
   buildStartForest();
@@ -3018,19 +3126,24 @@ function buildHowTo() {
     const total = BALL_TIERS.reduce((s, x) => s + x.weight, 0);
     const pct = Math.round(b.weight / total * 100);
     const label = { basic: 'Basic Pokemon', stage1: 'Stage-1 Pokemon', stage3: 'Stage-3 Pokemon', legendary: 'Legendary / Mythical' }[b.tier];
-    return `<li style="background:rgba(255,255,255,0.05)"><span><span class="swatch" style="background:${hexColor(b.color)}"></span>${b.ball} - ${label}</span><span>${P(pct)}</span></li>`;
+    return `<li style="background:rgba(255,255,255,0.05)"><span><img class="howto-ball" data-ball="${b.ball}" alt="${b.ball}" />${b.ball} - ${label}</span><span>${P(pct)}</span></li>`;
   }).join('');
   const coinImg = (k, cap) => `<div class="c"><img class="coin-spin" data-coin="${k}" src="${encodePath(COIN_TYPES[k].tex)}" alt="${cap}"/><span>${cap}</span></div>`;
   // Tabbed topics: tabs stay pinned at the top of the panel; only the section content scrolls.
   const tabs = [
     { id: 'controls', name: 'Controls', html: `
-      <div class="row"><div class="keys-grid">
-        <span></span><span class="key">^</span><span></span>
-        <span class="key">&lt;</span><span class="key">v</span><span class="key">&gt;</span>
+      <h3>Desktop</h3>
+      <div class="row">
+        <div class="keys-grid">
+          <span></span><span class="key">^</span><span></span>
+          <span class="key">&lt;</span><span class="key">v</span><span class="key">&gt;</span>
+        </div>
+        <div><b>Arrow keys</b> hop one tile in any direction.<br/><span class="key wide">Space</span> hops forward.</div>
       </div>
-      <div>Arrow keys hop one tile. <span class="key wide">Space</span> also hops forward.</div></div>
-      <div class="row"><div>On mobile: <b>swipe</b> to move in a direction, <b>tap</b> to hop forward.</div></div>
-      <div class="row"><div>The field slowly scrolls forward and speeds up. Keep moving - fall off the back edge and your run ends. You may step backward, but don't get left behind.</div></div>` },
+      <h3>Mobile</h3>
+      <div class="row"><div><b>Swipe</b> up, down, left or right to hop that way. <b>Tap</b> to hop forward.</div></div>
+      <h3>Keep moving!</h3>
+      <div class="row"><div>The field scrolls forward and speeds up as you go. Fall off the back edge and the run ends - stepping backward is allowed, just don't get left behind.</div></div>` },
     { id: 'hazards', name: 'Hazards', html: `
       <div class="row"><div><b>Roads:</b> dodge charging Pokemon like Rapidash and Dodrio.</div></div>
       <div class="row"><div><b>Rivers:</b> ride the water Pokemon across - miss and you sink.</div></div>
@@ -3039,12 +3152,17 @@ function buildHowTo() {
       <div class="howto-coins">${coinImg('silver', 'Silver = 1')}${coinImg('gold', 'Gold = 5')}${coinImg('L', 'Big Gold = 10')}</div>
       <div class="row"><div>Coins appear as you run. A Gold (5) turns up about <b>1 in 15</b>, a Big Gold (10) about <b>1 in 30</b>.</div></div>
       <div class="row"><div>Every 100 lanes a gift box appears - run into it to scatter 5 coins across the lanes just ahead.</div></div>` },
+    { id: 'mega', name: 'Mega', html: `
+      <div class="row"><div>Pokemon that can <b>Mega Evolve</b> show a purple meter under the score. It fills as you pass lanes and triggers automatically at <b>100</b>.</div></div>
+      <div class="row"><div>While Mega Evolved, one hazard hit <b>won't end your run</b> - you revert to normal form instead, and the meter starts recharging.</div></div>
+      <div class="row"><div>Water and falling behind still end the run, Mega or not.</div></div>
+      <div class="row"><div>Pokemon with more than one Mega (Charizard, Mewtwo) evolve into a random one each time.</div></div>` },
     { id: 'balls', name: 'Poke Balls', html: `
       <div class="row"><div>Spend <b>${GACHA_COST} coins</b> per pull at the Poke Ball Machine for a random ball with a new playable Pokemon:</div></div>
       <ul class="rarity-list">${balls}</ul>` },
     { id: 'shiny', name: 'Shinies', html: `
       <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its shiny form.</div></div>
-      <div class="row"><div>Shiny Pokemon have a <b>${P(20)}</b> chance to <b>double</b> any coin they pick up — watch for the x2!</div></div>` },
+      <div class="row"><div>Shiny Pokemon have a <b>${P(50)}</b> chance to <b>double</b> any coin they pick up — watch for the x2 over their head!</div></div>` },
   ];
   el.innerHTML =
     `<div class="howto-tabs">${tabs.map((t, i) => `<button class="howto-tab${i === 0 ? ' on' : ''}" data-tab="${t.id}">${t.name}</button>`).join('')}</div>` +
@@ -3143,6 +3261,7 @@ function animate(now) {
       updateScroll(dt);
       updateLanes(dt);
       checkPlayerSafety(dt);
+      updateMegaSystem(now);
       maintainLaneWindow();
       // remove the start forest once it has scrolled off behind us
       // Only drop the start forest once the camera is far enough that it's fully off-screen behind
