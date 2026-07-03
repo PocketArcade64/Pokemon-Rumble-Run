@@ -55,15 +55,19 @@
     z-index: 5; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.6);
   }
   #hud .hud-left { display: flex; flex-direction: column; align-items: flex-start; }
-  /* Mega Evolution meter: fills purple as lanes pass; glows rainbow while Mega is active. */
-  #mega-meter { position: relative; width: 5.4rem; height: 0.55rem; margin-top: 0.35rem;
-    background: rgba(0,0,0,0.4); border-radius: 999px; overflow: hidden;
-    box-shadow: inset 0 0 0 2px rgba(20,22,28,0.8); }
-  #mega-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #b388ff, #7c4dff);
-    border-radius: 999px; transition: width 0.25s ease; }
-  #mega-meter.active #mega-fill { background: linear-gradient(90deg, #ffd54f, #ff8a65, #b388ff);
-    animation: mega-glow 0.8s linear infinite; }
-  @keyframes mega-glow { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.6); } }
+  /* Mega Evolution meter: a small ring under the score that fills purple as lanes pass, with the
+     Mega icon in the center (Kyogre = blue orb, Groudon = red orb, everyone else = Mega symbol). */
+  #mega-meter { position: relative; width: 2.7rem; height: 2.7rem; margin-top: 0.4rem; border-radius: 50%;
+    background: conic-gradient(#7c4dff calc(var(--mega, 0) * 1%), rgba(0,0,0,0.45) 0);
+    box-shadow: inset 0 0 0 2px rgba(20,22,28,0.8), 0 2px 5px rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center; }
+  #mega-icon { width: 72%; height: 72%; border-radius: 50%; object-fit: cover; background: #1a1d28; display: block; }
+  #mega-meter.active { background: conic-gradient(#ffd54f, #ff8a65, #b388ff, #4fc3f7, #ffd54f);
+    animation: mega-pulse 0.9s ease-in-out infinite; }
+  @keyframes mega-pulse {
+    0%,100% { box-shadow: inset 0 0 0 2px rgba(20,22,28,0.8), 0 0 6px 2px rgba(179,136,255,0.6); }
+    50%     { box-shadow: inset 0 0 0 2px rgba(20,22,28,0.8), 0 0 14px 5px rgba(255,213,79,0.8); }
+  }
   #hud .hud-right { display: flex; flex-direction: row; gap: 0.6rem; align-items: center; }
   .hud-score { font-size: clamp(2rem, 9vw, 3.2rem); font-weight: bold; line-height: 1; }
   /* Coin counter: no pill/box — just the coin + a bold gold number with a crisp shadow. */
@@ -455,7 +459,7 @@
   <div id="hud" class="hidden">
     <div class="hud-left">
       <div id="score-count" class="hud-score">0</div>
-      <div id="mega-meter" class="hidden"><div id="mega-fill"></div></div>
+      <div id="mega-meter" class="hidden"><img id="mega-icon" alt="Mega" /></div>
     </div>
     <div class="hud-right">
       <div class="hud-pill"><img class="hud-coin" data-coin="gold" src="Pokemon%203D%20Models/Pok%C3%A9%20Coins/Poke/poke_gold.png" alt="coins" style="width:1.3em;height:1.3em;object-fit:contain;" /> <span id="coin-total">0</span></div>
@@ -716,7 +720,8 @@ const ROSTER = [
   { id: 'wailmer', displayName: 'Wailmer', role: 'platform', laneFamily: 'river', color: 0x1e88e5,
     modelPath: dexPath(320, 'Wailmer/Wailmer.obj'), modelTargetSize: 1.3, boxSize: [1.1, 0.5, 1.1], speedRange: [0.85, 1.35], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
   { id: 'wailord', displayName: 'Wailord', role: 'platform', laneFamily: 'river', color: 0x1565c0,
-    modelPath: dexPath(321, 'Wailord/Wailord.obj'), modelTargetSize: 3.0, boxSize: [2.8, 0.6, 1.2], speedRange: [0.6, 1.0], platformLength: 3, gapMin: 2.0, gapMax: 3.0 },
+    // boxSize[1] is the ride height — raised so riders stand on Wailord's back instead of clipping through it.
+    modelPath: dexPath(321, 'Wailord/Wailord.obj'), modelTargetSize: 3.0, boxSize: [2.8, 0.95, 1.2], speedRange: [0.6, 1.0], platformLength: 3, gapMin: 2.0, gapMax: 3.0 },
 
   // Decor & coin
   { id: 'rock', displayName: 'Rock', role: 'decor', color: 0x9e9e9e, modelPath: null, boxSize: [0.85, 0.7, 0.85] },
@@ -1134,17 +1139,22 @@ function makeCoinMesh(key) {
   group.position.y = 0.55;
   return group;
 }
-// Gift box: no geometry was supplied, so build a small textured present from the frame texture.
+// Gift box: the real ripped model (red & white with lid and ribbon). A simple textured box stands
+// in while the .dae loads, then hot-swaps — same pattern as the Pokemon entities.
 let giftTex = null;
 function makeGiftMesh() {
   if (!giftTex) { giftTex = texLoader.load(encodePath(GIFT_TEX)); giftTex.colorSpace = THREE.SRGBColorSpace; }
   const grp = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ map: giftTex });
-  const base = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), mat);
-  base.position.y = 0.35; base.castShadow = true;
-  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.28, 0.9), mat);
-  lid.position.y = 0.84; lid.castShadow = true;
-  grp.add(base); grp.add(lid);
+  const placeholder = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), new THREE.MeshStandardMaterial({ map: giftTex }));
+  placeholder.position.y = 0.35; placeholder.castShadow = true;
+  grp.add(placeholder);
+  loadModelOrNull(MB + 'Gift Box/Gift Box/giftbox.dae').then(model => {
+    if (!model) return;
+    const inst = cloneModel(model);
+    inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    normalizeModel(inst, 0.95);
+    grp.remove(placeholder); grp.add(inst);
+  });
   return grp;
 }
 function normalizeModel(obj, targetSize) {
@@ -1686,7 +1696,9 @@ function checkCoinPickup(lane) {
     if (!coin.taken && Math.round(p.gridX) === coin.x) {
       coin.taken = true; lane.root.remove(coin.group);
       let value = coin.value;
-      if (p.isShiny && Math.random() < 0.5) { value *= 2; showCoinX2(); }
+      // Shiny perk, tiered: legendary/mythical shinies double 1-in-2, everyone else 1-in-5.
+      const doubleChance = p.tier === 'legendary' ? 0.5 : 0.2;
+      if (p.isShiny && Math.random() < doubleChance) { value *= 2; showCoinX2(); }
       gameState.coinsThisRun += value;
       AudioSys.sfx.coin(); updateHUD();
     }
@@ -1730,7 +1742,10 @@ function checkPlayerSafety(dt) {
     if (lane.gift && !lane.gift.taken && Math.round(p.gridX) === lane.gift.x) openGiftBox(lane);
     if (lane.family === 'river' && !p.isMoving) {
       const platform = findPlatformUnderTile(lane, p.gridX);
-      if (!platform) { triggerGameOver('drowned'); return; }
+      if (!platform) {
+        if (gameState.mega.active) { megaWaterSave(performance.now()); return; }   // Mega surges to dry land
+        triggerGameOver('drowned'); return;
+      }
       // Glue to the platform's center so you ride it dead-centered, and stand on top of it.
       p.ridingPlatform = platform;
       p.group.position.x = platform.x; p.gridX = platform.x;
@@ -2508,8 +2523,8 @@ function setUnknownTypeBadges(container, count) {
 // optional filter (types / legendary / mythical) that switches to a flat grid of matches.
 const PLAYER_BY_DEX = Object.fromEntries(PLAYER_ENTRIES.filter(e => e.dex).map(e => [e.dex, e]));
 const regionOpen = Object.fromEntries(REGIONS.map(r => [r.name, true]));   // all regions start open
-const rosterFilter = { types: new Set(), legendary: false, mythical: false, unlocked: false };
-function filterActive() { return rosterFilter.types.size > 0 || rosterFilter.legendary || rosterFilter.mythical || rosterFilter.unlocked; }
+const rosterFilter = { types: new Set(), legendary: false, mythical: false, unlocked: false, mega: false };
+function filterActive() { return rosterFilter.types.size > 0 || rosterFilter.legendary || rosterFilter.mythical || rosterFilter.unlocked || rosterFilter.mega; }
 function entryMatchesFilter(e) {
   // Filtering only surfaces Pokemon you've actually unlocked (locked ones hide their type anyway) —
   // which also makes the dedicated "unlocked" chip a pure show-all-my-Pokemon toggle.
@@ -2517,6 +2532,7 @@ function entryMatchesFilter(e) {
   if (rosterFilter.types.size && !(e.types || []).some(t => rosterFilter.types.has(t))) return false;
   if (rosterFilter.legendary && !(e.tier === 'legendary' && !e.mythical)) return false;
   if (rosterFilter.mythical && !e.mythical) return false;
+  if (rosterFilter.mega && !MEGA_BY_DEX[e.dex]) return false;
   return true;
 }
 function makeSlotCell(dexNo, entry) {
@@ -2609,11 +2625,12 @@ function renderFilterPanel() {
   addChip('legendary', '#8e24aa', rosterFilter.legendary, () => { rosterFilter.legendary = !rosterFilter.legendary; });
   addChip('mythical', '#d81b60', rosterFilter.mythical, () => { rosterFilter.mythical = !rosterFilter.mythical; });
   addChip('unlocked', '#2e7d32', rosterFilter.unlocked, () => { rosterFilter.unlocked = !rosterFilter.unlocked; });
+  addChip('mega', '#7c4dff', rosterFilter.mega, () => { rosterFilter.mega = !rosterFilter.mega; });
   const clear = document.createElement('button');
   clear.type = 'button'; clear.className = 'filter-chip clear'; clear.textContent = 'clear';
   clear.addEventListener('click', () => {
     AudioSys.sfx.click();
-    rosterFilter.types.clear(); rosterFilter.legendary = false; rosterFilter.mythical = false; rosterFilter.unlocked = false;
+    rosterFilter.types.clear(); rosterFilter.legendary = false; rosterFilter.mythical = false; rosterFilter.unlocked = false; rosterFilter.mega = false;
     renderFilterPanel(); renderRosterGrid();
   });
   panel.appendChild(clear);
@@ -2810,6 +2827,9 @@ function onMenuClick(e) {
   if (!o) return;
   AudioSys.sfx.click();
   gameState.selectedPokemonId = o.userData.pokemonId;
+  // The ranch shows shiny models for shiny-unlocked Pokemon — clicking one selects the SHINY for
+  // the next run (previously the shiny toggle stayed off and you got the normal form).
+  gameState.selectedShiny = !!gameState.save.shinyUnlockedByCharacter[o.userData.pokemonId];
   updatePlayButtonModel();
   const a = menuAgents.find(x => x.group === o);
   if (a) { a.hopPhase = t2Phase(); showMenuSelectedTag(a); }
@@ -2942,7 +2962,9 @@ function updateHUD() {
   meter.classList.toggle('hidden', !m.capable);
   if (m.capable) {
     meter.classList.toggle('active', m.active);
-    document.getElementById('mega-fill').style.width = (m.active ? 100 : Math.max(0, Math.min(100, gameState.distance - m.baseline))) + '%';
+    // ring fill: 0-100% of the 75-lane charge
+    const pct = m.active ? 100 : Math.max(0, Math.min(100, (gameState.distance - m.baseline) / 75 * 100));
+    meter.style.setProperty('--mega', pct);
   }
 }
 function togglePause() {
@@ -3017,7 +3039,7 @@ function effectiveModelPath(entry, gender) {
 /* ---- Mega Evolution (in-run): the meter under the score fills as lanes pass; at 100 the Pokemon
    Mega Evolves with a flash (random pick when it has multiple Megas). One hazard hit while Mega
    reverts it to normal instead of ending the run, and the meter starts recharging. ---- */
-function swapPlayerModel(path, targetSize) {
+function swapPlayerModel(path, targetSize, { shiny = false } = {}) {
   const p = gameState.player;
   if (!p.group) return;
   const wob = p.group.userData.wob;
@@ -3026,7 +3048,7 @@ function swapPlayerModel(path, targetSize) {
     const inst = cloneModel(model);
     inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     normalizeModel(inst, targetSize);
-    if (p.isShiny) applyShiny(inst, shinyFallbackFor(rosterById[gameState.selectedPokemonId]));
+    if (shiny) applyShiny(inst, shinyFallbackFor(rosterById[gameState.selectedPokemonId]));
     while (wob.children.length) wob.remove(wob.children[0]);
     wob.add(inst);
   });
@@ -3049,6 +3071,7 @@ function megaEvolve() {
   m.megaPath = paths[Math.floor(Math.random() * paths.length)];   // Charizard/Mewtwo roll X or Y
   AudioSys.sfx.gacha();
   spawnMegaFlash();
+  // Megas render as-is even for shiny runs — no shiny texture swap or hue tint on the Mega model.
   swapPlayerModel(m.megaPath, (entry.modelTargetSize ?? 1.5) * 1.25);   // Megas stand a bit larger
 }
 function revertMega(now) {
@@ -3058,11 +3081,31 @@ function revertMega(now) {
   m.invulnUntil = now + 1500;           // brief mercy window so the same hazard can't double-tap
   AudioSys.sfx.hop();
   spawnMegaFlash();
-  swapPlayerModel(effectiveModelPath(entry, gameState.selectedGender), entry.modelTargetSize ?? 1.5);
+  swapPlayerModel(effectiveModelPath(entry, gameState.selectedGender), entry.modelTargetSize ?? 1.5, { shiny: gameState.player.isShiny });
+}
+// A Mega that lands in open water doesn't drown — it surges forward to the next grass lane, using
+// up its Mega form (reverts) in the process.
+function megaWaterSave(now) {
+  const p = gameState.player;
+  let z = p.gridZ + 1;
+  while (z < gameState.nextLaneZ) {
+    const lane = gameState.lanes.get(z);
+    if (lane && lane.family === 'safe') break;
+    z++;
+  }
+  const lane = gameState.lanes.get(z);
+  if (!lane || lane.family !== 'safe') { triggerGameOver('drowned'); return; }   // no refuge generated (shouldn't happen)
+  let gx = Math.round(p.gridX);
+  if (lane.decor.includes(gx)) gx = freeXPositions(lane.decor)[0] ?? 0;   // don't land inside a tree
+  p.gridZ = z; p.gridX = gx;
+  p.ridingPlatform = null; p.isMoving = false; p.tween = null;
+  p.group.position.set(gx, LAND_H, z * TILE);
+  if (z > gameState.distance) gameState.distance = z;
+  revertMega(now);
 }
 function updateMegaSystem(now) {
   const m = gameState.mega;
-  if (m.capable && !m.active && gameState.distance - m.baseline >= 100) megaEvolve();
+  if (m.capable && !m.active && gameState.distance - m.baseline >= 75) megaEvolve();
   if (m.fx) {
     const p = (now - m.fxT0) / 500;
     if (p >= 1) { scene.remove(m.fx); m.fx = null; }
@@ -3089,6 +3132,10 @@ function startRun(pokemonId) {
   if (gameState.mega.fx) { scene.remove(gameState.mega.fx); }
   // Mega meter only runs for BASE forms with a Mega on file (an Alolan variant can't Mega Evolve).
   gameState.mega = { capable: !!MEGA_BY_DEX[entry.dex] && !entry.form, baseline: 0, active: false, invulnUntil: 0, megaPath: null, fx: null, fxT0: 0 };
+  if (gameState.mega.capable) {
+    const iconFile = entry.dex === 382 ? 'blue_orb.png' : entry.dex === 383 ? 'red_orb.jpg' : 'Mega_Evolution_icon.png';
+    document.getElementById('mega-icon').src = encodePath('Mega Evolution icons/' + iconFile);
+  }
   cameraFollowZ = 0;
   maintainLaneWindow();
   buildStartForest();
@@ -3153,16 +3200,17 @@ function buildHowTo() {
       <div class="row"><div>Coins appear as you run. A Gold (5) turns up about <b>1 in 15</b>, a Big Gold (10) about <b>1 in 30</b>.</div></div>
       <div class="row"><div>Every 100 lanes a gift box appears - run into it to scatter 5 coins across the lanes just ahead.</div></div>` },
     { id: 'mega', name: 'Mega', html: `
-      <div class="row"><div>Pokemon that can <b>Mega Evolve</b> show a purple meter under the score. It fills as you pass lanes and triggers automatically at <b>100</b>.</div></div>
+      <div class="row"><div>Pokemon that can <b>Mega Evolve</b> show a round meter under the score. It fills as you pass lanes and triggers automatically after <b>75</b>.</div></div>
       <div class="row"><div>While Mega Evolved, one hazard hit <b>won't end your run</b> - you revert to normal form instead, and the meter starts recharging.</div></div>
-      <div class="row"><div>Water and falling behind still end the run, Mega or not.</div></div>
+      <div class="row"><div>Fall in the water as a Mega and you <b>surge ahead to the next grass lane</b> - but it uses up your Mega form.</div></div>
       <div class="row"><div>Pokemon with more than one Mega (Charizard, Mewtwo) evolve into a random one each time.</div></div>` },
     { id: 'balls', name: 'Poke Balls', html: `
       <div class="row"><div>Spend <b>${GACHA_COST} coins</b> per pull at the Poke Ball Machine for a random ball with a new playable Pokemon:</div></div>
       <ul class="rarity-list">${balls}</ul>` },
     { id: 'shiny', name: 'Shinies', html: `
       <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its shiny form.</div></div>
-      <div class="row"><div>Shiny Pokemon have a <b>${P(50)}</b> chance to <b>double</b> any coin they pick up — watch for the x2 over their head!</div></div>` },
+      <div class="row"><div>Shiny Pokemon have a <b>1 in 5</b> chance to <b>double</b> any coin they pick up — watch for the x2 over their head!</div></div>
+      <div class="row"><div>Shiny <b>Legendary / Mythical</b> Pokemon double coins at <b>1 in 2</b>.</div></div>` },
   ];
   el.innerHTML =
     `<div class="howto-tabs">${tabs.map((t, i) => `<button class="howto-tab${i === 0 ? ' on' : ''}" data-tab="${t.id}">${t.name}</button>`).join('')}</div>` +
