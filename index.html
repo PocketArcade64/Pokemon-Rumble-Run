@@ -653,7 +653,7 @@ const TYPE_COLORS = {
   psychic: 0xf85888, bug: 0xa8b820, rock: 0xb8a038, ghost: 0x705898, dragon: 0x7038f8,
   dark: 0x705848, steel: 0xb8b8d0, fairy: 0xee99ac,
 };
-const GIFT_TEX = MB + 'Gift Box/obj_frame_red.png';
+const GIFT_TEX = MB + 'Gift Box/Gift Box/obj_frame_red.png';   // the folder is double-nested on disk
 const GIFT_INTERVAL = 100;            // a gift box appears on lane 100, 200, 300, ...
 // Regional dex sections for the character-select grid (national dex number ranges).
 const REGIONS = [
@@ -1028,6 +1028,13 @@ function loadModelOrNull(path) {
           if (junkVColors && mm.vertexColors) { mm.vertexColors = false; mm.needsUpdate = true; }
           // Black diffuse alongside a texture also multiplies the map to black; white it out.
           if (mm.map && mm.color && mm.color.r < 0.05 && mm.color.g < 0.05 && mm.color.b < 0.05) mm.color.setRGB(1, 1, 1);
+          // The Santa FBX models reference santa_cap.png relative to their own folder, but the file
+          // lives at the model-tree root — re-point the texture there or the hat renders black.
+          if (mm.map && /santa_cap/i.test(mm.map.name || '')) {
+            const capTex = texLoader.load(encodePath('Pokemon 3D Models/santa_cap.png'));
+            capTex.colorSpace = THREE.SRGBColorSpace;
+            mm.map = capTex; mm.needsUpdate = true;
+          }
           if (mm.map) { mm.map.wrapS = mm.map.wrapT = THREE.MirroredRepeatWrapping; mm.map.needsUpdate = true; }
         });
       });
@@ -1158,7 +1165,11 @@ function applyShiny(object3d, fallbackHex = 0xffd54f) {
         const surl = shinyTexUrl(src);
         if (surl !== src) {
           const base = m.map;
-          const t = texLoader.load(surl, undefined, undefined, () => { m.color.set(fallbackHex); m.needsUpdate = true; });
+          // If the _C shiny texture doesn't exist (gen 5/6/7, Alolans), RESTORE the normal texture
+          // and tint it with the fallback hue — leaving the failed texture bound rendered pure black.
+          const t = texLoader.load(surl, undefined, undefined, () => {
+            m.map = base; m.color.set(fallbackHex); m.needsUpdate = true;
+          });
           t.colorSpace = base.colorSpace; t.flipY = base.flipY; t.wrapS = base.wrapS; t.wrapT = base.wrapT;
           m.map = t;
         }
@@ -1381,6 +1392,9 @@ function spawnRiverLane(lane, ctx, entry) {
   while (x < HAZARD_SPAN) {
     const cluster = 2 + Math.floor(Math.random() * 2);   // 2 or 3
     for (let c = 0; c < cluster; c++) {
+      // Never spawn past the wrap seam: a member beyond +SPAN wraps immediately on the first frame
+      // and lands overlapping the cluster that starts at -SPAN (instant Wailord-through-Wailord).
+      if (x > HAZARD_SPAN - 0.5) break;
       spawnPlatformEntity(lane, entry, x, speed * dir);
       x += memberGap;
     }
@@ -1709,9 +1723,12 @@ function updateLanes(dt) {
     for (const ent of lane.entities) {
       ent.x += ent.vx * dt; ent.group.position.x = ent.x;
       if (!ent.isSweep) {
+        // Wrap by the EXACT circuit width (never clamp to the bound): clamping eats the per-frame
+        // overshoot, which slowly drifted platforms out of formation until Wailords/Lapras clipped
+        // through each other. Modular wrap keeps every gap in a lane intact forever.
         const bound = HAZARD_SPAN + ent.halfWidth;
-        if (ent.x > bound) { ent.x = -bound; ent.group.position.x = ent.x; }
-        if (ent.x < -bound) { ent.x = bound; ent.group.position.x = ent.x; }
+        if (ent.x > bound) { ent.x -= bound * 2; ent.group.position.x = ent.x; }
+        if (ent.x < -bound) { ent.x += bound * 2; ent.group.position.x = ent.x; }
       }
       const wob = ent.group.userData.wob;
       if (ent.kind === 'hazard') {
