@@ -101,6 +101,21 @@
     pointer-events: none; z-index: 6; opacity: 0; image-rendering: pixelated;
   }
   #coin-x2.pop { animation: x2-float 0.9s ease-out forwards; }
+  /* "You befriended X!" banner for wild encounters. */
+  #catch-toast {
+    position: fixed; left: 50%; top: 18%; transform: translateX(-50%);
+    background: rgba(11,16,32,0.9); color: #ffd54f; font-size: 1rem; font-weight: bold;
+    padding: 0.6rem 1.1rem; border-radius: 6px; box-shadow: inset 0 0 0 2px #14161c, 0 4px 0 rgba(0,0,0,0.35);
+    pointer-events: none; z-index: 7; opacity: 0; white-space: nowrap;
+  }
+  #catch-toast.pop { animation: toast-pop 2.6s ease-out forwards; }
+  @keyframes toast-pop {
+    0%  { opacity: 0; transform: translateX(-50%) scale(0.6); }
+    10% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+    18% { transform: translateX(-50%) scale(1); }
+    80% { opacity: 1; }
+    100%{ opacity: 0; transform: translateX(-50%) scale(1); }
+  }
   @keyframes x2-float {
     0%   { opacity: 0; margin-top: 0;     transform: translate(-50%, -100%) scale(0.5); }
     15%  { opacity: 1;                    transform: translate(-50%, -100%) scale(1.25); }
@@ -332,6 +347,13 @@
     box-shadow: inset 0 0 0 2px #14161c, 0 2px 0 rgba(0,0,0,0.4); text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
   }
   .filter-chip.on { opacity: 1; box-shadow: inset 0 0 0 2px #ffd54f, 0 2px 0 rgba(0,0,0,0.4); }
+  /* The mega chip slowly drifts red -> green -> blue, echoing the Mega meter's swirl. */
+  .filter-chip.chip-rgb { animation: rgb-cycle 9s linear infinite; }
+  @keyframes rgb-cycle {
+    0%, 100% { background: #e53946; }
+    33%      { background: #43a047; }
+    66%      { background: #1e88e5; }
+  }
   .filter-chip.clear { background: #37414f; opacity: 1; }
   .toggle-btn.on { background: linear-gradient(180deg,#ffe082,#ffca28); box-shadow: 0 3px 0 #b8860b; }
   .slot {
@@ -469,6 +491,7 @@
 
   <div id="touch-hint" class="hidden">Swipe to move &middot; Tap to hop forward</div>
   <div id="coin-x2">x2</div>
+  <div id="catch-toast"></div>
 
   <!-- MAIN MENU (transparent over the live 3D field) -->
   <div id="screen-menu" class="screen">
@@ -721,7 +744,8 @@ const ROSTER = [
     modelPath: dexPath(320, 'Wailmer/Wailmer.obj'), modelTargetSize: 1.3, boxSize: [1.1, 0.5, 1.1], speedRange: [0.85, 1.35], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
   { id: 'wailord', displayName: 'Wailord', role: 'platform', laneFamily: 'river', color: 0x1565c0,
     // boxSize[1] is the ride height — raised so riders stand on Wailord's back instead of clipping through it.
-    modelPath: dexPath(321, 'Wailord/Wailord.obj'), modelTargetSize: 3.0, boxSize: [2.8, 0.95, 1.2], speedRange: [0.6, 1.0], platformLength: 3, gapMin: 2.0, gapMax: 3.0 },
+    // rideSlots: two even stand points (front & back of the back) instead of one center point.
+    modelPath: dexPath(321, 'Wailord/Wailord.obj'), modelTargetSize: 3.0, boxSize: [2.8, 0.95, 1.2], speedRange: [0.6, 1.0], platformLength: 3, gapMin: 2.0, gapMax: 3.0, rideSlots: [-0.75, 0.75] },
 
   // Decor & coin
   { id: 'rock', displayName: 'Rock', role: 'decor', color: 0x9e9e9e, modelPath: null, boxSize: [0.85, 0.7, 0.85] },
@@ -884,6 +908,8 @@ const gameState = {
   input: { touchStart: null },
   // In-run Mega Evolution: meter fills with distance, auto-evolves at 100, one hit reverts.
   mega: { capable: false, baseline: 0, active: false, invulnUntil: 0, megaPath: null, fx: null, fxT0: 0 },
+  // Wild encounter: past lane 100, one Pokemon per run may appear ahead; touch it to befriend it.
+  wild: { spawned: false, caught: false, laneZ: 0, x: 0, id: null, group: null },
   save: null,
 };
 
@@ -958,6 +984,57 @@ const AudioSys = (() => {
   function stopMusic() { if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } }
   return { unlock, applyVolumes, sfx, startMusic, stopMusic };
 })();
+
+/* ---- Music: real soundtrack from "Pokemon Music/Pokemon Rumble Run". Per-track gains normalize
+   every song to the run theme's measured loudness (RMS 0.059-0.155 across files), so nothing blares.
+   Title theme covers the menu and every screen reached from it; the Poke Ball Machine and runs have
+   their own themes; "Befriend a Pokemon" is a one-shot that hands back to whatever was playing. ---- */
+const MusicSys = (() => {
+  const BASE = 'Pokemon Music/Pokemon Rumble Run/';
+  const TRACKS = {
+    title:    { file: 'Title Screen.mp3',       loop: true,  gain: 0.85 },
+    run:      { file: 'During a run music.mp3', loop: true,  gain: 1.0 },
+    gacha:    { file: 'Poke Ball Machine.mp3',  loop: true,  gain: 0.39 },
+    befriend: { file: 'Befriend a Pokémon.mp3', loop: false, gain: 0.65 },
+  };
+  const MASTER = 0.75;              // overall music ceiling — background, never overbearing
+  let els = {}, current = null, dim = false, unlocked = false, resumeKey = null;
+  function el(key) {
+    if (!els[key]) {
+      const a = new Audio(encodePath(BASE + TRACKS[key].file));
+      a.loop = TRACKS[key].loop;
+      a.preload = 'auto';
+      if (key === 'befriend') a.addEventListener('ended', () => { if (resumeKey) play(resumeKey); });
+      els[key] = a;
+    }
+    return els[key];
+  }
+  function volumeFor(key) {
+    const user = gameState.save ? (gameState.save.musicVol ?? 0.5) : 0.5;
+    return Math.min(1, TRACKS[key].gain * MASTER * user * (dim ? 0.35 : 1));
+  }
+  function applyVolumes() { for (const k of Object.keys(els)) els[k].volume = volumeFor(k); }
+  function play(key) {
+    if (!TRACKS[key]) return;
+    if (current === key) { applyVolumes(); return; }
+    if (current && els[current]) { els[current].pause(); els[current].currentTime = 0; }
+    current = key;
+    const a = el(key);
+    a.volume = volumeFor(key);
+    if (unlocked) a.play().catch(() => {});
+  }
+  // One-shot befriend jingle: remembers what was playing and returns to it when the jingle ends.
+  function playBefriend() { resumeKey = current === 'befriend' ? resumeKey : current; play('befriend'); }
+  function setDim(d) { dim = d; applyVolumes(); }
+  function begin() {   // first user interaction: autoplay is now allowed
+    if (unlocked) return;
+    unlocked = true;
+    if (current) el(current).play().catch(() => {});
+  }
+  return { play, playBefriend, setDim, applyVolumes, begin };
+})();
+// Which track belongs to a screen: runs and the ball machine have their own; all else is the title's.
+function musicForMode(mode) { return mode === 'playing' ? 'run' : mode === 'gacha' ? 'gacha' : 'title'; }
 
 /* ============================== H: THREE.JS SETUP ============================== */
 const scene = new THREE.Scene();
@@ -1511,6 +1588,11 @@ function generateNextLane() {
     lane.root.add(g);
     lane.gift = { x: gx, group: g, taken: false };
   }
+  // Wild encounter: past lane 100, each grass lane has a 1-in-25 shot at hosting a wild Pokemon
+  // (never a legendary/mythical, one per run). Run into it to befriend it permanently.
+  if (laneType.family === 'safe' && !isGiftLane && z > 100 && !gameState.wild.spawned && Math.random() < 1 / 25) {
+    spawnWildPokemon(lane);
+  }
   // Fixed coin cadence: accrue one "tile" per lane; whenever we've banked a full interval AND this
   // lane can host a coin (grass or road, never water/rail/gift), drop one. If the lane can't host,
   // the debt carries to the next eligible lane — so the average holds at 1 per COIN_EVERY_TILES.
@@ -1743,12 +1825,19 @@ function checkPlayerSafety(dt) {
     if (lane.family === 'river' && !p.isMoving) {
       const platform = findPlatformUnderTile(lane, p.gridX);
       if (!platform) {
-        if (gameState.mega.active) { megaWaterSave(performance.now()); return; }   // Mega surges to dry land
+        if (gameState.mega.active) { megaSurge(performance.now()); return; }   // Mega surges to dry land
         triggerGameOver('drowned'); return;
       }
-      // Glue to the platform's center so you ride it dead-centered, and stand on top of it.
+      // Glue to the platform's stand point: normally its center, but multi-slot platforms (Wailord)
+      // offer evenly-spaced spots — you snap to whichever is nearest where you landed.
       p.ridingPlatform = platform;
-      p.group.position.x = platform.x; p.gridX = platform.x;
+      let rideX = platform.x;
+      if (platform.entry.rideSlots) {
+        const rel = p.gridX - platform.x;
+        const slot = platform.entry.rideSlots.reduce((a, b) => Math.abs(rel - a) < Math.abs(rel - b) ? a : b);
+        rideX = platform.x + slot;
+      }
+      p.group.position.x = rideX; p.gridX = rideX;
       p.group.position.y = platform.entry.boxSize[1] + (platform.bob || 0);   // ride with the bob
       if (platform.x < (-GRID_HALF - 0.5) || platform.x > (GRID_HALF + 0.5)) { triggerGameOver('drowned'); return; }
     } else if (!p.isMoving) {
@@ -1757,7 +1846,7 @@ function checkPlayerSafety(dt) {
     if ((lane.family === 'road' || lane.family === 'rail') && !p.isMoving && hazardOverlapsTile(lane, p.gridX)) {
       const now = performance.now();
       if (now < gameState.mega.invulnUntil) { /* mercy window after reverting — hit ignored */ }
-      else if (gameState.mega.active) { revertMega(now); return; }   // Mega soaks the hit
+      else if (gameState.mega.active) { megaSurge(now); return; }   // Mega soaks the hit AND surges to grass
       else { triggerGameOver('squashed'); return; }
     }
   }
@@ -2064,6 +2153,7 @@ function onGachaCanvasTap(ev) {
     gachaSeq.tapCount++;
     if (gachaSeq.tapCount >= 3) {
       AudioSys.sfx.gacha();
+      MusicSys.playBefriend();   // the ball pops — "Befriend a Pokemon" jingle, then back to the machine theme
       document.getElementById('gacha-hint').classList.add('hidden');
       if (gachaSeq.ball) gachaSeq.ball.rotation.z = 0;
       setGachaPhase('open');
@@ -2609,11 +2699,11 @@ function renderRosterGrid() {
 function renderFilterPanel() {
   const panel = document.getElementById('filter-panel');
   panel.innerHTML = '';
-  const addChip = (label, bg, isOn, onToggle) => {
+  const addChip = (label, bg, isOn, onToggle, { rgb = false } = {}) => {
     const chip = document.createElement('button');
     chip.type = 'button';
-    chip.className = 'filter-chip' + (isOn ? ' on' : '');
-    chip.style.background = bg;
+    chip.className = 'filter-chip' + (isOn ? ' on' : '') + (rgb ? ' chip-rgb' : '');
+    if (!rgb) chip.style.background = bg;   // rgb chips animate their background via CSS instead
     chip.textContent = label;
     chip.addEventListener('click', () => { AudioSys.sfx.click(); onToggle(); renderFilterPanel(); renderRosterGrid(); });
     panel.appendChild(chip);
@@ -2625,7 +2715,7 @@ function renderFilterPanel() {
   addChip('legendary', '#8e24aa', rosterFilter.legendary, () => { rosterFilter.legendary = !rosterFilter.legendary; });
   addChip('mythical', '#d81b60', rosterFilter.mythical, () => { rosterFilter.mythical = !rosterFilter.mythical; });
   addChip('unlocked', '#2e7d32', rosterFilter.unlocked, () => { rosterFilter.unlocked = !rosterFilter.unlocked; });
-  addChip('mega', '#7c4dff', rosterFilter.mega, () => { rosterFilter.mega = !rosterFilter.mega; });
+  addChip('mega', '#7c4dff', rosterFilter.mega, () => { rosterFilter.mega = !rosterFilter.mega; }, { rgb: true });
   const clear = document.createElement('button');
   clear.type = 'button'; clear.className = 'filter-chip clear'; clear.textContent = 'clear';
   clear.addEventListener('click', () => {
@@ -2934,6 +3024,12 @@ function devSubmit() {
       persistSave();
       msg.style.color = '#8CFF9E'; msg.textContent = '+900 coins!';
       AudioSys.sfx.coin();
+    } else if (devBuffer === 'godmode') {
+      gameState.save.godmode = !gameState.save.godmode;
+      persistSave();
+      msg.style.color = gameState.save.godmode ? '#8CFF9E' : '#ff9a8a';
+      msg.textContent = 'Godmode ' + (gameState.save.godmode ? 'ON — you cannot die.' : 'OFF.');
+      AudioSys.sfx.gacha();
     } else if (devBuffer === 'ponyta' || devBuffer === 'jigglypuff') {
       const id = devBuffer === 'ponyta' ? 'p77' : 'p39';
       if (!gameState.save.unlockedIds.includes(id)) gameState.save.unlockedIds.push(id);
@@ -2962,21 +3058,31 @@ function updateHUD() {
   meter.classList.toggle('hidden', !m.capable);
   if (m.capable) {
     meter.classList.toggle('active', m.active);
-    // ring fill: 0-100% of the 75-lane charge
-    const pct = m.active ? 100 : Math.max(0, Math.min(100, (gameState.distance - m.baseline) / 75 * 100));
-    meter.style.setProperty('--mega', pct);
+    if (m.active) {
+      meter.style.background = '';   // let the CSS .active rainbow + pulse take over
+    } else {
+      // Charging fill: a slowly swirling rainbow — the hue drifts a full cycle every ~15s.
+      const pct = Math.max(0, Math.min(100, (gameState.distance - m.baseline) / 75 * 100));
+      const hue = (performance.now() / 42) % 360;
+      meter.style.background = `conic-gradient(hsl(${hue.toFixed(0)}, 85%, 62%) ${pct.toFixed(1)}%, rgba(0,0,0,0.45) 0)`;
+    }
   }
 }
 function togglePause() {
   if (gameState.mode !== 'playing') return;
   if (gameState.countdownUntil) return;
   if (gameState.paused) resumeFromPause();
-  else { gameState.paused = true; document.getElementById('overlay-pause').classList.remove('hidden'); }
+  else {
+    gameState.paused = true;
+    document.getElementById('overlay-pause').classList.remove('hidden');
+    MusicSys.setDim(true);   // run music keeps playing, just quieter (also under pause-settings)
+  }
 }
 function resumeFromPause() {
   document.getElementById('overlay-pause').classList.add('hidden');
   gameState.countdownUntil = performance.now() + 3000;
   document.getElementById('overlay-countdown').classList.remove('hidden');
+  MusicSys.setDim(false);
 }
 function updateCountdown(now) {
   const rem = gameState.countdownUntil - now;
@@ -3027,6 +3133,9 @@ function setMode(next) {
   });
   // Same for the rates screen's spinning ball icons (renderRates restarts them on entry).
   if (next !== 'rates') document.querySelectorAll('#rates-panel img[data-ball]').forEach(stopFrameSpin);
+  // Soundtrack follows the screen; leaving the pause overlay path always clears the dim.
+  MusicSys.setDim(false);
+  MusicSys.play(musicForMode(next));
   if (next === 'playing') startRun(gameState.selectedPokemonId);
   if (next === 'playing') setTimeout(() => document.getElementById('touch-hint').classList.add('hidden'), 3500);
 }
@@ -3083,24 +3192,63 @@ function revertMega(now) {
   spawnMegaFlash();
   swapPlayerModel(effectiveModelPath(entry, gameState.selectedGender), entry.modelTargetSize ?? 1.5, { shiny: gameState.player.isShiny });
 }
-// A Mega that lands in open water doesn't drown — it surges forward to the next grass lane, using
-// up its Mega form (reverts) in the process.
-function megaWaterSave(now) {
+// Teleport the player forward to the next grass lane (ahead of both them and the camera). Returns
+// false if no refuge exists in the generated window (shouldn't happen with the pacing rules).
+function advanceToGrassLane() {
   const p = gameState.player;
-  let z = p.gridZ + 1;
+  let z = Math.max(p.gridZ, Math.ceil(cameraFollowZ)) + 1;
   while (z < gameState.nextLaneZ) {
     const lane = gameState.lanes.get(z);
     if (lane && lane.family === 'safe') break;
     z++;
   }
   const lane = gameState.lanes.get(z);
-  if (!lane || lane.family !== 'safe') { triggerGameOver('drowned'); return; }   // no refuge generated (shouldn't happen)
+  if (!lane || lane.family !== 'safe') return false;
   let gx = Math.round(p.gridX);
   if (lane.decor.includes(gx)) gx = freeXPositions(lane.decor)[0] ?? 0;   // don't land inside a tree
   p.gridZ = z; p.gridX = gx;
   p.ridingPlatform = null; p.isMoving = false; p.tween = null;
   p.group.position.set(gx, LAND_H, z * TILE);
   if (z > gameState.distance) gameState.distance = z;
+  return true;
+}
+/* ---- Wild encounters: one Pokemon per run may appear on a grass lane ahead, hopping in place like
+   another player. Step onto its tile to befriend it — it joins your roster for good. ---- */
+function spawnWildPokemon(lane) {
+  const pool = GACHA_POOL.filter(e => e.tier !== 'legendary' && !e.costume);
+  const unowned = pool.filter(e => !isEntryUnlocked(e));
+  const pick = (unowned.length ? unowned : pool)[Math.floor(Math.random() * (unowned.length ? unowned.length : pool.length))];
+  const options = freeXPositions(lane.decor);
+  const x = options.length ? options[Math.floor(Math.random() * options.length)] : 0;
+  const g = createEntityObject(pick.id);
+  g.position.set(x, 0, lane.z * TILE);   // faces forward, "playing the game" ahead of you
+  lane.root.add(g);
+  gameState.wild = { spawned: true, caught: false, laneZ: lane.z, x, id: pick.id, group: g };
+}
+function updateWild(now) {
+  const w = gameState.wild;
+  if (!w.spawned || w.caught || !w.group) return;
+  w.group.position.y = Math.abs(Math.sin(now / 260)) * 0.18;   // excited little hops in place
+  const p = gameState.player;
+  if (!p.isMoving && p.gridZ === w.laneZ && Math.round(p.gridX) === Math.round(w.x)) catchWild();
+}
+function catchWild() {
+  const w = gameState.wild;
+  w.caught = true;
+  const lane = gameState.lanes.get(w.laneZ);
+  if (lane && w.group) lane.root.remove(w.group);
+  w.group = null;
+  if (!gameState.save.unlockedIds.includes(w.id)) gameState.save.unlockedIds.push(w.id);
+  persistSave();
+  MusicSys.playBefriend();   // jingle, then the run music returns
+  const toast = document.getElementById('catch-toast');
+  toast.textContent = 'You befriended ' + (rosterById[w.id]?.displayName || 'a Pokemon') + '!';
+  toast.classList.remove('pop'); void toast.offsetWidth; toast.classList.add('pop');
+}
+// A Mega that takes a hit or lands in open water doesn't die — it surges forward to the next grass
+// lane, using up its Mega form (reverts) in the process.
+function megaSurge(now) {
+  if (!advanceToGrassLane()) { triggerGameOver('drowned'); return; }
   revertMega(now);
 }
 function updateMegaSystem(now) {
@@ -3136,6 +3284,7 @@ function startRun(pokemonId) {
     const iconFile = entry.dex === 382 ? 'blue_orb.png' : entry.dex === 383 ? 'red_orb.jpg' : 'Mega_Evolution_icon.png';
     document.getElementById('mega-icon').src = encodePath('Mega Evolution icons/' + iconFile);
   }
+  gameState.wild = { spawned: false, caught: false, laneZ: 0, x: 0, id: null, group: null };
   cameraFollowZ = 0;
   maintainLaneWindow();
   buildStartForest();
@@ -3154,6 +3303,8 @@ function finalizeRun() {
 }
 function triggerGameOver() {
   if (gameState.mode !== 'playing') return;
+  // Godmode (dev toggle): every death instead teleports you forward to the next grass lane.
+  if (gameState.save.godmode && advanceToGrassLane()) { AudioSys.sfx.hop(); return; }
   AudioSys.sfx.die();
   const { newBest, shinyJustUnlocked, best } = finalizeRun();
   document.getElementById('go-score').textContent = gameState.distance;
@@ -3201,8 +3352,7 @@ function buildHowTo() {
       <div class="row"><div>Every 100 lanes a gift box appears - run into it to scatter 5 coins across the lanes just ahead.</div></div>` },
     { id: 'mega', name: 'Mega', html: `
       <div class="row"><div>Pokemon that can <b>Mega Evolve</b> show a round meter under the score. It fills as you pass lanes and triggers automatically after <b>75</b>.</div></div>
-      <div class="row"><div>While Mega Evolved, one hazard hit <b>won't end your run</b> - you revert to normal form instead, and the meter starts recharging.</div></div>
-      <div class="row"><div>Fall in the water as a Mega and you <b>surge ahead to the next grass lane</b> - but it uses up your Mega form.</div></div>
+      <div class="row"><div>While Mega Evolved, one hit or dunk <b>won't end your run</b> - you revert to normal form and <b>surge ahead to the next grass lane</b>, and the meter starts recharging.</div></div>
       <div class="row"><div>Pokemon with more than one Mega (Charizard, Mewtwo) evolve into a random one each time.</div></div>` },
     { id: 'balls', name: 'Poke Balls', html: `
       <div class="row"><div>Spend <b>${GACHA_COST} coins</b> per pull at the Poke Ball Machine for a random ball with a new playable Pokemon:</div></div>
@@ -3234,7 +3384,7 @@ function wireSettings() {
   const music = document.getElementById('set-music'), sfx = document.getElementById('set-sfx');
   music.addEventListener('input', () => {
     gameState.save.musicVol = music.value / 100; document.getElementById('set-music-val').innerHTML = pctHTML(music.value);
-    AudioSys.applyVolumes(); persistSave();
+    AudioSys.applyVolumes(); MusicSys.applyVolumes(); persistSave();
   });
   sfx.addEventListener('input', () => {
     gameState.save.sfxVol = sfx.value / 100; document.getElementById('set-sfx-val').innerHTML = pctHTML(sfx.value);
@@ -3290,7 +3440,7 @@ function wireUI() {
     }
   });
   // Unlock/boot audio on the first interaction anywhere.
-  const bootAudio = () => { AudioSys.unlock(); AudioSys.startMusic(); window.removeEventListener('pointerdown', bootAudio); window.removeEventListener('keydown', bootAudio); };
+  const bootAudio = () => { AudioSys.unlock(); MusicSys.begin(); window.removeEventListener('pointerdown', bootAudio); window.removeEventListener('keydown', bootAudio); };
   window.addEventListener('pointerdown', bootAudio); window.addEventListener('keydown', bootAudio);
 }
 
@@ -3310,6 +3460,7 @@ function animate(now) {
       updateLanes(dt);
       checkPlayerSafety(dt);
       updateMegaSystem(now);
+      updateWild(now);
       maintainLaneWindow();
       // remove the start forest once it has scrolled off behind us
       // Only drop the start forest once the camera is far enough that it's fully off-screen behind
