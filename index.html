@@ -296,7 +296,7 @@
   #menu-highscore { position: fixed; z-index: 20;
     top: max(0.8rem, calc(env(safe-area-inset-top) + 0.5rem));
     left: max(0.9rem, calc(env(safe-area-inset-left) + 0.9rem));
-    display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15;
+    display: flex; flex-direction: column; align-items: center; line-height: 1.15;
     color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,0.55), 0 3px 6px rgba(0,0,0,0.4); }
   #menu-highscore .hs-label { font-size: 0.58rem; letter-spacing: 1.5px; color: #ffd54f; }
   #menu-highscore-num { font-size: 1.35rem; font-weight: bold; }
@@ -306,11 +306,11 @@
   #btn-mode-toggle { position: fixed; z-index: 20;
     top: calc(max(0.8rem, env(safe-area-inset-top) + 0.5rem) + 2.7rem);
     left: max(0.9rem, calc(env(safe-area-inset-left) + 0.9rem));
-    display: flex; align-items: center; gap: 0.4rem; padding: 0.16rem 0.6rem 0.16rem 0.16rem;
+    display: flex; flex-direction: column; align-items: center; gap: 0.22rem; padding: 0.22rem 0.3rem;
     background: rgba(11,16,32,0.55); border: 2px solid rgba(255,255,255,0.3); border-radius: 6px;
-    color: #fff; font-family: inherit; font-size: 0.62rem; letter-spacing: 0.5px; cursor: pointer; }
-  #mode-toggle-canvas { width: 34px; height: 34px; display: block; border-radius: 4px; background: rgba(255,255,255,0.08); }
-  #btn-mode-toggle.on { border-color: #ffd54f; color: #ffd54f; border-radius: 999px; }
+    color: #fff; font-family: inherit; font-size: 0.55rem; letter-spacing: 0.5px; cursor: pointer; }
+  #mode-toggle-canvas { width: 38px; height: 38px; display: block; border-radius: 4px; background: rgba(255,255,255,0.08); }
+  #btn-mode-toggle.on { border-color: #ffd54f; color: #ffd54f; border-radius: 16px; }
   #btn-mode-toggle.on #mode-toggle-canvas { border-radius: 50%; }
   .menu-buttons { margin-top: auto; margin-bottom: max(4vh, calc(env(safe-area-inset-bottom) + 2vh)); }
 
@@ -725,6 +725,11 @@ const REGIONS = [
   { name: 'Kalos',  from: 650, to: 721 },
   { name: 'Alola',  from: 722, to: 809 },
 ];
+// Quest's roster reaches gen 9 — two extra regions its select grid needs (rumble stops at Alola).
+const QUEST_REGIONS = [...REGIONS,
+  { name: 'Galar',  from: 810, to: 905 },
+  { name: 'Paldea', from: 906, to: 1025 },
+];
 
 /* ============================== B: ROSTER DATA ============================== */
 // Model paths point into the "Pokemon 3D Models" folder (short "#NNNN Name" folders). Paths are
@@ -814,7 +819,7 @@ function tierForDex(d) {
   if (STAGE1_DEX.has(d)) return 'stage1';
   return 'basic';
 }
-const regionOfDex = (d) => (REGIONS.find(r => d >= r.from && d <= r.to) || {}).name;
+const regionOfDex = (d) => (QUEST_REGIONS.find(r => d >= r.from && d <= r.to) || {}).name;   // superset of REGIONS
 
 const PLAYER_ENTRIES = POKEDEX.map(p => {
   const entry = {
@@ -871,14 +876,30 @@ for (const q of QUEST_DEX) {
   else if (!questBaseByDex[q.d]) questBaseByDex[q.d] = q;
 }
 function questPathForDex(dex) { const e = questBaseByDex[dex]; return e ? QB + e.o : null; }
-const QUEST_PLAYER_ENTRIES = QUEST_DEX.map(p => ({
-  id: p.id, dex: p.d, displayName: p.n, role: 'player',
-  tier: tierForDex(p.d), mythical: MYTHICAL_DEX.has(p.d), region: regionOfDex(p.d),
-  color: 0x88a0b8, types: KNOWN_TYPES[p.d] || null,
-  modelPath: QB + p.o, modelTargetSize: 1.5, boxSize: [0.9, 0.9, 0.9],
-  unlockedByDefault: p.id === 'q0025',   // start with Pikachu, same as rumble
-})).sort((a, b) => a.dex - b.dex);
-const QUEST_GACHA_POOL = QUEST_PLAYER_ENTRIES;   // every Quest entry (including costumes) is pullable
+// Like the rumble roster, Quest splits into BASE entries (one per dex slot on the select grid) and
+// FORM entries (costumes/regional forms/formes) reached via the Form toggle on the base's page.
+// Every entry — base or form — is its own pullable unlock. For dex numbers shipping only as named
+// formes (Deoxys, Shaymin, Tatsugiri...) the first forme is promoted to the dex slot's base.
+const QUEST_ALL_ENTRIES = QUEST_DEX.map(p => {
+  const m = p.n.match(/^(.*?)\s*\(([^)]+)\)$/);
+  return {
+    id: p.id, dex: p.d, displayName: p.n, formLabel: m ? m[2] : null, role: 'player',
+    tier: tierForDex(p.d), mythical: MYTHICAL_DEX.has(p.d), region: regionOfDex(p.d),
+    color: 0x88a0b8, types: KNOWN_TYPES[p.d] || null,
+    modelPath: QB + p.o, modelTargetSize: 1.5, boxSize: [0.9, 0.9, 0.9],
+    unlockedByDefault: p.id === 'q0025',   // start with Pikachu, same as rumble
+  };
+}).sort((a, b) => a.dex - b.dex);
+const QUEST_PLAYER_ENTRIES = [], QUEST_FORM_ENTRIES = [];
+{
+  const baseOfDex = {};
+  for (const e of QUEST_ALL_ENTRIES) {   // sorted: the plain (variant-less) name comes first per dex
+    if (!baseOfDex[e.dex]) { baseOfDex[e.dex] = e; QUEST_PLAYER_ENTRIES.push(e); }
+    else { e.baseId = baseOfDex[e.dex].id; e.form = e.formLabel || e.displayName; QUEST_FORM_ENTRIES.push(e); }
+  }
+}
+const QUEST_BY_DEX = Object.fromEntries(QUEST_PLAYER_ENTRIES.map(e => [e.dex, e]));
+const QUEST_GACHA_POOL = QUEST_ALL_ENTRIES;   // every Quest entry (bases AND forms) is pullable
 // Quest-styled hazards/platforms/decor for run lanes — same gameplay roles as ROSTER above, but built
 // from Quest models (Mantine has no Quest model, so Corsola fills its "flat water platform" role).
 const QUEST_ROSTER = [
@@ -902,15 +923,18 @@ const QUEST_ROSTER = [
     modelPath: questPathForDex(320), modelTargetSize: 1.3, boxSize: [1.1, 0.5, 1.1], speedRange: [0.85, 1.35], platformLength: 1, gapMin: 1.2, gapMax: 2.0 },
   // Wailord & Dondozo are far too deep for one water lane — their rivers span TWO lanes (see the
   // doubleRiver handling in generateNextLane) with the platforms floating on the seam between them.
-  { id: 'q_wailord', displayName: 'Wailord', role: 'platform', laneFamily: 'river', color: 0x1565c0,
+  { id: 'q_wailord', displayName: 'Wailord', role: 'platform', laneFamily: 'river', color: 0x1565c0, measureRide: true,
     modelPath: questPathForDex(321), modelTargetSize: 3.0, boxSize: [2.8, 0.95, 1.2], speedRange: [0.6, 1.0], platformLength: 3, gapMin: 2.0, gapMax: 3.0, rideSlots: [-0.75, 0.75] },
-  { id: 'q_dondozo', displayName: 'Dondozo', role: 'platform', laneFamily: 'river', color: 0x3b6fb5,
+  { id: 'q_dondozo', displayName: 'Dondozo', role: 'platform', laneFamily: 'river', color: 0x3b6fb5, measureRide: true,
     modelPath: questPathForDex(977), modelTargetSize: 3.2, boxSize: [2.9, 1.0, 1.4], speedRange: [0.5, 0.85], platformLength: 3, gapMin: 2.2, gapMax: 3.2, rideSlots: [-0.8, 0.8] },
   { id: 'q_tree', displayName: 'Blocky Tree', role: 'decor', color: 0x4caf50, modelPath: null, boxSize: [0.7, 1.9, 0.7] },
   { id: 'q_rock', displayName: 'Blocky Rock', role: 'decor', color: 0xb0b0a8, modelPath: null, boxSize: [0.85, 0.7, 0.85] },
 ];
 
-const rosterById = Object.fromEntries(ROSTER.concat(ALL_PLAYABLE).concat(QUEST_ROSTER).concat(QUEST_PLAYER_ENTRIES).map(e => [e.id, e]));
+const rosterById = Object.fromEntries(ROSTER.concat(ALL_PLAYABLE).concat(QUEST_ROSTER).concat(QUEST_ALL_ENTRIES).map(e => [e.id, e]));
+// Quest form entries join the SAME base->forms map as rumble's ('q...' and 'p...' ids never collide),
+// so the select screen's Form toggle works identically in both modes.
+for (const fe of QUEST_FORM_ENTRIES) (formsByBaseId[fe.baseId] = formsByBaseId[fe.baseId] || []).push(fe);
 // A quest id ('q...') and a rumble id ('p...') never collide, so unlock state can be resolved purely
 // from the id's prefix — correct regardless of which mode is currently active.
 function isIdUnlocked(id) { return !!id && (id[0] === 'q' ? gameState.save.questUnlockedIds : gameState.save.unlockedIds).includes(id); }
@@ -1239,6 +1263,9 @@ dirLight.castShadow = true;
 dirLight.shadow.mapSize.set(1024, 1024);
 dirLight.shadow.camera.left = -22; dirLight.shadow.camera.right = 22;
 dirLight.shadow.camera.top = 22; dirLight.shadow.camera.bottom = -22;
+// Push self-shadow sampling off hard voxel edges — without this, cube corners catch thin bright
+// leak lines from the shadow map (visible on Quest models in-run; select screens have no shadows).
+dirLight.shadow.normalBias = 0.05;
 scene.add(dirLight);
 
 // Big grass underlay that follows the camera so any gap between lanes reads as grass, never blue void.
@@ -1580,14 +1607,23 @@ function makeQuestRock(scale = 1) {
    box (cluster analysis over the raw geometry); triangles whose centroid falls inside get copied
    into a standalone mesh that keeps the map's texture atlas. Boxes are in the map file's own
    coordinates (before any normalize), so they stay valid no matter how the map is used elsewhere. */
-const QUEST_TREE_CUTS = [
-  // Boxes found by cluster analysis over Guild Field's raw geometry (compact, tall, green-dominant
-  // triangle islands = trees). y starts just above the terrain skin so no ground chip comes along.
-  { map: QB + 'Guild Field/mceGuildField.obj', min: [-27.7, 0.25, 58.7], max: [-23.9, 9.8, 62.5] },   // lone tree
-  { map: QB + 'Guild Field/mceGuildField.obj', min: [-31.2, 0.25, 41.4], max: [-27.2, 9.8, 48.4] },   // row tree
-  { map: QB + 'Guild Field/mceGuildField.obj', min: [-39.2, 0.25, 41.4], max: [-32.2, 9.8, 48.4] },   // double-canopy clump
-];
-let questTreeLibPromise = null;
+const QUEST_TREE_CUTS = {
+  // Boxes found by cluster analysis over the raw map geometry (compact, green-dominant triangle
+  // islands). y starts just above the terrain skin so no ground chip comes along.
+  // "boundary": the two Guild Field birch trees — run-lane side barriers.
+  boundary: [
+    { map: QB + 'Guild Field/mceGuildField.obj', min: [-27.7, 0.25, 58.7], max: [-23.9, 9.8, 62.5] },   // lone birch
+    { map: QB + 'Guild Field/mceGuildField.obj', min: [-31.2, 0.25, 41.4], max: [-27.2, 9.8, 48.4] },   // row birch
+  ],
+  // "small": Base Camp bushes/hedges + a birch — modest 1-2 block props for decor and the home ring.
+  small: [
+    { map: QB + 'Base Camp (First Steppe)/Base Camp (01 - First Steppe).obj', min: [39.3, 0.55, -2.3], max: [41.3, 1.6, -0.2] },   // round bush
+    { map: QB + 'Base Camp (First Steppe)/Base Camp (01 - First Steppe).obj', min: [-46.9, 0.55, -6.6], max: [-43.6, 2.4, -3.3] }, // square hedge
+    { map: QB + 'Base Camp (First Steppe)/Base Camp (01 - First Steppe).obj', min: [-9.7, 0.55, -64.6], max: [-6.4, 2.4, -61.0] }, // hedge slice
+    { map: QB + 'Guild Field/mceGuildField.obj', min: [-27.7, 0.25, 58.7], max: [-23.9, 9.8, 62.5] },                              // birch (small-scaled)
+  ],
+};
+const questTreeLibPromises = {};
 function extractMeshRegion(root, min, max) {
   const lo = new THREE.Vector3(...min), hi = new THREE.Vector3(...max);
   const out = new THREE.Group();
@@ -1618,9 +1654,9 @@ function extractMeshRegion(root, min, max) {
   });
   return out;
 }
-function loadQuestTreeLib() {
-  if (questTreeLibPromise) return questTreeLibPromise;
-  questTreeLibPromise = Promise.all(QUEST_TREE_CUTS.map(cut =>
+function loadQuestTreeLib(libName = 'boundary') {
+  if (questTreeLibPromises[libName]) return questTreeLibPromises[libName];
+  questTreeLibPromises[libName] = Promise.all(QUEST_TREE_CUTS[libName].map(cut =>
     loadModelOrNull(cut.map).then(m => {
       if (!m) return null;
       const tree = extractMeshRegion(m, cut.min, cut.max);
@@ -1632,14 +1668,15 @@ function loadQuestTreeLib() {
       return tree;
     }).catch(() => null)
   )).then(list => list.filter(Boolean));
-  return questTreeLibPromise;
+  return questTreeLibPromises[libName];
 }
 // A Quest tree: instant procedural cube-tree placeholder, hot-swapped for a random carved map tree.
-function makeQuestMapTree(targetHeight = 1.6 + Math.random() * 0.5) {
+function makeQuestMapTree(targetHeight = 1.4 + Math.random() * 0.35, libName = 'boundary') {
   const g = new THREE.Group();
   const ph = makeQuestTree();
+  ph.scale.setScalar(0.8);
   g.add(ph);
-  loadQuestTreeLib().then(lib => {
+  loadQuestTreeLib(libName).then(lib => {
     if (!lib.length || g.userData.destroyed) return;
     const inst = lib[Math.floor(Math.random() * lib.length)].clone();
     inst.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
@@ -1694,12 +1731,22 @@ function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
              : makeCubeMesh(entry, shiny ? 0xffd54f : undefined);
   wob.add(cube);
   if (path) {
+    const questModel = path.startsWith(QB);
     loadModelOrNull(path).then(model => {
       if (!model || group.userData.destroyed) return;
       const inst = cloneModel(model);
-      inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      // Quest voxel models don't receive shadows: self-shadowing paints bright leak lines along
+      // their hard cube edges (they still CAST onto the ground, which is what reads visually).
+      inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = !questModel; } });
       normalizeModel(inst, entry.modelTargetSize ?? Math.max(...entry.boxSize));
-      if (entry.baseCenter) recenterOnBase(inst, entry);   // ride point = visual base, not full bbox
+      // Quest models center on their BASE: overhanging tails/leaves skew the full bbox center,
+      // leaving the body visibly off its tile (Pikachu) or riders off the back (Lotad).
+      if (entry.baseCenter || questModel) recenterOnBase(inst, entry);
+      // Big swimmers: measure the real back height so riders stand ON it instead of sinking in.
+      if (entry.measureRide && !entry.rideHeight) {
+        const bb = new THREE.Box3().setFromObject(inst);
+        entry.rideHeight = Math.max(entry.boxSize[1], bb.max.y * 0.94);
+      }
       if (shiny) applyShiny(inst, shinyFallbackFor(entry));
       wob.remove(cube); wob.add(inst);
     });
@@ -1712,7 +1759,28 @@ function difficultyFactor(distance) { return Math.min(1, Math.max(0, distance) /
 // Crossy-Road-style pacing: early on, every obstacle lane is bracketed by grass; the leash loosens
 // with distance (chains of 2, then 3-4), and awkward pairings (a stampede track hard against water)
 // are kept out of the early game entirely.
+// Quest ("Blocky Mode") pacing: obstacles arrive as long UNIFORM BANDS — up to 5 roads or 3 rivers
+// of the same family back to back — separated by real grass clearings (2+ breather lanes) instead
+// of rumble's tighter mixed weave.
+function passesFairnessQuest(laneType, distance) {
+  const h = gameState.familyHistory;
+  const fam = laneType.family;
+  const l1 = h[h.length - 1], l2 = h[h.length - 2];
+  if (distance < 3) return fam === 'safe';
+  if (fam === 'safe') return true;
+  if (fam === 'rail' && l1 === 'rail') return false;
+  if (l1 === 'rail') return false;                        // a stampede is always followed by a breather
+  if (l1 === fam) {
+    let run = 0;
+    for (let i = h.length - 1; i >= 0 && h[i] === fam; i--) run++;
+    return run < (fam === 'road' ? 5 : fam === 'river' ? 3 : 1);   // extend the current band up to its cap
+  }
+  if (l1 !== 'safe') return false;                        // never switch obstacle families mid-band
+  if (distance > 10 && l2 !== 'safe') return false;       // a new band needs a 2-lane grass clearing first
+  return true;
+}
 function passesFairness(laneType, distance) {
+  if (gameState.save.gameMode === 'quest') return passesFairnessQuest(laneType, distance);
   const h = gameState.familyHistory;
   const l1 = h[h.length - 1], l2 = h[h.length - 2], l3 = h[h.length - 3];
   const fam = laneType.family;
@@ -1732,8 +1800,10 @@ function pickLaneType(distance) {
   const pool = candidates.length ? candidates : [ACTIVE_LANE_TYPES_BY_KEY.grass];
   const last = gameState.familyHistory[gameState.familyHistory.length - 1];
   // Crossy-style clustering: once a road/river has started, the same family likes to continue,
-  // so obstacles arrive in bands rather than a random pepper.
-  const w = lt => lt.weight(distance) * ((lt.family === last && (lt.family === 'road' || lt.family === 'river')) ? 2.2 : 1);
+  // so obstacles arrive in bands rather than a random pepper. Quest leans much harder into it —
+  // its whole identity is long uniform bands (see passesFairnessQuest).
+  const contMult = gameState.save.gameMode === 'quest' ? 6 : 2.2;
+  const w = lt => lt.weight(distance) * ((lt.family === last && (lt.family === 'road' || lt.family === 'river')) ? contMult : 1);
   const total = pool.reduce((s, lt) => s + w(lt), 0);
   let r = Math.random() * total;
   for (const lt of pool) { r -= w(lt); if (r <= 0) return lt; }
@@ -1780,12 +1850,18 @@ function addRoadDivider(lane) {
   lane.root.add(g);
 }
 function addBoundaryScenery(lane) {
+  const quest = gameState.save.gameMode === 'quest';
   for (const side of [-1, 1]) {
     for (let i = 1; i <= 3; i++) {
       const decorId = (i === 1 || Math.random() < 0.6) ? decorTreeId() : decorRockId();
       const obj = createEntityObject(decorId);
-      obj.position.set(side * (GRID_HALF + i) + (Math.random() - 0.5) * 0.3, 0, lane.z * TILE + (Math.random() - 0.5) * 0.4);
-      obj.rotation.y = Math.random() * Math.PI;
+      if (quest) {
+        // Blocky Mode: everything voxel sits square on the grid — exact tiles, axis-aligned.
+        obj.position.set(side * (GRID_HALF + i), 0, lane.z * TILE);
+      } else {
+        obj.position.set(side * (GRID_HALF + i) + (Math.random() - 0.5) * 0.3, 0, lane.z * TILE + (Math.random() - 0.5) * 0.4);
+        obj.rotation.y = Math.random() * Math.PI;
+      }
       lane.root.add(obj);
     }
   }
@@ -2209,7 +2285,8 @@ function checkPlayerSafety(dt) {
         rideX = platform.x + slot;
       }
       p.group.position.x = rideX; p.gridX = rideX;
-      p.group.position.y = platform.entry.boxSize[1] + (platform.bob || 0);   // ride with the bob
+      // Ride height: measured back height when available (big Quest swimmers), else the box height.
+      p.group.position.y = (platform.entry.rideHeight ?? platform.entry.boxSize[1]) + (platform.bob || 0);
       if (platform.x < (-GRID_HALF - 0.5) || platform.x > (GRID_HALF + 0.5)) {
         // A Mega carried out of bounds spends its form to surge back to dry land instead of dying.
         if (gameState.mega.active) { megaSurge(performance.now()); return; }
@@ -2783,7 +2860,7 @@ function renderRates() {
 }
 
 /* ============================== Q: CHARACTER SELECT (3D preview + silhouettes) ============================== */
-let previewRenderer, previewScene, previewCamera, previewHolder;
+let previewRenderer, previewScene, previewCamera, previewHolder, previewDragging = false;
 function initPreview() {
   const pcanvas = document.getElementById('preview-canvas');
   previewRenderer = new THREE.WebGLRenderer({ canvas: pcanvas, antialias: true, alpha: true });
@@ -2792,8 +2869,18 @@ function initPreview() {
   previewScene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.2));
   const dl = new THREE.DirectionalLight(0xffffff, 1.1); dl.position.set(2, 4, 3); previewScene.add(dl);
   previewCamera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
-  previewCamera.position.set(0, 1.0, 3.4); previewCamera.lookAt(0, 0.7, 0);
+  // Pulled back (was z=3.4): wide models (wingspans) rotated past the frustum's sides and were
+  // sliced off by the canvas edge — reading as dark vertical "barriers" against the background.
+  previewCamera.position.set(0, 1.0, 4.3); previewCamera.lookAt(0, 0.7, 0);
   previewHolder = new THREE.Group(); previewScene.add(previewHolder);
+  // Drag (mouse or finger) to spin the model yourself; on release the idle auto-spin resumes from
+  // wherever you left it (same rotation value, so there's no snap-back).
+  pcanvas.style.touchAction = 'none';
+  pcanvas.addEventListener('pointerdown', e => { previewDragging = true; pcanvas.setPointerCapture(e.pointerId); });
+  pcanvas.addEventListener('pointermove', e => { if (previewDragging) previewHolder.rotation.y += e.movementX * 0.013; });
+  const endDrag = () => { previewDragging = false; };
+  pcanvas.addEventListener('pointerup', endDrag);
+  pcanvas.addEventListener('pointercancel', endDrag);
 }
 function resizePreview() {
   const pcanvas = document.getElementById('preview-canvas');
@@ -2814,7 +2901,7 @@ function loadPreviewModel(id) {
     loadModelOrNull(path).then(model => {
       if (!model || !previewHolder.children.includes(holder)) return;
       const inst = cloneModel(model); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
-      normalizeGalleryModel(inst, 1.5, 0.7);
+      normalizeGalleryModel(inst, 1.65, 0.7);   // slightly larger to offset the pulled-back camera
       if (locked) blacken(inst); else if (shiny) applyShiny(inst, shinyFallbackFor(entry));
       holder.remove(cube); holder.add(inst);
     });
@@ -2988,13 +3075,17 @@ function setUnknownTypeBadges(container, count) {
 // Roster browser: collapsible regional sections (Kanto..Kalos) of 5-column dex grids, plus an
 // optional filter (types / legendary / mythical) that switches to a flat grid of matches.
 const PLAYER_BY_DEX = Object.fromEntries(PLAYER_ENTRIES.filter(e => e.dex).map(e => [e.dex, e]));
-const regionOpen = Object.fromEntries(REGIONS.map(r => [r.name, true]));   // all regions start open
+// Both modes share the grid machinery; these swap the data sources it reads.
+function activeRegions() { return gameState.save.gameMode === 'quest' ? QUEST_REGIONS : REGIONS; }
+function activeByDex() { return gameState.save.gameMode === 'quest' ? QUEST_BY_DEX : PLAYER_BY_DEX; }
+const regionOpen = Object.fromEntries(QUEST_REGIONS.map(r => [r.name, true]));   // superset of both modes' regions
 const rosterFilter = { types: new Set(), legendary: false, mythical: false, unlocked: false, mega: false };
+function clearRosterFilter() { rosterFilter.types.clear(); rosterFilter.legendary = false; rosterFilter.mythical = false; rosterFilter.unlocked = false; rosterFilter.mega = false; }
 function filterActive() { return rosterFilter.types.size > 0 || rosterFilter.legendary || rosterFilter.mythical || rosterFilter.unlocked || rosterFilter.mega; }
 function entryMatchesFilter(e) {
   // Filtering only surfaces Pokemon you've actually unlocked (locked ones hide their type anyway) —
   // which also makes the dedicated "unlocked" chip a pure show-all-my-Pokemon toggle.
-  if (!gameState.save.unlockedIds.includes(e.id)) return false;
+  if (!isIdUnlocked(e.id)) return false;
   if (rosterFilter.types.size && !(e.types || []).some(t => rosterFilter.types.has(t))) return false;
   if (rosterFilter.legendary && !(e.tier === 'legendary' && !e.mythical)) return false;
   if (rosterFilter.mythical && !e.mythical) return false;
@@ -3014,7 +3105,7 @@ function makeSlotCell(dexNo, entry) {
   }
   // A dex slot is "owned" if the base OR any of its alternate forms is unlocked.
   const forms = formsByBaseId[entry.id] || [];
-  const baseUnlocked = gameState.save.unlockedIds.includes(entry.id);
+  const baseUnlocked = isIdUnlocked(entry.id);
   const anyUnlocked = baseUnlocked || forms.some(f => isEntryUnlocked(f));
   const locked = !anyUnlocked;
   const shiny = !!gameState.save.shinyUnlockedByCharacter[entry.id];
@@ -3029,39 +3120,16 @@ function makeSlotCell(dexNo, entry) {
   cell.addEventListener('click', () => { AudioSys.sfx.click(); selectPreview(entry.id); });
   return cell;
 }
-// Quest roster has no regions/forms/gender/shiny — a flat grid, one slot per QUEST_DEX entry
-// (costume/forme variants like "Pikachu (Ash Cap)" get their own slot, not a badge on the base).
-function makeQuestSlotCell(entry) {
-  const cell = document.createElement('button');
-  cell.type = 'button';
-  const idx = document.createElement('span'); idx.className = 'idx'; idx.textContent = String(entry.dex).padStart(3, '0');
-  const locked = !isEntryUnlocked(entry);
-  cell.className = 'slot' + (entry.id === gameState.previewBaseId ? ' selected' : '') + (locked ? ' locked' : '');
-  cell.appendChild(idx);
-  const img = document.createElement('img'); img.className = 'thumb'; img.alt = entry.displayName;
-  getThumb(entry.id, { locked }).then(src => { img.src = src; });
-  cell.appendChild(img);
-  const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = locked ? '???' : entry.displayName; cell.appendChild(nm);
-  cell.addEventListener('click', () => { AudioSys.sfx.click(); selectPreview(entry.id); });
-  return cell;
-}
-function renderQuestRosterGrid() {
-  const grid = document.getElementById('roster-grid');
-  grid.innerHTML = '';
-  const wrap = document.createElement('div'); wrap.className = 'region-grid';
-  for (const e of QUEST_PLAYER_ENTRIES) wrap.appendChild(makeQuestSlotCell(e));
-  grid.appendChild(wrap);
-}
 function renderRosterGrid() {
-  if (gameState.save.gameMode === 'quest') { renderQuestRosterGrid(); return; }
   const grid = document.getElementById('roster-grid');
   grid.innerHTML = '';
   const filtering = filterActive();
+  const byDex = activeByDex();
   let anyMatch = false;
-  for (const region of REGIONS) {
-    const regionEntries = PLAYER_ENTRIES.filter(e => e.dex >= region.from && e.dex <= region.to);
+  for (const region of activeRegions()) {
+    const regionEntries = ACTIVE_ROSTER.filter(e => e.dex >= region.from && e.dex <= region.to);
     const matches = filtering ? regionEntries.filter(entryMatchesFilter) : null;
-    const owned = regionEntries.filter(e => gameState.save.unlockedIds.includes(e.id)).length;
+    const owned = regionEntries.filter(e => isIdUnlocked(e.id)).length;
     // Every region counts and shows only dex numbers that actually have a model — no ghost slots.
     const total = regionEntries.length;
     // While filtering: a region with matches is force-expanded so nothing hides in a collapsed
@@ -3083,8 +3151,8 @@ function renderRosterGrid() {
       for (const e of matches) wrap.appendChild(makeSlotCell(e.dex, e));
     } else {
       for (let d = region.from; d <= region.to; d++) {
-        if (!PLAYER_BY_DEX[d]) continue;   // dex numbers without a model don't get ghost slots
-        wrap.appendChild(makeSlotCell(d, PLAYER_BY_DEX[d]));
+        if (!byDex[d]) continue;   // dex numbers without a model don't get ghost slots
+        wrap.appendChild(makeSlotCell(d, byDex[d]));
       }
     }
     grid.appendChild(wrap);
@@ -3115,12 +3183,13 @@ function renderFilterPanel() {
   addChip('legendary', '#8e24aa', rosterFilter.legendary, () => { rosterFilter.legendary = !rosterFilter.legendary; });
   addChip('mythical', '#d81b60', rosterFilter.mythical, () => { rosterFilter.mythical = !rosterFilter.mythical; });
   addChip('unlocked', '#2e7d32', rosterFilter.unlocked, () => { rosterFilter.unlocked = !rosterFilter.unlocked; });
-  addChip('mega', '#7c4dff', rosterFilter.mega, () => { rosterFilter.mega = !rosterFilter.mega; }, { rgb: true });
+  // No Mega system in Quest, so no mega chip there.
+  if (gameState.save.gameMode !== 'quest') addChip('mega', '#7c4dff', rosterFilter.mega, () => { rosterFilter.mega = !rosterFilter.mega; }, { rgb: true });
   const clear = document.createElement('button');
   clear.type = 'button'; clear.className = 'filter-chip clear'; clear.textContent = 'clear';
   clear.addEventListener('click', () => {
     AudioSys.sfx.click();
-    rosterFilter.types.clear(); rosterFilter.legendary = false; rosterFilter.mythical = false; rosterFilter.unlocked = false; rosterFilter.mega = false;
+    clearRosterFilter();
     renderFilterPanel(); renderRosterGrid();
   });
   panel.appendChild(clear);
@@ -3129,12 +3198,9 @@ function renderFilterPanel() {
 }
 function updateSelectToggles(entry, locked, forms) {
   const shinyBtn = document.getElementById('btn-shiny'), genderBtn = document.getElementById('btn-gender'), formBtn = document.getElementById('btn-form');
-  const filterBtn = document.getElementById('btn-filter');
   const questMode = gameState.save.gameMode === 'quest';
-  // Quest mode has no shinies, no gender split, no forms/Mega, and no roster filter — just hide the lot.
+  // Quest mode has no shinies — hide that toggle; forms, gender and the filter work in both modes.
   shinyBtn.style.display = questMode ? 'none' : '';
-  filterBtn.style.display = questMode ? 'none' : '';
-  if (questMode) { document.getElementById('filter-panel').classList.add('hidden'); }
   const shinyUnlocked = !locked && !!gameState.save.shinyUnlockedByCharacter[entry.id];
   shinyBtn.disabled = !shinyUnlocked;
   shinyBtn.classList.toggle('on', gameState.selectedShiny && shinyUnlocked);
@@ -3300,7 +3366,18 @@ function buildQuestMenuScenery() {
     inst.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = false; } });
     // Big: the island becomes the whole backdrop, so its baked trees/blocks match the roamers' scale.
     normalizeModel(inst, Math.max(F.rx, F.rz) * 4.2);
-    inst.position.y -= 0.04;   // sit just under field level so it reads as ground, not a floating slab
+    // Level the island's PLATEAU (not its underside) to y=0 so the tent and roaming Pokemon stand
+    // on the surface instead of sinking into it: raycast down around the clearing center and take
+    // the lowest hit as the walkable ground height.
+    inst.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster();
+    let surface = Infinity;
+    for (const [sx, sz] of [[0, 0], [2, 1], [-2, 2], [1, -2], [-1.5, -1]]) {
+      ray.set(new THREE.Vector3(F.cx + sx, 60, F.cz + sz), new THREE.Vector3(0, -1, 0));
+      const hit = ray.intersectObject(inst, true)[0];
+      if (hit) surface = Math.min(surface, hit.point.y);
+    }
+    if (surface !== Infinity) inst.position.y -= surface + 0.03;
     questMenuScenery.add(inst);
   });
   loadModelOrNull(QB + 'Expedition Tent/bdExpeditionTent.obj').then(model => {
@@ -3313,21 +3390,18 @@ function buildQuestMenuScenery() {
     inst.rotation.y = Math.random() * Math.PI * 2;
     questMenuScenery.add(inst);
   });
-  // Tree ring: real carved map trees, sized to stand taller than the roaming Pokemon.
-  const rows = [[26, 1.06], [18, 1.24]];
-  for (const [count, mult] of rows) {
-    for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2 + Math.random() * 0.14;
-      const m = mult + Math.random() * 0.08;
-      const deco = Math.random() < 0.72 ? makeQuestMapTree(2.1 + Math.random() * 0.9) : makeQuestRock(1.6);
-      deco.position.set(F.cx + Math.cos(a) * F.rx * m, 0, F.cz + Math.sin(a) * F.rz * m);
-      deco.rotation.y = Math.random() * Math.PI * 2;
-      questMenuScenery.add(deco);
-    }
+  // Sparse frame of SMALL carved props (Base Camp bushes/hedges + a birch) — the scaled-up island's
+  // own baked scenery is the real backdrop; this ring just hems the clearing without towering over it.
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2 + Math.random() * 0.18;
+    const m = 1.04 + Math.random() * 0.1;
+    const deco = Math.random() < 0.8 ? makeQuestMapTree(1.3 + Math.random() * 0.7, 'small') : makeQuestRock(1.1);
+    deco.position.set(F.cx + Math.cos(a) * F.rx * m, 0, F.cz + Math.sin(a) * F.rz * m);
+    questMenuScenery.add(deco);
   }
   for (let i = 0; i < 4; i++) {
     const p = randomFieldPoint(0.75);
-    const deco = Math.random() < 0.5 ? makeQuestMapTree(1.9 + Math.random() * 0.6) : makeQuestRock(1.4);
+    const deco = makeQuestMapTree(1.1 + Math.random() * 0.5, 'small');
     deco.position.set(p.x, 0, p.y);
     questMenuScenery.add(deco);
   }
@@ -3516,6 +3590,7 @@ function switchGameMode(mode) {
     gameState.selectedPokemonId = def; gameState.previewId = def; gameState.previewBaseId = def;
     gameState.selectedShiny = false; gameState.selectedGender = 'm'; gameState.selectedForm = 'normal';
   }
+  clearRosterFilter();        // filter chips differ per mode (no mega chip in quest)
   applyGameModeVisuals();
   updatePlayButtonModel();
   clearField(); buildMenuDiorama();
@@ -3558,7 +3633,7 @@ function devSubmit() {
     if (devBuffer === 'pokemonrumblerun') {
       gameState.save.coins += 999;
       gameState.save.unlockedIds = ALL_PLAYABLE.map(e => e.id);
-      gameState.save.questUnlockedIds = QUEST_PLAYER_ENTRIES.map(e => e.id);
+      gameState.save.questUnlockedIds = QUEST_ALL_ENTRIES.map(e => e.id);
       for (const e of ALL_PLAYABLE) gameState.save.shinyUnlockedByCharacter[e.id] = true;
       persistSave();
       msg.style.color = '#8CFF9E'; msg.textContent = 'Unlocked all Pokemon (both modes) + shinies + 999 coins!';
@@ -4056,7 +4131,7 @@ function animate(now) {
   if (gameState.mode === 'menu' && playRenderer) playRenderer.render(playScene, playCamera);
 
   if (gameState.mode === 'select' && previewRenderer) {
-    previewHolder.rotation.y += dt * 0.8;
+    if (!previewDragging) previewHolder.rotation.y += dt * 0.8;   // idle spin pauses while the user drags
     const b = performance.now() - (previewHolder.userData.bounce || 0);
     previewHolder.scale.setScalar(b < 300 ? 1 + Math.sin(b / 300 * Math.PI) * 0.12 : 1);
     previewRenderer.render(previewScene, previewCamera);
