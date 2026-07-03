@@ -1003,21 +1003,45 @@ const MusicSys = (() => {
   };
   const MASTER = 0.4;               // music stays well under the sound effects
   const DIM = 0.22;                 // pause menu: clearly quieter, not just a shade
-  let els = {}, current = null, dim = false, unlocked = false;
+  let actx = null, els = {}, gains = {}, current = null, dim = false, unlocked = false, wasPlayingBeforeHide = false;
   function el(key) {
     if (!els[key]) {
       const a = new Audio(encodePath(BASE + TRACKS[key].file));
       a.loop = TRACKS[key].loop;
       a.preload = 'auto';
+      a.volume = 1;   // real level is applied via the WebAudio gain node (see graphFor) —
+                       // iOS Safari silently ignores HTMLMediaElement.volume entirely.
       els[key] = a;
     }
     return els[key];
+  }
+  function ensureCtx() {
+    if (actx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) actx = new AC();
+  }
+  // Every track is routed through a WebAudio GainNode. This is what makes the volume slider
+  // actually work on iOS: Safari hard-ignores <audio>.volume but honors GainNode.gain.
+  function graphFor(key) {
+    if (gains[key]) return gains[key];
+    ensureCtx();
+    if (!actx) return null;
+    const src = actx.createMediaElementSource(el(key));
+    const g = actx.createGain();
+    src.connect(g); g.connect(actx.destination);
+    gains[key] = g;
+    return g;
   }
   function volumeFor(key) {
     const user = gameState.save ? (gameState.save.musicVol ?? 0.5) : 0.5;
     return Math.min(1, TRACKS[key].gain * MASTER * user * (dim ? DIM : 1));
   }
-  function applyVolumes() { for (const k of Object.keys(els)) els[k].volume = volumeFor(k); }
+  function applyVolumes() {
+    for (const k of Object.keys(els)) {
+      const g = graphFor(k);
+      if (g) g.gain.value = volumeFor(k); else els[k].volume = volumeFor(k);
+    }
+  }
   // play(null) = stop the music entirely (used on the game-over screen).
   function play(key) {
     if (key === current) { applyVolumes(); return; }
@@ -1025,15 +1049,17 @@ const MusicSys = (() => {
     current = key || null;
     if (!key || !TRACKS[key]) return;
     const a = el(key);
-    a.volume = volumeFor(key);
+    graphFor(key);
+    applyVolumes();
     if (unlocked) a.play().catch(() => {});
   }
   // Overlay one-shots: play OVER whatever music is running, like a sound effect — the current
   // track keeps going underneath (befriend jingle in runs and at the ball machine).
   function playOver(key) {
     const a = el(key);
+    graphFor(key);
     a.currentTime = 0;
-    a.volume = volumeFor(key);
+    applyVolumes();
     if (unlocked) a.play().catch(() => {});
   }
   function playBefriend() { playOver('befriend'); }
@@ -1042,8 +1068,36 @@ const MusicSys = (() => {
   function begin() {   // first user interaction: autoplay is now allowed
     if (unlocked) return;
     unlocked = true;
-    if (current) el(current).play().catch(() => {});
+    ensureCtx();
+    if (actx && actx.state === 'suspended') actx.resume();
+    if (current) { graphFor(current); el(current).play().catch(() => {}); }
   }
+  // Backgrounding (home button / app switch / locking the phone) must actually stop playback —
+  // otherwise iOS keeps the tab's audio session alive, shows a Now Playing card on the lock
+  // screen / Dynamic Island, and only a full app-close (swipe-up) silences it.
+  function setMediaSessionState(state) {
+    if ('mediaSession' in navigator) { try { navigator.mediaSession.playbackState = state; } catch (e) {} }
+  }
+  function pauseForBackground() {
+    wasPlayingBeforeHide = !!(current && els[current] && !els[current].paused);
+    if (current && els[current]) els[current].pause();
+    if (actx && actx.state === 'running') actx.suspend();
+    setMediaSessionState('paused');
+  }
+  function resumeFromBackground() {
+    if (!unlocked) return;
+    if (actx && actx.state === 'suspended') actx.resume();
+    if (wasPlayingBeforeHide && current && els[current]) els[current].play().catch(() => {});
+    setMediaSessionState('playing');
+  }
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = null;   // don't advertise a "Now Playing" track at all
+    ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach(a => {
+      try { navigator.mediaSession.setActionHandler(a, null); } catch (e) {}
+    });
+  }
+  document.addEventListener('visibilitychange', () => { document.hidden ? pauseForBackground() : resumeFromBackground(); });
+  window.addEventListener('pagehide', pauseForBackground);
   return { play, playBefriend, playLose, setDim, applyVolumes, begin };
 })();
 window.MusicSys = MusicSys;   // handy for volume debugging from the console
