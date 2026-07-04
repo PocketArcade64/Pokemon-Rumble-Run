@@ -893,11 +893,17 @@ const QUEST_ALL_ENTRIES = QUEST_DEX.map(p => {
     tier: tierForDex(p.d), mythical: MYTHICAL_DEX.has(p.d), region: regionOfDex(p.d),
     color: 0x88a0b8, types: KNOWN_TYPES[p.d] || null,
     modelPath: QB + p.o, modelTargetSize: 1.5, boxSize: [0.9, 0.9, 0.9],
-    // Shiny support: `s` (from questdex) is the recolored main-body texture filename. It replaces
-    // ONLY the material whose diffuse map is <objbase>.png; secondary maps (eyes/fx) stay as-is.
+    // Shiny support: `s` (from questdex) is the shiny texture filename. Two schemes with DIFFERENT
+    // mechanics:
+    //  - "<name> - Shiny.png" ships as a COMPLETE separate model (own .obj/.mtl with its own UV
+    //    layout, which does NOT always match the normal mesh — Ivysaur/Squirtle re-lay the palette,
+    //    so texture-swapping onto the normal mesh sampled black/yellow). These load shinyModelPath.
+    //  - "pq####S.png" is a designed drop-in recolor for the same mesh (no separate obj exists);
+    //    those swap just the main body atlas (shinyTex/shinyMainTex, see applyQuestShiny).
     // Entries without `s` (some costumes/clones/a few species the rip lacked) offer no shiny.
     shinyTex: p.s ? QB + p.o.replace(/[^/]+$/, p.s) : null,
-    shinyMainTex: (p.o.match(/[^/]+$/)[0]).replace(/\.obj$/i, '.png'),   // the map the shiny replaces
+    shinyModelPath: p.s && / - Shiny\.png$/i.test(p.s) ? QB + p.o.replace(/\.obj$/i, ' - Shiny.obj') : null,
+    shinyMainTex: (p.o.match(/[^/]+$/)[0]).replace(/\.obj$/i, '.png'),   // the map the S-swap replaces
     unlockedByDefault: p.id === 'q0025',   // start with Pikachu, same as rumble
   };
 }).sort((a, b) => a.dex - b.dex);
@@ -1658,6 +1664,11 @@ function applyShinyFor(inst, entry) {
   if (entry.id && entry.id[0] === 'q') applyQuestShiny(inst, entry);
   else applyShiny(inst, shinyFallbackFor(entry));
 }
+// Scheme-A quest shinies are their own complete models — when one exists, callers load THIS path
+// and skip the texture swap entirely (the shiny obj's own MTL brings the right texture + UVs).
+function shinyModelPathFor(entry, shiny) {
+  return (shiny && entry && entry.shinyModelPath) || null;
+}
 
 // Pokemon Rumble scenery: chunky toy trees (stacked foliage blobs on a fat trunk) and rounded rocks.
 // These replace the old flat placeholder cubes; collision still uses the entry's boxSize.
@@ -1777,7 +1788,9 @@ function decorRockId() { return gameState.save.gameMode === 'quest' ? 'q_rock' :
 // `modelPath` overrides the entry's default (used for gender variants).
 function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
   const entry = rosterById[entryId];
-  const path = modelPath || entry.modelPath;
+  // Scheme-A quest shinies replace the whole model (own UVs); the texture-swap path is skipped.
+  const shinyModel = shinyModelPathFor(entry, shiny);
+  const path = shinyModel || modelPath || entry.modelPath;
   const group = new THREE.Group();
   group.userData.rosterId = entryId;
   // Inner "wobble" pivot so obstacles can rock/bob without disturbing the group's facing rotation.
@@ -1807,7 +1820,7 @@ function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
         const bb = new THREE.Box3().setFromObject(inst);
         entry.rideHeight = Math.max(entry.boxSize[1], bb.max.y * 0.94);
       }
-      if (shiny) applyShinyFor(inst, entry);
+      if (shiny && !shinyModel) applyShinyFor(inst, entry);   // swap only when no dedicated shiny model was loaded
       wob.remove(cube); wob.add(inst);
     });
   }
@@ -2970,7 +2983,8 @@ function loadPreviewModel(id) {
   const entry = rosterById[id];
   const locked = !isIdUnlocked(id);
   const shiny = !locked && gameState.selectedShiny && !!gameState.save.shinyUnlockedByCharacter[id];
-  const path = effectiveModelPath(entry, gameState.selectedGender);
+  const shinyModel = shinyModelPathFor(entry, shiny);
+  const path = shinyModel || effectiveModelPath(entry, gameState.selectedGender);
   const holder = new THREE.Group(); previewHolder.add(holder);
   const cube = makeCubeMesh(entry, locked ? 0x0e1014 : undefined); cube.position.y = 0; holder.add(cube);
   if (path) {
@@ -2978,7 +2992,7 @@ function loadPreviewModel(id) {
       if (!model || !previewHolder.children.includes(holder)) return;
       const inst = cloneModel(model); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
       normalizeGalleryModel(inst, 1.5, 0.7);
-      if (locked) blacken(inst); else if (shiny) applyShinyFor(inst, entry);
+      if (locked) blacken(inst); else if (shiny && !shinyModel) applyShinyFor(inst, entry);
       holder.remove(cube); holder.add(inst);
     });
   }
@@ -3611,14 +3625,15 @@ function updatePlayButtonModel() {
   while (playHolder.children.length) playHolder.remove(playHolder.children[0]);
   const id = gameState.selectedPokemonId, entry = rosterById[id];
   const shiny = gameState.selectedShiny && !!gameState.save.shinyUnlockedByCharacter[id];
-  const path = effectiveModelPath(entry, gameState.selectedGender);
+  const shinyModel = shinyModelPathFor(entry, shiny);
+  const path = shinyModel || effectiveModelPath(entry, gameState.selectedGender);
   const holder = new THREE.Group(); playHolder.add(holder);
   const cube = makeCubeMesh(entry); holder.add(cube);
   if (path) loadModelOrNull(path).then(m => {
     if (!m || !playHolder.children.includes(holder)) return;
     const inst = cloneModel(m); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
     normalizeGalleryModel(inst, 1.3, 0.7);
-    if (shiny) applyShinyFor(inst, entry);
+    if (shiny && !shinyModel) applyShinyFor(inst, entry);
     holder.remove(cube); holder.add(inst);
   });
 }
