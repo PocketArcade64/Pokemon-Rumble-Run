@@ -1338,6 +1338,45 @@ function insetUVs(root, k = 0.06) {
   });
 }
 
+/* ---- Rumble texture-wrap sidecar. The rumble rips rely on out-of-[0,1] UVs whose meaning depends
+   on each material's SAMPLER STATE, and the rips MIX all three modes (CLAMP is the majority, but
+   plenty of materials declare WRAP or MIRROR) — so no single global wrap mode can ever render every
+   model right; each global choice we tried fixed some models and corrupted others. The original
+   .dae exports DECLARE the intended mode per material (<wrap_s>/<wrap_t> in each effect's
+   sampler2D), and the .mtl material names are exactly the .dae material ids — so for every OBJ we
+   fetch the sibling model.dae once and apply precisely the wrap modes it declares. ---- */
+const daeWrapCache = new Map();
+const DAE_WRAP = { CLAMP: THREE.ClampToEdgeWrapping, WRAP: THREE.RepeatWrapping, MIRROR: THREE.MirroredRepeatWrapping };
+function loadDaeWrapModes(rawDir, rawObjFile) {
+  const key = rawDir + rawObjFile;
+  if (daeWrapCache.has(key)) return daeWrapCache.get(key);
+  // Most folders carry both the OBJ's twin-named .dae and a model.dae; form subfolders
+  // (Charizard/Normal) only have the twin — try that first.
+  const twin = rawDir + rawObjFile.replace(/\.obj$/i, '.dae');
+  const p = fetch(encodePath(twin))
+    .then(r => { if (!r.ok) throw new Error('no twin dae'); return r.text(); })
+    .catch(() => fetch(encodePath(rawDir + 'model.dae')).then(r => { if (!r.ok) throw new Error('no model.dae'); return r.text(); }))
+    .then(xml => {
+      const effWraps = {};
+      for (const chunk of xml.split('<effect ').slice(1)) {
+        const id = (chunk.match(/^id="([^"]+)"/) || [])[1];
+        const ws = (chunk.match(/<wrap_s>([A-Z_]+)<\/wrap_s>/) || [])[1];
+        const wt = (chunk.match(/<wrap_t>([A-Z_]+)<\/wrap_t>/) || [])[1];
+        if (id) effWraps[id] = { ws, wt };
+      }
+      const byMat = {};
+      for (const chunk of xml.split('<material ').slice(1)) {
+        const id = (chunk.match(/^id="([^"]+)"/) || [])[1];
+        const eff = (chunk.match(/<instance_effect url="#([^"]+)"/) || [])[1];
+        if (id && eff && effWraps[eff]) byMat[id] = effWraps[eff];
+      }
+      return byMat;
+    })
+    .catch(() => ({}));   // no sidecar -> fall back to CLAMP (the declared majority)
+  daeWrapCache.set(key, p);
+  return p;
+}
+
 function loadModelOrNull(path) {
   if (!path) return Promise.resolve(null);
   if (modelCache.has(path)) return modelCache.get(path);
@@ -1363,14 +1402,14 @@ function loadModelOrNull(path) {
     promise = Promise.reject(new Error('unsupported format .' + ext));
   }
   const p = promise
-    .then(model => {
+    .then(async model => {
       // Quest models: pull UV samples inside their atlas patches (kills white gutter bleed at any
       // render size — see insetUVs above).
       if (path.startsWith(QB)) insetUVs(model);
-      // These ripped Rumble-era models use MIRRORED texture coordinates (UVs running past 1 expect a
-      // mirror flip). With the loaders' default plain-repeat wrap, features double into the wrong
-      // places — extra eyes on Charmander's scalp, Charizard sampling his beige belly across his
-      // whole body. Mirrored wrap renders identically for models whose UVs stay inside [0,1].
+      // Rumble OBJs: fetch the per-material wrap modes the original .dae export declares (see
+      // loadDaeWrapModes above). Models whose UVs stay inside [0,1] (Bulbasaur) look identical
+      // under any mode; everyone else needs exactly the declared one.
+      const daeWraps = (!path.startsWith(QB) && ext === 'obj') ? await loadDaeWrapModes(rawDir, rawFile) : null;
       model.traverse(o => {
         if (!o.isMesh) return;
         // Some FBX rips (Tapu Fini) ship an all-black vertex-color attribute with vertexColors
@@ -1407,7 +1446,14 @@ function loadModelOrNull(path) {
               mm.map.minFilter = THREE.NearestFilter;
               mm.map.generateMipmaps = false;
               mm.map.wrapS = mm.map.wrapT = THREE.ClampToEdgeWrapping;
+            } else if (daeWraps) {
+              // Rumble OBJ: exactly the wrap modes the original export declares for THIS material
+              // (.mtl names are the .dae material ids). Missing/undeclared -> CLAMP, the majority.
+              const w = daeWraps[mm.name] || {};
+              mm.map.wrapS = DAE_WRAP[w.ws] || THREE.ClampToEdgeWrapping;
+              mm.map.wrapT = DAE_WRAP[w.wt] || THREE.ClampToEdgeWrapping;
             } else {
+              // Non-OBJ rips (Alola .fbx, the gift-box .dae): unchanged legacy behavior.
               mm.map.wrapS = mm.map.wrapT = THREE.MirroredRepeatWrapping;
             }
             mm.map.needsUpdate = true;
