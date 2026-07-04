@@ -2356,7 +2356,7 @@ const QUEST_BALL_MODELS = {
   'Ultra Ball': 'Pokemon Quest 3D Models/Ultra Ball Model/bdUltraBallModel.obj',
   'Master Ball': 'Pokemon Quest 3D Models/Master Ball Model/bdMasterBallModel.obj',
 };
-let gachaRenderer, gachaScene, gachaCamera, gachaKnob, gachaKnobHit, gachaFlap, gachaMachineGroup;
+let gachaRenderer, gachaScene, gachaCamera, gachaKnob, gachaKnobHit, gachaFlap, gachaMachineGroup, gachaDragging = false;
 const gachaSeq = {
   id: 0, phase: 'idle', t0: 0, pending: null,
   ballPromise: null, monPromise: null,
@@ -2461,6 +2461,17 @@ function initGachaMachine() {
   gachaScene.add(gachaMachineGroup);
   sizeGachaCanvas();
   canvas.addEventListener('click', onGachaCanvasTap);
+  // Once the pulled Pokemon is on display (the 'reveal' phase), drag to spin it yourself — finger or
+  // mouse — and the idle auto-spin resumes from where you released. Only active during 'reveal', so
+  // it never interferes with tapping the knob or cracking the ball open in earlier phases.
+  canvas.style.touchAction = 'none';
+  canvas.addEventListener('pointerdown', e => {
+    if (gachaSeq.phase === 'reveal' && gachaSeq.monWrap) { gachaDragging = true; canvas.setPointerCapture(e.pointerId); }
+  });
+  canvas.addEventListener('pointermove', e => { if (gachaDragging && gachaSeq.monWrap) gachaSeq.monWrap.rotation.y += e.movementX * 0.013; });
+  const endGachaDrag = () => { gachaDragging = false; };
+  canvas.addEventListener('pointerup', endGachaDrag);
+  canvas.addEventListener('pointercancel', endGachaDrag);
   // Test hooks: the preview harness runs backgrounded (rAF paused), so tests drive frames manually.
   window.__gachaKnobScreen = () => {
     const v = new THREE.Vector3(); gachaKnobHit.getWorldPosition(v); v.project(gachaCamera);
@@ -2737,7 +2748,7 @@ function updateGachaSeq(now, dt) {
     if (p >= 1) finishGachaReveal();
   }
   if (seq.phase === 'reveal' && seq.monWrap) {
-    seq.monWrap.rotation.y += dt * 1.1;   // show off the new partner
+    if (!gachaDragging) seq.monWrap.rotation.y += dt * 1.1;   // show off the new partner (paused while dragged)
   }
 }
 function wireGachaUI() {
@@ -3743,7 +3754,7 @@ function setMode(next) {
   document.getElementById('overlay-pause').classList.add('hidden');
   document.getElementById('overlay-countdown').classList.add('hidden');
   document.getElementById('hud').classList.toggle('hidden', next !== 'playing');
-  document.getElementById('touch-hint').classList.toggle('hidden', next !== 'playing' || !isTouchDevice());
+  document.getElementById('touch-hint').classList.add('hidden');   // never shown during a run (per request)
   if (next !== 'playing') { gameState.paused = false; gameState.countdownUntil = 0; }
   gameState.mode = next;
   menuGroup.visible = (next === 'menu');
@@ -3779,7 +3790,6 @@ function setMode(next) {
   MusicSys.setDim(false);
   MusicSys.play(musicForMode(next));
   if (next === 'playing') startRun(gameState.selectedPokemonId);
-  if (next === 'playing') setTimeout(() => document.getElementById('touch-hint').classList.add('hidden'), 3500);
 }
 function isTouchDevice() { return 'ontouchstart' in window || navigator.maxTouchPoints > 0; }
 // Resolve a character's model path for the chosen gender (falls back to the default model).
