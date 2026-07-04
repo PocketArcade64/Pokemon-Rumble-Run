@@ -677,7 +677,7 @@ import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 // The ?v= query busts browser/CDN caches — bump it whenever pokedex.js changes, or home-screen PWAs
 // keep serving the stale roster (form toggles "missing" after a deploy was exactly this).
 import { POKEDEX, FORMS } from './pokedex.js?v=4';   // auto-generated: every model folder (dex, name, model path, gender variants) + alternate forms
-import { QUEST_DEX } from './questdex.js?v=2';       // auto-generated: Pokemon Quest Blocky Mode roster (dex, name, model path)
+import { QUEST_DEX } from './questdex.js?v=3';       // auto-generated: Pokemon Quest Blocky Mode roster (dex, name, model path, shiny texture)
 
 /* ============================== A: CONSTANTS & CONFIG ============================== */
 const TILE = 1;
@@ -893,6 +893,11 @@ const QUEST_ALL_ENTRIES = QUEST_DEX.map(p => {
     tier: tierForDex(p.d), mythical: MYTHICAL_DEX.has(p.d), region: regionOfDex(p.d),
     color: 0x88a0b8, types: KNOWN_TYPES[p.d] || null,
     modelPath: QB + p.o, modelTargetSize: 1.5, boxSize: [0.9, 0.9, 0.9],
+    // Shiny support: `s` (from questdex) is the recolored main-body texture filename. It replaces
+    // ONLY the material whose diffuse map is <objbase>.png; secondary maps (eyes/fx) stay as-is.
+    // Entries without `s` (some costumes/clones/a few species the rip lacked) offer no shiny.
+    shinyTex: p.s ? QB + p.o.replace(/[^/]+$/, p.s) : null,
+    shinyMainTex: (p.o.match(/[^/]+$/)[0]).replace(/\.obj$/i, '.png'),   // the map the shiny replaces
     unlockedByDefault: p.id === 'q0025',   // start with Pikachu, same as rumble
   };
 }).sort((a, b) => a.dex - b.dex);
@@ -1612,6 +1617,47 @@ function applyShiny(object3d, fallbackHex = 0xffd54f) {
     o.material = wasArray ? swapped : swapped[0];
   });
 }
+// Quest shiny: swap ONLY the main body atlas (<objbase>.png) to the recolored shiny texture the
+// Quest files ship (`entry.shinyTex`); secondary maps (eyes/fx/obj) are left untouched. Unlike
+// rumble there is no hue fallback — availability is known up front (see shinyAvailableFor), so a
+// shiny is only ever applied when the real texture exists.
+function applyQuestShiny(object3d, entry) {
+  if (!entry || !entry.shinyTex) return;
+  const target = (entry.shinyMainTex || '').toLowerCase();
+  const shinyBase = entry.shinyTex.replace(/[^/]+$/, '');
+  object3d.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    const wasArray = Array.isArray(o.material);
+    const mats = wasArray ? o.material : [o.material];
+    const swapped = mats.map(mat => {
+      const img = mat.map && mat.map.image;
+      const src = img && (img.currentSrc || img.src) || '';
+      const name = decodeURIComponent(src.split('/').pop() || '').toLowerCase();
+      if (!mat.map || name !== target) return mat;   // only the main body atlas gets recolored
+      const m = mat.clone();
+      const base = m.map;
+      const t = texLoader.load(encodePath(entry.shinyTex));
+      t.colorSpace = base.colorSpace; t.flipY = base.flipY;
+      t.wrapS = base.wrapS; t.wrapT = base.wrapT;
+      t.magFilter = base.magFilter; t.minFilter = base.minFilter; t.generateMipmaps = base.generateMipmaps;
+      m.map = t; m.needsUpdate = true;
+      return m;
+    });
+    o.material = wasArray ? swapped : swapped[0];
+  });
+}
+// Whether a shiny form can be shown for an entry: rumble always can (hue-tint fallback); quest can
+// only when the rip actually ships a shiny texture for it.
+function shinyAvailableFor(entry) {
+  if (!entry) return false;
+  return (entry.id && entry.id[0] === 'q') ? !!entry.shinyTex : true;
+}
+// Mode-correct shiny: quest ids ('q...') use the recolored-texture swap, rumble ids the "_C" swap.
+function applyShinyFor(inst, entry) {
+  if (!entry) return;
+  if (entry.id && entry.id[0] === 'q') applyQuestShiny(inst, entry);
+  else applyShiny(inst, shinyFallbackFor(entry));
+}
 
 // Pokemon Rumble scenery: chunky toy trees (stacked foliage blobs on a fat trunk) and rounded rocks.
 // These replace the old flat placeholder cubes; collision still uses the entry's boxSize.
@@ -1761,7 +1807,7 @@ function createEntityObject(entryId, { shiny = false, modelPath = null } = {}) {
         const bb = new THREE.Box3().setFromObject(inst);
         entry.rideHeight = Math.max(entry.boxSize[1], bb.max.y * 0.94);
       }
-      if (shiny) applyShiny(inst, shinyFallbackFor(entry));
+      if (shiny) applyShinyFor(inst, entry);
       wob.remove(cube); wob.add(inst);
     });
   }
@@ -2932,7 +2978,7 @@ function loadPreviewModel(id) {
       if (!model || !previewHolder.children.includes(holder)) return;
       const inst = cloneModel(model); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
       normalizeGalleryModel(inst, 1.5, 0.7);
-      if (locked) blacken(inst); else if (shiny) applyShiny(inst, shinyFallbackFor(entry));
+      if (locked) blacken(inst); else if (shiny) applyShinyFor(inst, entry);
       holder.remove(cube); holder.add(inst);
     });
   }
@@ -3228,13 +3274,20 @@ function renderFilterPanel() {
 }
 function updateSelectToggles(entry, locked, forms) {
   const shinyBtn = document.getElementById('btn-shiny'), genderBtn = document.getElementById('btn-gender'), formBtn = document.getElementById('btn-form');
-  const questMode = gameState.save.gameMode === 'quest';
-  // Quest mode has no shinies — hide that toggle; forms, gender and the filter work in both modes.
-  shinyBtn.style.display = questMode ? 'none' : '';
-  const shinyUnlocked = !locked && !!gameState.save.shinyUnlockedByCharacter[entry.id];
-  shinyBtn.disabled = !shinyUnlocked;
-  shinyBtn.classList.toggle('on', gameState.selectedShiny && shinyUnlocked);
-  shinyBtn.textContent = 'Shiny: ' + (gameState.selectedShiny && shinyUnlocked ? 'On' : 'Off');
+  // Shinies work in BOTH modes now. Quest ships shiny textures for most (but not all) entries — the
+  // ones it lacks show "Shiny N/A" and can't be toggled.
+  shinyBtn.style.display = '';
+  const shinyAvail = shinyAvailableFor(entry);
+  const shinyUnlocked = !locked && shinyAvail && !!gameState.save.shinyUnlockedByCharacter[entry.id];
+  if (!shinyAvail) {
+    shinyBtn.disabled = true;
+    shinyBtn.classList.remove('on');
+    shinyBtn.textContent = 'Shiny N/A';
+  } else {
+    shinyBtn.disabled = !shinyUnlocked;
+    shinyBtn.classList.toggle('on', gameState.selectedShiny && shinyUnlocked);
+    shinyBtn.textContent = 'Shiny: ' + (gameState.selectedShiny && shinyUnlocked ? 'On' : 'Off');
+  }
   const hasGender = !locked && !!entry.genderPaths;
   genderBtn.style.display = hasGender ? '' : 'none';
   genderBtn.textContent = 'Gender: ' + (gameState.selectedGender === 'f' ? 'F' : 'M');
@@ -3565,7 +3618,7 @@ function updatePlayButtonModel() {
     if (!m || !playHolder.children.includes(holder)) return;
     const inst = cloneModel(m); inst.traverse(o => { if (o.isMesh) o.castShadow = false; });
     normalizeGalleryModel(inst, 1.3, 0.7);
-    if (shiny) applyShiny(inst, shinyFallbackFor(entry));
+    if (shiny) applyShinyFor(inst, entry);
     holder.remove(cube); holder.add(inst);
   });
 }
@@ -3858,7 +3911,7 @@ function swapPlayerModel(path, targetSize, { shiny = false } = {}) {
     const inst = cloneModel(model);
     inst.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     normalizeModel(inst, targetSize);
-    if (shiny) applyShiny(inst, shinyFallbackFor(rosterById[gameState.selectedPokemonId]));
+    if (shiny) applyShinyFor(inst, rosterById[gameState.selectedPokemonId]);
     while (wob.children.length) wob.remove(wob.children[0]);
     wob.add(inst);
   });
@@ -4004,8 +4057,11 @@ function finalizeRun() {
   const newBest = gameState.distance > prevBest;
   if (newBest) save.bestScoreByCharacter[id] = gameState.distance;
   let shinyJustUnlocked = false;
-  // No shinies in Quest mode.
-  if (gameState.save.gameMode === 'rumble' && gameState.distance >= 1000 && !save.shinyUnlockedByCharacter[id]) { save.shinyUnlockedByCharacter[id] = true; shinyJustUnlocked = true; }
+  // Reach 1000 in one run to unlock this Pokemon's shiny (both modes) — but only if a shiny exists
+  // for it (Quest lacks shiny textures for some costumes/clones; those never unlock a shiny form).
+  if (gameState.distance >= 1000 && !save.shinyUnlockedByCharacter[id] && shinyAvailableFor(rosterById[id])) {
+    save.shinyUnlockedByCharacter[id] = true; shinyJustUnlocked = true;
+  }
   save.coins += gameState.coinsThisRun;
   persistSave();
   return { newBest, shinyJustUnlocked, best: save.bestScoreByCharacter[id] ?? gameState.distance };
@@ -4071,14 +4127,15 @@ function buildHowTo() {
     { id: 'balls', name: 'Poke Balls', html: `
       <div class="row"><div>Spend <b>${GACHA_COST} coins</b> per pull at the Poke Ball Machine for a random ball with a new playable Pokemon:</div></div>
       <ul class="rarity-list">${balls}</ul>` },
-    !questMode && { id: 'shiny', name: 'Shinies', html: `
+    { id: 'shiny', name: 'Shinies', html: `
       <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its shiny form.</div></div>
       <div class="row"><div>Shiny Pokemon have a <b>1 in 5</b> chance to <b>double</b> any coin they pick up — watch for the x2 over their head!</div></div>
-      <div class="row"><div>Shiny <b>Legendary / Mythical</b> Pokemon double coins at <b>1 in 2</b>.</div></div>` },
+      <div class="row"><div>Shiny <b>Legendary / Mythical</b> Pokemon double coins at <b>1 in 2</b>.</div></div>
+      ${questMode ? `<div class="row"><div>A few Blocky Mode Pokemon (some costumes and clones) have no shiny — their button reads <b>Shiny N/A</b>.</div></div>` : ''}` },
     questMode && { id: 'blocky', name: 'Blocky Mode', html: `
       <div class="row"><div>Blocky Mode plays with the <b>Pokemon Quest</b> roster instead — its own select screen, gacha pool and wild encounters. Only your <b>coins</b> carry over; nothing here touches your Rumble Mode roster.</div></div>
       <div class="row"><div>It's the <b>gentler mode</b>: runs weave in noticeably more grass lanes, so there's always somewhere to catch your breath.</div></div>
-      <div class="row"><div>There's <b>no Mega Evolution and no shinies</b> here — but some Pokemon only appear as costumes (Ash Cap Pikachu, Halloween Gengar, and more), pulled from the Poke Ball Machine just like anyone else.</div></div>` },
+      <div class="row"><div>There's <b>no Mega Evolution</b> here — but some Pokemon only appear as costumes (Ash Cap Pikachu, Halloween Gengar, and more), pulled from the Poke Ball Machine just like anyone else.</div></div>` },
     { id: 'wild', name: 'Wild', html: `
       <div class="row"><div>Past lane 100, a Pokemon you don't own yet may appear standing on the path. Walk into it to <b>befriend it permanently</b> — one per run.</div></div>` },
   ].filter(Boolean);
