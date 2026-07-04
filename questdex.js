@@ -365,7 +365,7 @@ export const QUEST_DEX = [
 {id:"q0634",d:634,n:"Zweilous",o:"#0634 Zweilous/pq0634.obj",s:"pq0634S.png"},
 {id:"q0635",d:635,n:"Hydreigon",o:"#0635 Hydreigon/pq0635.obj",s:"pq0635S.png"},
 {id:"q0643",d:643,n:"Reshiram",o:"#0643 Reshiram/pq0643.obj",s:"pq0643S.png"},
-{id:"q0644",d:644,n:"Zekrom",o:"#0644 Zekrom/pq0644.obj"},
+{id:"q0644",d:644,n:"Zekrom",o:"#0644 Zekrom/pq0644.obj",s:"pq0644s.png"},
 {id:"q0646",d:646,n:"Kyurem",o:"#0646 Kyurem/pq0646.obj",s:"pq0646S.png"},
 {id:"q0656",d:656,n:"Froakie",o:"#0656 Froakie/pq0656.obj",s:"pq0656S.png"},
 {id:"q0657",d:657,n:"Frogadier",o:"#0657 Frogadier/pq0657.obj",s:"pq0657S.png"},
