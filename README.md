@@ -2,7 +2,7 @@
 
 Use models from Pokemon Rumble/ Pokemon Quest
 
-Upcoming changes
+Upcoming changes - all DONE
 - CHECK Claude chat with previous changes I made!!!  ✅ 
 - Coins are still not rending textures on their model ✅ 
 - On the title screen
