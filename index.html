@@ -3752,9 +3752,23 @@ function devSubmit() {
       gameState.save.coins += 999;
       gameState.save.unlockedIds = ALL_PLAYABLE.map(e => e.id);
       gameState.save.questUnlockedIds = QUEST_ALL_ENTRIES.map(e => e.id);
+      // All shinies in BOTH modes (Quest only where a shiny texture actually exists).
       for (const e of ALL_PLAYABLE) gameState.save.shinyUnlockedByCharacter[e.id] = true;
+      for (const e of QUEST_ALL_ENTRIES) if (shinyAvailableFor(e)) gameState.save.shinyUnlockedByCharacter[e.id] = true;
       persistSave();
-      msg.style.color = '#8CFF9E'; msg.textContent = 'Unlocked all Pokemon (both modes) + shinies + 999 coins!';
+      msg.style.color = '#8CFF9E'; msg.textContent = 'Unlocked all Pokemon + shinies (both modes) + 999 coins!';
+      AudioSys.sfx.gacha();
+    } else if (devBuffer === 'shinies') {
+      // Unlock the shiny of every Pokemon you ALREADY own, across both modes (skip Quest entries
+      // that have no shiny texture — their button stays "Shiny N/A").
+      let added = 0;
+      for (const id of gameState.save.unlockedIds) if (!gameState.save.shinyUnlockedByCharacter[id]) { gameState.save.shinyUnlockedByCharacter[id] = true; added++; }
+      for (const id of gameState.save.questUnlockedIds) {
+        if (gameState.save.shinyUnlockedByCharacter[id]) continue;
+        if (shinyAvailableFor(rosterById[id])) { gameState.save.shinyUnlockedByCharacter[id] = true; added++; }
+      }
+      persistSave();
+      msg.style.color = '#8CFF9E'; msg.textContent = `Unlocked ${added} shiny form${added === 1 ? '' : 's'} for Pokemon you own!`;
       AudioSys.sfx.gacha();
     } else if (devBuffer === 'coin' || devBuffer === 'coins') {
       gameState.save.coins += 100;
