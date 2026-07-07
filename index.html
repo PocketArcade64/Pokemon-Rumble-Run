@@ -692,15 +692,8 @@ const HOP_DURATION_MS = 140;
 const LAND_H = 0.5;                    // grass/road/rail sit this high; water sits at 0 (a block lower)
 const WATER_STAND = 0.28;             // approx height the player rides at on a water Pokemon
 
-// Auto-scroll (Crossy Road style): the world creeps forward and you die if you fall off the back edge.
-// Two-stage ramp: normal buildup to the knee, then a slow creep toward a lower ceiling —
-// playtesters found the old single ramp (max 2.1 by lane 300) unfairly fast past 200.
-const SCROLL_START_SPEED = 0.85;      // tiles / second at the start of a run
-const SCROLL_KNEE_DISTANCE = 200;     // ramp normally up to this lane…
-const SCROLL_KNEE_SPEED = 1.55;       // …reaching this speed there
-const SCROLL_MAX_SPEED = 1.8;         // hard ceiling, only approached very deep into a run
-const SCROLL_LATE_RAMP = 800;         // lanes past the knee to creep from knee speed to the ceiling
-const DEATH_MARGIN = 6.5;             // tiles behind the camera focus before you're "offscreen"
+// No forced scroll in either mode (playtester request): the camera just follows the player and
+// nothing chases you — hazards are the only threat. (The old Crossy-Road auto-scroll was removed.)
 
 const MB = 'Pokemon 3D Models/';      // base folder (sibling of index.html)
 
@@ -1060,7 +1053,6 @@ const gameState = {
   distance: 0, coinsThisRun: 0,
   lanes: new Map(), nextLaneZ: 0, familyHistory: [], laneGroup: null, coinAccum: 0,
   blockedTiles: new Set(),
-  scrollZ: 0, scrollActive: false,
   paused: false, countdownUntil: 0,
   startForest: null,
   input: { touchStart: null },
@@ -2150,7 +2142,7 @@ function generateNextLane() {
   }
 }
 function maintainLaneWindow() {
-  const frontier = Math.max(gameState.player.gridZ, Math.ceil(gameState.scrollZ));
+  const frontier = gameState.player.gridZ;
   while (gameState.nextLaneZ <= frontier + AHEAD_GEN) generateNextLane();
   const minZ = Math.floor(cameraFollowZ) - BEHIND_KEEP;
   for (const [z, lane] of gameState.lanes) if (z < minZ) { gameState.laneGroup.remove(lane.root); gameState.lanes.delete(z); }
@@ -2252,7 +2244,6 @@ function tryMove(dx, dz) {
   const cx = Math.round(p.gridX);                        // snap off any fractional (water-ride) offset
   const tx = cx + dx, tz = p.gridZ + dz;
   if (!isTileWalkable(tx, tz)) { faceDir(dx, dz); playBumpAnimation(dx, dz); return; }  // face the wall even when blocked
-  gameState.scrollActive = true;                         // world starts creeping on first move
   AudioSys.sfx.hop();
   p.ridingPlatform = null;
   p.isMoving = true;
@@ -2281,21 +2272,10 @@ function updatePlayerTween(now) {
   if (t >= 1) { p.group.position.y = p.tween.surfTo; p.isMoving = false; p.tween = null; }
 }
 
-/* ============================== N: CAMERA & SCROLL ============================== */
-function updateScroll(dt) {
-  if (!gameState.scrollActive) return;
-  // Blocky Mode has NO forced scroll: the camera just follows the player, and nothing chases you.
-  // (scrollZ stays 0, so the offscreen "fell behind" death can never trigger there either.)
-  if (gameState.save.gameMode === 'quest') return;
-  const d = gameState.distance;
-  const spd = d <= SCROLL_KNEE_DISTANCE
-    ? THREE.MathUtils.lerp(SCROLL_START_SPEED, SCROLL_KNEE_SPEED, d / SCROLL_KNEE_DISTANCE)
-    : THREE.MathUtils.lerp(SCROLL_KNEE_SPEED, SCROLL_MAX_SPEED, Math.min(1, (d - SCROLL_KNEE_DISTANCE) / SCROLL_LATE_RAMP));
-  gameState.scrollZ += spd * dt;
-}
+/* ============================== N: CAMERA ============================== */
 function updateCamera(dt) {
   let targetZ = gameState.player.gridZ * TILE;
-  if (gameState.mode === 'playing') targetZ = Math.max(gameState.scrollZ, gameState.player.gridZ * TILE);
+  if (gameState.mode === 'playing') targetZ = Math.max(0, gameState.player.gridZ * TILE);
   cameraFollowZ = THREE.MathUtils.damp(cameraFollowZ, targetZ, 6, dt);
   camera.position.set(CAM_OFFSET.x, CAM_OFFSET.y, CAM_OFFSET.z + cameraFollowZ);
   camera.lookAt(0, 0, cameraFollowZ);
@@ -2401,7 +2381,6 @@ function checkPlayerSafety(dt) {
     }
   }
   // Offscreen (fell behind the advancing world)
-  if (gameState.scrollActive && !p.isMoving && p.gridZ * TILE < cameraFollowZ - DEATH_MARGIN) triggerGameOver('offscreen');
 }
 function updateLanes(dt) {
   for (const lane of gameState.lanes.values()) {
@@ -3412,7 +3391,7 @@ function clearField() {
   if (gameState.player.group) { gameState.player.group.userData.destroyed = true; scene.remove(gameState.player.group); gameState.player.group = null; }
   if (gameState.startForest) { scene.remove(gameState.startForest); gameState.startForest = null; }
   gameState.blockedTiles.clear();
-  gameState.player.gridZ = 0; gameState.player.gridX = 0; gameState.scrollActive = false; gameState.scrollZ = 0;
+  gameState.player.gridZ = 0; gameState.player.gridX = 0;
 }
 // Cozy forest-home dressing around the ranch: an uneven tree line enclosing the meadow, with rocks,
 // bushes, wildflowers and a stump scattered where the Pokemon wander. Built once, reused thereafter.
@@ -4084,7 +4063,6 @@ function startRun(pokemonId) {
   gameState.player.tier = entry.tier; gameState.player.isShiny = shiny;
   gameState.save.runsByCharacter[pokemonId] = (gameState.save.runsByCharacter[pokemonId] || 0) + 1; persistSave();
   gameState.distance = 0; gameState.coinsThisRun = 0;
-  gameState.scrollZ = 0; gameState.scrollActive = false;
   gameState.paused = false; gameState.countdownUntil = 0;
   ACTIVE_LANE_TYPES = gameState.save.gameMode === 'quest' ? QUEST_LANE_TYPES : LANE_TYPES;
   ACTIVE_LANE_TYPES_BY_KEY = gameState.save.gameMode === 'quest' ? questLaneTypesByKey : laneTypesByKey;
@@ -4162,10 +4140,8 @@ function buildHowTo() {
       </div>
       <h3>Mobile</h3>
       <div class="row"><div><b>Swipe</b> up, down, left or right to hop that way. <b>Tap</b> to hop forward.</div></div>
-      ${questMode ? `<h3>Take your time</h3>
-      <div class="row"><div>Blocky Mode has <b>no scrolling screen</b> — nothing chases you, so explore each band of obstacles at your own pace.</div></div>`
-      : `<h3>Keep moving!</h3>
-      <div class="row"><div>The field scrolls forward and speeds up as you go. Fall off the back edge and the run ends - stepping backward is allowed, just don't get left behind.</div></div>`}` },
+      <h3>Take your time</h3>
+      <div class="row"><div>There is <b>no scrolling screen</b> — nothing chases you, so pick through the obstacles at your own pace. Stepping backward is always allowed.</div></div>` },
     { id: 'hazards', name: 'Hazards', html: `
       <div class="row"><div><b>Roads:</b> dodge charging Pokemon like Rapidash and Dodrio.</div></div>
       <div class="row"><div><b>Rivers:</b> ride the water Pokemon across - miss and you sink.</div></div>
@@ -4288,7 +4264,6 @@ function animate(now) {
       updateCountdown(now);
     } else if (!gameState.paused) {
       updatePlayerTween(now);
-      updateScroll(dt);
       updateLanes(dt);
       checkPlayerSafety(dt);
       updateMegaSystem(now);
