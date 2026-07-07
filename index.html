@@ -693,9 +693,13 @@ const LAND_H = 0.5;                    // grass/road/rail sit this high; water s
 const WATER_STAND = 0.28;             // approx height the player rides at on a water Pokemon
 
 // Auto-scroll (Crossy Road style): the world creeps forward and you die if you fall off the back edge.
+// Two-stage ramp: normal buildup to the knee, then a slow creep toward a lower ceiling —
+// playtesters found the old single ramp (max 2.1 by lane 300) unfairly fast past 200.
 const SCROLL_START_SPEED = 0.85;      // tiles / second at the start of a run
-const SCROLL_MAX_SPEED = 2.1;         // tiles / second once fully ramped
-const SCROLL_RAMP_DISTANCE = 350;     // lanes over which the creep speed ramps up
+const SCROLL_KNEE_DISTANCE = 200;     // ramp normally up to this lane…
+const SCROLL_KNEE_SPEED = 1.55;       // …reaching this speed there
+const SCROLL_MAX_SPEED = 1.8;         // hard ceiling, only approached very deep into a run
+const SCROLL_LATE_RAMP = 800;         // lanes past the knee to creep from knee speed to the ceiling
 const DEATH_MARGIN = 6.5;             // tiles behind the camera focus before you're "offscreen"
 
 const MB = 'Pokemon 3D Models/';      // base folder (sibling of index.html)
@@ -1018,6 +1022,8 @@ function defaultSave() {
     bestScoreByCharacter: {}, shinyUnlockedByCharacter: {}, runsByCharacter: {},
     musicVol: 0.3, sfxVol: 0.5,
     gameMode: 'rumble',   // 'rumble' or 'quest' (Blocky Mode) — only coins are shared between them
+    // Last picked Pokemon (and shiny/gender/form) per mode, restored on the next launch.
+    selection: { rumble: null, quest: null },
   };
 }
 function loadSave() {
@@ -1031,6 +1037,17 @@ function loadSave() {
 }
 function migrateSave(old) { return { ...defaultSave(), ...old, version: SAVE_VERSION }; }
 function persistSave() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameState.save)); }
+// Remember the current pick for the active mode so reopening the app restores it (a data reset
+// wipes this along with the rest of the save, falling back to Pikachu).
+function persistSelection() {
+  gameState.save.selection = gameState.save.selection || { rumble: null, quest: null };
+  gameState.save.selection[gameState.save.gameMode] = {
+    selectedPokemonId: gameState.selectedPokemonId, previewId: gameState.previewId,
+    previewBaseId: gameState.previewBaseId, selectedShiny: gameState.selectedShiny,
+    selectedGender: gameState.selectedGender, selectedForm: gameState.selectedForm,
+  };
+  persistSave();
+}
 
 /* ============================== F: GAME STATE ============================== */
 const gameState = {
@@ -1056,6 +1073,7 @@ const gameState = {
   wild: { spawned: false, caught: false, laneZ: 0, x: 0, id: null, group: null },
   save: null,
 };
+window.__gs = gameState;   // debug/test hook (module scope is otherwise unreachable from console)
 
 /* ============================== G: AUDIO (WebAudio, synthesized) ============================== */
 const AudioSys = (() => {
@@ -2269,7 +2287,10 @@ function updateScroll(dt) {
   // Blocky Mode has NO forced scroll: the camera just follows the player, and nothing chases you.
   // (scrollZ stays 0, so the offscreen "fell behind" death can never trigger there either.)
   if (gameState.save.gameMode === 'quest') return;
-  const spd = THREE.MathUtils.lerp(SCROLL_START_SPEED, SCROLL_MAX_SPEED, difficultyFactor(gameState.distance));
+  const d = gameState.distance;
+  const spd = d <= SCROLL_KNEE_DISTANCE
+    ? THREE.MathUtils.lerp(SCROLL_START_SPEED, SCROLL_KNEE_SPEED, d / SCROLL_KNEE_DISTANCE)
+    : THREE.MathUtils.lerp(SCROLL_KNEE_SPEED, SCROLL_MAX_SPEED, Math.min(1, (d - SCROLL_KNEE_DISTANCE) / SCROLL_LATE_RAMP));
   gameState.scrollZ += spd * dt;
 }
 function updateCamera(dt) {
@@ -3331,7 +3352,7 @@ function applyPreview() {
   const forms = formsByBaseId[gameState.previewBaseId] || [];
   const locked = !isEntryUnlocked(entry);
   gameState.previewId = entry.id;
-  if (!locked) { gameState.selectedPokemonId = entry.id; updatePlayButtonModel(); }
+  if (!locked) { gameState.selectedPokemonId = entry.id; updatePlayButtonModel(); persistSelection(); }
   const runs = gameState.save.runsByCharacter[entry.id] ?? 0;
   const best = gameState.save.bestScoreByCharacter[entry.id] ?? 0;
   document.getElementById('preview-name').textContent = locked ? '???' : entry.displayName;
@@ -3578,6 +3599,7 @@ function onMenuClick(e) {
   // the next run (previously the shiny toggle stayed off and you got the normal form).
   gameState.selectedShiny = !!gameState.save.shinyUnlockedByCharacter[o.userData.pokemonId];
   updatePlayButtonModel();
+  persistSelection();
   const a = menuAgents.find(x => x.group === o);
   if (a) { a.hopPhase = t2Phase(); showMenuSelectedTag(a); }
 }
@@ -3709,6 +3731,8 @@ function switchGameMode(mode) {
     selectedShiny: gameState.selectedShiny, selectedGender: gameState.selectedGender,
     previewBaseId: gameState.previewBaseId, selectedForm: gameState.selectedForm,
   };
+  gameState.save.selection = gameState.save.selection || { rumble: null, quest: null };
+  gameState.save.selection[oldMode] = { ...gameState.modeStash[oldMode] };
   gameState.save.gameMode = mode;
   persistSave();
   ACTIVE_ROSTER = mode === 'quest' ? QUEST_PLAYER_ENTRIES : PLAYER_ENTRIES;
@@ -3824,6 +3848,7 @@ function devSubmit() {
       // Fresh start: back to Pikachu, plain form, like a brand-new game.
       gameState.selectedPokemonId = 'p25'; gameState.previewBaseId = 'p25'; gameState.previewId = 'p25';
       gameState.selectedShiny = false; gameState.selectedGender = 'm'; gameState.selectedForm = 'normal';
+      gameState.modeStash = { rumble: null, quest: null };   // no stale pick survives a reset
       updatePlayButtonModel();
       refreshSettingsUI(); AudioSys.applyVolumes(); MusicSys.applyVolumes();
       msg.style.color = '#8CFF9E'; msg.textContent = 'All progress reset.';
@@ -4086,9 +4111,9 @@ function finalizeRun() {
   const newBest = gameState.distance > prevBest;
   if (newBest) save.bestScoreByCharacter[id] = gameState.distance;
   let shinyJustUnlocked = false;
-  // Reach 1000 in one run to unlock this Pokemon's shiny (both modes) — but only if a shiny exists
+  // Reach 500 in one run to unlock this Pokemon's shiny (both modes) — but only if a shiny exists
   // for it (Quest lacks shiny textures for some costumes/clones; those never unlock a shiny form).
-  if (gameState.distance >= 1000 && !save.shinyUnlockedByCharacter[id] && shinyAvailableFor(rosterById[id])) {
+  if (gameState.distance >= 500 && !save.shinyUnlockedByCharacter[id] && shinyAvailableFor(rosterById[id])) {
     save.shinyUnlockedByCharacter[id] = true; shinyJustUnlocked = true;
   }
   save.coins += gameState.coinsThisRun;
@@ -4157,7 +4182,7 @@ function buildHowTo() {
       <div class="row"><div>Spend <b>${GACHA_COST} coins</b> per pull at the Poke Ball Machine for a random ball with a new playable Pokemon:</div></div>
       <ul class="rarity-list">${balls}</ul>` },
     { id: 'shiny', name: 'Shinies', html: `
-      <div class="row"><div>Reach a score of <b>1000 in a single run</b> with a Pokemon to permanently unlock its shiny form.</div></div>
+      <div class="row"><div>Reach a score of <b>500 in a single run</b> with a Pokemon to permanently unlock its shiny form.</div></div>
       <div class="row"><div>Shiny Pokemon have a <b>1 in 5</b> chance to <b>double</b> any coin they pick up — watch for the x2 over their head!</div></div>
       <div class="row"><div>Shiny <b>Legendary / Mythical</b> Pokemon double coins at <b>1 in 2</b>.</div></div>
       ${questMode ? `<div class="row"><div>A few Blocky Mode Pokemon (some costumes and clones) have no shiny — their button reads <b>Shiny N/A</b>.</div></div>` : ''}` },
@@ -4316,6 +4341,18 @@ if (gameState.save.gameMode === 'quest') {
   ACTIVE_ROSTER = QUEST_PLAYER_ENTRIES; ACTIVE_GACHA_POOL = QUEST_GACHA_POOL;
   ACTIVE_LANE_TYPES = QUEST_LANE_TYPES; ACTIVE_LANE_TYPES_BY_KEY = questLaneTypesByKey;
   gameState.selectedPokemonId = 'q0025'; gameState.previewId = 'q0025'; gameState.previewBaseId = 'q0025';
+}
+// Restore the last picked Pokemon per mode (active mode directly, the other into its stash), but
+// only if it's still a valid unlocked entry — otherwise the mode's default Pikachu stands.
+for (const m of ['rumble', 'quest']) {
+  const s = (gameState.save.selection || {})[m];
+  if (!s) continue;
+  const roster = m === 'quest' ? QUEST_PLAYER_ENTRIES : PLAYER_ENTRIES;
+  const unlocked = m === 'quest' ? gameState.save.questUnlockedIds : gameState.save.unlockedIds;
+  if (!roster.some(e => e.id === s.selectedPokemonId) || !unlocked.includes(s.selectedPokemonId)) continue;
+  if (s.selectedShiny && !gameState.save.shinyUnlockedByCharacter[s.selectedPokemonId]) s.selectedShiny = false;
+  if (m === gameState.save.gameMode) Object.assign(gameState, s);
+  else gameState.modeStash[m] = { ...s };
 }
 onViewportChange();
 wireUI();
